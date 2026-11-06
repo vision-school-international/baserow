@@ -7,6 +7,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.elements.registries import element_type_registry
@@ -1367,7 +1368,7 @@ def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
 
     result = service_type.extract_properties(service, [])
 
-    assert result == ["id", field_1.db_column, field_2.db_column]
+    assert result == unordered(["id", field_1.db_column, field_2.db_column])
 
 
 @pytest.mark.django_db
