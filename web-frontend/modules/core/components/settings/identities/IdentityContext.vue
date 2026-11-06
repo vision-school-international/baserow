@@ -43,7 +43,8 @@ export default {
     },
     async remove() {
       await this.$store.dispatch('identity/delete', this.identity)
-      this.hide()
+      // The store update can unmount this menu before the request resolves.
+      if (this.$refs.context) this.hide()
       this.$emit('deleted', this.identity.id)
     },
   },

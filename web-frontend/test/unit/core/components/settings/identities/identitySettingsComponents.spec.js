@@ -1,3 +1,4 @@
+import { defineComponent, nextTick, ref } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, test, vi } from 'vitest'
@@ -33,6 +34,37 @@ describe('Identity settings components', () => {
     expect(dispatch).toHaveBeenCalledWith('identity/delete', identity)
     expect(wrapper.emitted('deleted')).toEqual([[34]])
     expect(hide).toHaveBeenCalledTimes(2)
+  })
+
+  test('deleting an identity can unmount its menu before the request resolves', async () => {
+    const visible = ref(true)
+    const errors = []
+    const identity = { id: 34, name: 'Writer' }
+    const dispatch = vi.fn(async () => {
+      visible.value = false
+      await nextTick()
+    })
+    const Harness = defineComponent({
+      components: { IdentityContext },
+      setup: () => ({ visible, identity }),
+      template:
+        '<IdentityContext v-if="visible" :identity="identity" can-update can-delete />',
+    })
+    const wrapper = await mountSuspended(Harness, {
+      global: {
+        config: { errorHandler: (error) => errors.push(error) },
+        mocks: { $store: { dispatch }, $t: (key) => key },
+        stubs: { Context: ContextStub },
+      },
+    })
+
+    await wrapper.find('.context__menu-item-link--delete').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('identity/delete', identity)
+    expect(wrapper.find('.context__menu').exists()).toBe(false)
+    expect(errors).toEqual([])
+    wrapper.unmount()
   })
 
   test.each([
