@@ -83,16 +83,16 @@ def test_multiple_collaborators_field_type_create_with_int(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_multiple_collaborators
-def test_multiple_collaborators_field_type_rejects_agents(data_fixture):
+def test_multiple_collaborators_field_type_rejects_identities(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_multiple_collaborators_field(user=user, table=table)
-    agent = data_fixture.create_agent(workspace=database.workspace)
+    identity = data_fixture.create_identity(workspace=database.workspace)
 
     with pytest.raises(AllProvidedCollaboratorIdsMustBeValidUsers):
         RowHandler().create_row(
-            user=user, table=table, values={field.db_column: [{"id": agent.id}]}
+            user=user, table=table, values={field.db_column: [{"id": identity.id}]}
         )
 
 

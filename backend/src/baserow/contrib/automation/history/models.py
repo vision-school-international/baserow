@@ -52,10 +52,9 @@ class AutomationWorkflowHistory(AutomationHistory):
         help_text="Event payload received by the workflow.",
     )
 
-    # Who started the run, as a subject rather than a user foreign key so an
-    # agent can be recorded too. The id is only meaningful together with the
-    # type, since user and agent ids can overlap. The name is kept so the entry
-    # still reads after the subject is deleted.
+    # Who started the run, including subjects outside the User model. The id is
+    # meaningful only together with the type because subject IDs can overlap.
+    # The name is kept so the entry still reads after the subject is deleted.
     triggered_by_id = models.PositiveIntegerField(
         null=True,
         help_text="The id of the subject who started this run. Null when an "

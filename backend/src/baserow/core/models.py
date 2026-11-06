@@ -211,15 +211,15 @@ class UserProfile(TrashableModelMixin, models.Model):
     default user model.
     """
 
-    class IdentityType(models.TextChoices):
+    class UserType(models.TextChoices):
         HUMAN = "human", "Human"
-        AGENT = "agent", "Agent"
+        IDENTITY = "identity", "Identity"
 
-    identity_type = models.CharField(
-        max_length=5,
-        choices=IdentityType.choices,
-        default=IdentityType.HUMAN,
-        db_default=IdentityType.HUMAN,
+    user_type = models.CharField(
+        max_length=8,
+        choices=UserType.choices,
+        default=UserType.HUMAN,
+        db_default=UserType.HUMAN,
     )
     trashed = models.BooleanField(default=False, db_default=False)
     last_active = models.DateTimeField(null=True, blank=True, db_default=None)

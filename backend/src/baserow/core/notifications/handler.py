@@ -16,7 +16,7 @@ from opentelemetry import trace
 from baserow.core.emails import NotificationsSummaryEmail
 from baserow.core.models import User, UserProfile, Workspace
 from baserow.core.telemetry.utils import baserow_trace
-from baserow.core.user.identity import is_human_user
+from baserow.core.user.identity import is_user
 from baserow.core.utils import (
     atomic_if_not_already,
     grouper,
@@ -597,7 +597,7 @@ class NotificationHandler:
                     recipient=recipient, notification=notification
                 )
                 for recipient in recipients
-                if is_human_user(recipient)
+                if is_user(recipient)
             ]
         )
 

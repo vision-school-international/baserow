@@ -2,6 +2,7 @@ import pytest
 from asgiref.sync import sync_to_async
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
+from tests.baserow.contrib.database.utils import get_message, received_message
 
 from baserow.config.asgi import application
 from baserow.contrib.database.table.tasks import (
@@ -12,17 +13,16 @@ from baserow.core.object_scopes import WorkspaceObjectScopeType
 from baserow.core.subjects import UserSubjectType
 from baserow.ws.tasks import send_messages_to_channel_group
 from baserow.ws.types import ChannelGroupMessage
-from tests.baserow.contrib.database.utils import get_message, received_message
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("trashed", [False, True])
-def test_unsubscribe_subject_from_tables_finds_agent_subjects(data_fixture, trashed):
+def test_unsubscribe_subject_from_tables_finds_identity_subjects(data_fixture, trashed):
     workspace = data_fixture.create_workspace()
-    agent = data_fixture.create_agent(workspace=workspace, trashed=trashed)
+    identity = data_fixture.create_identity(workspace=workspace, trashed=trashed)
 
     unsubscribe_subject_from_tables_currently_subscribed_to(
-        agent.id,
+        identity.id,
         UserSubjectType.type,
         workspace.id,
         WorkspaceObjectScopeType.type,

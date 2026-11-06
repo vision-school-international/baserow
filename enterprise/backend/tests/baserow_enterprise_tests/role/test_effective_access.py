@@ -46,7 +46,7 @@ def test_effective_access_on_the_workspace(data_fixture, enterprise_data_fixture
             (no_role_without_team, "NO_ROLE_LOW_PRIORITY"),
         ],
     )
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=workspace, name="Bot", role_uid="VIEWER"
     )
     team = enterprise_data_fixture.create_team(
@@ -59,7 +59,7 @@ def test_effective_access_on_the_workspace(data_fixture, enterprise_data_fixture
         # The stored workspace role wins over the team's role on the workspace.
         builder: ("BUILDER", workspace, []),
         no_role: ("EDITOR", workspace, ["Sales"]),
-        agent: ("VIEWER", workspace, []),
+        identity: ("VIEWER", workspace, []),
     }
 
 
@@ -204,26 +204,26 @@ def test_effective_access_leaves_out_navigation_only_access(data_fixture):
 
 
 @pytest.mark.django_db
-def test_effective_access_of_agents(data_fixture):
+def test_effective_access_of_identities(data_fixture):
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     database = data_fixture.create_database_application(workspace=workspace)
     application = database.application_ptr
     table = data_fixture.create_database_table(database=database)
-    workspace_agent = data_fixture.create_agent(
+    workspace_identity = data_fixture.create_identity(
         workspace=workspace, name="Workspace", role_uid="EDITOR"
     )
-    table_agent = data_fixture.create_agent(
+    table_identity = data_fixture.create_identity(
         workspace=workspace, name="Table", role_uid="NO_ACCESS"
     )
-    blocked_agent = data_fixture.create_agent(
+    blocked_identity = data_fixture.create_identity(
         workspace=workspace, name="Blocked", role_uid="EDITOR"
     )
-    assign(table_agent, workspace, "VIEWER", table)
-    assign(blocked_agent, workspace, "NO_ACCESS", application)
+    assign(table_identity, workspace, "VIEWER", table)
+    assign(blocked_identity, workspace, "NO_ACCESS", application)
 
     assert get_effective_access(workspace, table) == {
         admin: ("ADMIN", workspace, []),
-        workspace_agent: ("EDITOR", workspace, []),
-        table_agent: ("VIEWER", table, []),
+        workspace_identity: ("EDITOR", workspace, []),
+        table_identity: ("VIEWER", table, []),
     }

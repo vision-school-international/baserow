@@ -82,7 +82,7 @@ from .exceptions import (
     UserIsLastAdmin,
     UserNotFound,
 )
-from .identity import is_human_user
+from .identity import is_user
 from .registries import user_preference_type_registry
 from .signals import user_password_changed
 from .tasks import share_onboarding_details_with_baserow
@@ -164,7 +164,9 @@ class UserHandler:
             language = kwargs.pop("language") or settings.LANGUAGE_CODE
 
         email = normalize_email_address(email)
-        user_query = User.objects_and_agents.filter(Q(email=email) | Q(username=email))
+        user_query = User.objects_and_identities.filter(
+            Q(email=email) | Q(username=email)
+        )
         if user_query.exists():
             user = user_query.first()
             if user.is_active:
@@ -487,7 +489,7 @@ class UserHandler:
         :return: Whether the email was sent.
         """
 
-        if not is_human_user(user):
+        if not is_user(user):
             return False
         if not CoreHandler().get_settings().allow_reset_password:
             raise ResetPasswordDisabledError("Reset password is disabled")
@@ -598,7 +600,7 @@ class UserHandler:
         :return: The changed user instance.
         """
 
-        if not is_human_user(user) or not user.check_password(old_password):
+        if not is_user(user) or not user.check_password(old_password):
             raise InvalidPassword("The provided old password is incorrect.")
 
         try:
@@ -639,7 +641,7 @@ class UserHandler:
         :raises ChangeEmailNotAllowed: When the user does not have a password set.
         """
 
-        if not is_human_user(user):
+        if not is_user(user):
             raise ChangeEmailNotAllowed()
 
         # Email changes are only for password-based accounts. Accounts that don't
@@ -656,7 +658,7 @@ class UserHandler:
         new_email = normalize_email_address(new_email)
 
         # Check if a user with the new email already exists
-        if User.objects_and_agents.filter(
+        if User.objects_and_identities.filter(
             Q(email=new_email) | Q(username=new_email)
         ).exists():
             raise UserAlreadyExist(f"A user with email {new_email} already exists.")
@@ -703,7 +705,9 @@ class UserHandler:
         # Check again if a user with the new email already exists because it could be
         # that a new user was created in the meantime.
         if (
-            User.objects_and_agents.filter(Q(email=new_email) | Q(username=new_email))
+            User.objects_and_identities.filter(
+                Q(email=new_email) | Q(username=new_email)
+            )
             .exclude(id=user.id)
             .exists()
         ):
@@ -1106,7 +1110,7 @@ class UserHandler:
             were sent to the user recently.
         """
 
-        if not is_human_user(user):
+        if not is_user(user):
             return False
         if user.profile.email_verified:
             raise EmailAlreadyVerified()

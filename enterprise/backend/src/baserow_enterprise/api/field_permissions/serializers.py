@@ -53,8 +53,8 @@ class FieldPermissionSubjectOptionsRequestSerializer(serializers.Serializer):
 
 
 class FieldPermissionSubjectOptionResponseSerializer(serializers.Serializer):
-    identity_type = serializers.CharField(
-        source="subject_identity_type", read_only=True, allow_null=True
+    user_type = serializers.CharField(
+        source="subject_user_type", read_only=True, allow_null=True
     )
     subject_id = serializers.IntegerField(read_only=True)
     subject_type = serializers.ChoiceField(

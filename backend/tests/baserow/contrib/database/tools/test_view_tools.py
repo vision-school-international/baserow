@@ -860,14 +860,16 @@ def test_create_view_filters_uses_the_context_timezone(
 
 
 @pytest.mark.django_db
-def test_create_view_filters_works_for_an_agent_identity(data_fixture, table_ctx):
+def test_create_view_filters_works_for_an_identity(data_fixture, table_ctx):
     ctx, table = table_ctx
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=ctx.workspace, name="Bot", role_uid="ADMIN"
     )
     field = table.field_set.get(name="Name")
     view, create = _filter_view(
-        data_fixture, (ToolContext(user=agent, workspace=ctx.workspace), table), field
+        data_fixture,
+        (ToolContext(user=identity, workspace=ctx.workspace), table),
+        field,
     )
 
     entry = create(type="text", operator="equal", value="x")

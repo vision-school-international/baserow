@@ -9,11 +9,11 @@ test.each([false, true])(
     const subject = { subject_id: 201, subject_type: 'auth.User' }
     const client = {
       get: vi.fn((url) => {
-        if (loadFails && url.startsWith('/agents/')) {
+        if (loadFails && url.startsWith('/identities/')) {
           return Promise.reject({
             handler: {
               getMessage: () => ({
-                title: 'Unable to load agents',
+                title: 'Unable to load identities',
                 message: 'Try again',
               }),
               handled: vi.fn(),
@@ -21,7 +21,7 @@ test.each([false, true])(
           })
         }
         return Promise.resolve({
-          data: url.startsWith('/agents/')
+          data: url.startsWith('/identities/')
             ? { results: [], next: null }
             : [subject],
         })
@@ -74,7 +74,7 @@ test.each([false, true])(
         'manageTeamForm.accessModalDescription'
       )
       if (loadFails) {
-        expect(wrapper.text()).toContain('Unable to load agents')
+        expect(wrapper.text()).toContain('Unable to load identities')
         expect(wrapper.find('.save').element.disabled).toBe(true)
         wrapper.find('.save').element.click()
         expect(client.put).not.toHaveBeenCalled()

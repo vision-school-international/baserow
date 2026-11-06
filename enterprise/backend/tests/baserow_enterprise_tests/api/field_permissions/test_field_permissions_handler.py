@@ -396,47 +396,47 @@ def test_trashed_custom_field_subject_is_hidden_preserved_and_restored(
     workspace = database.workspace
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
-    selected_agent = enterprise_data_fixture.create_agent(
+    selected_identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Selected"
     )
-    active_agent = enterprise_data_fixture.create_agent(
+    active_identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Active"
     )
     selected_identifier = {
-        "subject_id": selected_agent.id,
+        "subject_id": selected_identity.id,
         "subject_type": "auth.User",
     }
     active_identifier = {
-        "subject_id": active_agent.id,
+        "subject_id": active_identity.id,
         "subject_type": "auth.User",
     }
 
     FieldPermissionsHandler._sync_field_permission_subjects(
         field, [selected_identifier, active_identifier]
     )
-    TrashHandler.trash(admin, workspace, None, selected_agent.profile)
+    TrashHandler.trash(admin, workspace, None, selected_identity.profile)
 
     assert [
         assignment.subject_id
         for assignment in FieldPermissionsHandler._get_field_permission_subjects(field)
-    ] == [active_agent.id]
+    ] == [active_identity.id]
 
     FieldPermissionsHandler._sync_field_permission_subjects(field, [active_identifier])
     assignments = FieldPermissionsHandler._get_all_field_permission_subjects(field)
     assert {assignment.subject_id for assignment in assignments} == {
-        selected_agent.id,
-        active_agent.id,
+        selected_identity.id,
+        active_identity.id,
     }
 
     FieldPermissionsHandler._sync_field_permission_subjects(
         field, [selected_identifier, active_identifier]
     )
-    TrashHandler.restore_item(admin, "agent", selected_agent.profile.id)
+    TrashHandler.restore_item(admin, "identity", selected_identity.profile.id)
 
     assert {
         assignment.subject_id
         for assignment in FieldPermissionsHandler._get_field_permission_subjects(field)
-    } == {selected_agent.id, active_agent.id}
+    } == {selected_identity.id, active_identity.id}
 
 
 @pytest.mark.django_db
@@ -1108,26 +1108,26 @@ def test_if_license_expires_field_permissions_are_ignored(
 @override_settings(DEBUG=True)
 @pytest.mark.parametrize("via_team", [False, True])
 @pytest.mark.parametrize("role_uid", ["EDITOR", "VIEWER"])
-def test_custom_field_permissions_for_agents(
+def test_custom_field_permissions_for_identities(
     enterprise_data_fixture, synced_roles, via_team, role_uid
 ):
-    """Agent selection requires table access and keeps User IDs independent."""
+    """Identity selection requires table access and keeps User IDs independent."""
 
     admin = enterprise_data_fixture.create_user()
     database = enterprise_data_fixture.create_database_application(user=admin)
     workspace = database.workspace
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
-    agent = enterprise_data_fixture.create_agent(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Selected", role_uid=role_uid
     )
-    unselected = enterprise_data_fixture.create_agent(
+    unselected = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Unselected", role_uid="EDITOR"
     )
     subject = (
-        enterprise_data_fixture.create_team(workspace=workspace, members=[agent])
+        enterprise_data_fixture.create_team(workspace=workspace, members=[identity])
         if via_team
-        else agent
+        else identity
     )
     enterprise_data_fixture.enable_enterprise()
     FieldPermissionsHandler.update_field_permissions(
@@ -1143,13 +1143,13 @@ def test_custom_field_permissions_for_agents(
     )
     manager = FieldPermissionManagerType()
     selected = manager._get_custom_field_ids_by_actor(
-        workspace, [admin, agent, unselected], {field.id}
+        workspace, [admin, identity, unselected], {field.id}
     )
-    assert selected[agent] == {field.id}
+    assert selected[identity] == {field.id}
     assert selected[admin] == set()
     assert selected[unselected] == set()
-    for actor in [agent, unselected, admin]:
-        allowed = actor == agent and role_uid == "EDITOR"
+    for actor in [identity, unselected, admin]:
+        allowed = actor == identity and role_uid == "EDITOR"
         assert (
             CoreHandler().check_permissions(
                 actor,

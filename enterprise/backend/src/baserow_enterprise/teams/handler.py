@@ -13,7 +13,7 @@ from baserow.core.models import User, Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user.identity import is_agent_user
+from baserow.core.user.identity import is_identity
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -49,9 +49,9 @@ class TeamHandler:
         queryset = TeamSubject.objects.all()
         queryset = queryset.exclude(
             subject_type=ContentType.objects.get_for_model(User),
-            subject_id__in=User.objects_and_agents.filter(profile__trashed=True).values(
-                "id"
-            ),
+            subject_id__in=User.objects_and_identities.filter(
+                profile__trashed=True
+            ).values("id"),
         )
         for subject_type in subject_type_registry.get_all():
             if issubclass(subject_type.model_class, TrashableModelMixin):
@@ -162,7 +162,7 @@ class TeamHandler:
                 SELECT
                     sub.id AS team_subject_id,
                     sub.subject_id,
-                    (SELECT profile.identity_type FROM core_userprofile profile WHERE profile.user_id = sub.subject_id) AS identity_type,
+                    (SELECT profile.user_type FROM core_userprofile profile WHERE profile.user_id = sub.subject_id) AS user_type,
                     CONCAT(ct.app_label, '.', INITCAP(ct.model)) AS subject_type,
                     CASE
                         {" ".join(subject_label_cases)}
@@ -441,7 +441,7 @@ class TeamHandler:
 
             subject_type = subject_type_registry.get(unique_subject_type)
             candidates = list(
-                model_class.objects_and_agents.filter(pk__in=subject_ids_of_type)
+                model_class.objects_and_identities.filter(pk__in=subject_ids_of_type)
             )
             type_subject_models = [
                 subject
@@ -521,15 +521,15 @@ class TeamHandler:
         model_class = subject_type.model_class
 
         try:
-            subject = model_class.objects_and_agents.get(**subject_lookup)
+            subject = model_class.objects_and_identities.get(**subject_lookup)
         except model_class.DoesNotExist:
             lookup_str = ", ".join([f"{k}={v}" for k, v in subject_lookup.items()])
             raise TeamSubjectDoesNotExist(
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
-        if "email" in subject_lookup and is_agent_user(subject):
-            raise TeamSubjectBadRequest("Agent team members must be selected by ID.")
+        if "email" in subject_lookup and is_identity(subject):
+            raise TeamSubjectBadRequest("Identity team members must be selected by ID.")
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 

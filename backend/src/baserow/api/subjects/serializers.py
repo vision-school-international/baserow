@@ -10,8 +10,8 @@ class SubjectOptionsQueryParamsSerializer(serializers.Serializer):
         required=False, allow_blank=True, allow_null=True, default=None
     )
     workspace_id = serializers.IntegerField(min_value=1, required=False, default=None)
-    identity_type = serializers.ChoiceField(
-        choices=["human", "agent", "all"], default="human"
+    user_type = serializers.ChoiceField(
+        choices=["human", "identity", "all"], default="human"
     )
     subject_types = serializers.CharField(required=False, allow_blank=False)
 
@@ -28,8 +28,8 @@ class SubjectOptionsQueryParamsSerializer(serializers.Serializer):
 
 
 class SubjectOptionSerializer(serializers.Serializer):
-    identity_type = serializers.CharField(
-        source="subject_identity_type", read_only=True, allow_null=True
+    user_type = serializers.CharField(
+        source="subject_user_type", read_only=True, allow_null=True
     )
     id = serializers.SerializerMethodField()
     subject_id = serializers.IntegerField(read_only=True)

@@ -9,7 +9,7 @@ const names = {
   'subjectType.user': 'User',
   'subjectType.users': 'Users',
   'subjectType.anonymousUser': 'Anonymous user',
-  'subjectType.agent': 'Agent',
+  'subjectType.identity': 'Identity',
 }
 
 const context = {
@@ -24,7 +24,7 @@ describe('SubjectType', () => {
   test.each([
     [new UserSubjectType(context), undefined, 'User'],
     [new AnonymousUserSubjectType(context), undefined, 'Anonymous user'],
-    [new UserSubjectType(context), { identity_type: 'agent' }, 'Agent'],
+    [new UserSubjectType(context), { user_type: 'identity' }, 'Identity'],
   ])('resolves its frontend display name', (subjectType, subject, expected) => {
     expect(subjectType.getTypeDisplayName(subject)).toBe(expected)
   })
@@ -109,21 +109,26 @@ describe('SubjectType invite options', () => {
     expect(subjectType.getBadge()).toBeNull()
   })
 
-  test('describes an agent as an invite option with its badge', () => {
+  test('describes an identity as an invite option with its badge', () => {
     const subjectType = new UserSubjectType({ app: app() })
-    const agent = { id: 4, name: 'Smith', email: null, identity_type: 'agent' }
-    expect(subjectType.getInviteOption(agent)).toMatchObject({
+    const identity = {
+      id: 4,
+      name: 'Smith',
+      email: null,
+      user_type: 'identity',
+    }
+    expect(subjectType.getInviteOption(identity)).toMatchObject({
       key: 'auth.User:4',
       name: 'Smith',
-      subtitle: 'Agent',
+      subtitle: 'Identity',
       search: 'Smith',
       avatarComponent: expect.any(Function),
     })
-    expect(subjectType.getSubtitle(agent)).toBeNull()
-    expect(subjectType.getBadge(agent)).toBe('Agent')
+    expect(subjectType.getSubtitle(identity)).toBeNull()
+    expect(subjectType.getBadge(identity)).toBe('Identity')
   })
 
-  test('offers users and agents but not anonymous visitors for role assignments', () => {
+  test('offers users and identities but not anonymous visitors for role assignments', () => {
     expect(new UserSubjectType({ app: app() }).isEnabled({ id: 1 })).toBe(true)
     expect(
       new AnonymousUserSubjectType({ app: app() }).isEnabled({ id: 1 })
@@ -137,14 +142,17 @@ describe('SubjectType invite options', () => {
         data: { results: [{ id: 4 }], next: null },
       }),
     }
-    const withAgents = { $client: client, $featureFlagIsEnabled: () => true }
+    const withIdentities = {
+      $client: client,
+      $featureFlagIsEnabled: () => true,
+    }
     await expect(
       new UserSubjectType({
-        app: app(withAgents),
+        app: app(withIdentities),
       }).fetchAssignableSubjects({ id: 12, users })
     ).resolves.toEqual([{ user_id: 8 }, { id: 4 }])
 
-    // Without the flag or the permission to list agents, none are fetched.
+    // Without the flag or the permission to list identities, none are fetched.
     client.get.mockClear()
     for (const restricted of [
       { $featureFlagIsEnabled: () => false },
@@ -152,7 +160,7 @@ describe('SubjectType invite options', () => {
     ]) {
       await expect(
         new UserSubjectType({
-          app: app({ ...withAgents, ...restricted }),
+          app: app({ ...withIdentities, ...restricted }),
         }).fetchAssignableSubjects({ id: 12, users })
       ).resolves.toBe(users)
     }

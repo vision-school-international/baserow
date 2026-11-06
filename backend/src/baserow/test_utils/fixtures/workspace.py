@@ -1,21 +1,21 @@
-from baserow.core.agents.handler import AgentHandler
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
 
 
 class WorkspaceFixtures:
-    def create_agent(self, workspace=None, **kwargs):
+    def create_identity(self, workspace=None, **kwargs):
         workspace = workspace or self.create_workspace()
         trashed = kwargs.pop("trashed", False)
         is_active = kwargs.pop("is_active", True)
         kwargs.setdefault("name", self.fake.name())
-        agent = AgentHandler().create_agent(workspace, **kwargs)
+        identity = IdentityHandler().create_identity(workspace, **kwargs)
         if trashed:
-            agent.profile.trashed = True
-            agent.profile.save(update_fields=["trashed"])
+            identity.profile.trashed = True
+            identity.profile.save(update_fields=["trashed"])
         if not is_active:
-            agent.is_active = False
-            agent.save(update_fields=["is_active"])
-        return agent
+            identity.is_active = False
+            identity.save(update_fields=["is_active"])
+        return identity
 
     def create_workspace(self, **kwargs):
         user = kwargs.pop("user", None)

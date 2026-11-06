@@ -104,11 +104,8 @@ class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
-        from baserow.core.agents.registries import agent_extension_type_registry
+        from baserow.core.identities.registries import identity_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
-        from baserow_enterprise.agents.agent_extension_types import (
-            EnterpriseAgentExtensionType,
-        )
         from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
@@ -116,10 +113,13 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.data_scanner.job_types import (
             DataScanResultExportJobType,
         )
+        from baserow_enterprise.identities.identity_extension_types import (
+            EnterpriseIdentityExtensionType,
+        )
 
         job_type_registry.register(AuditLogExportJobType())
         job_type_registry.register(DataScanResultExportJobType())
-        agent_extension_type_registry.register(EnterpriseAgentExtensionType())
+        identity_extension_type_registry.register(EnterpriseIdentityExtensionType())
 
         from baserow.api.user.registries import member_data_registry
         from baserow.core.action.registries import (

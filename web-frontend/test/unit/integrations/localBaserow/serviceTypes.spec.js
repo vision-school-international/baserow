@@ -380,14 +380,14 @@ describe('Local baserow service types', () => {
     ).toBe(null)
   })
 
-  test('a trashed integration agent marks the integration and service as in error', () => {
+  test('a trashed integration identity marks the integration and service as in error', () => {
     const integration = {
       id: 5,
       type: 'local_baserow',
       authorized_subject: {
         id: 9,
         type: 'auth.User',
-        identity_type: 'agent',
+        user_type: 'identity',
         name: 'Writer',
         trashed: true,
       },
@@ -415,9 +415,9 @@ describe('Local baserow service types', () => {
         service: { integration_id: 5, table_id: 99 },
         application,
       })
-    ).toBe('localBaserowIntegrationType.errorTrashedAgent')
-    expect(en.localBaserowIntegrationType.errorTrashedAgent).toBe(
-      'The authorized agent has been trashed'
+    ).toBe('localBaserowIntegrationType.errorTrashedIdentity')
+    expect(en.localBaserowIntegrationType.errorTrashedIdentity).toBe(
+      'The authorized identity has been trashed'
     )
   })
 

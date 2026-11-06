@@ -1,8 +1,8 @@
 import Avatar from '@baserow/modules/core/components/Avatar'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import { Registerable } from '@baserow/modules/core/registry'
-import AgentService from '@baserow/modules/core/services/agent'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import IdentityService from '@baserow/modules/core/services/identity'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 
 export class SubjectType extends Registerable {
   /** Component owning this subject type's avatar color, icon and shape. */
@@ -27,7 +27,7 @@ export class SubjectType extends Registerable {
 
   /**
    * Tells subjects of different types apart, for instance in the share dialog
-   * where users, agents and teams are listed together.
+   * where users, identities and teams are listed together.
    */
   getKey(subject) {
     return `${this.getType()}:${this.getId(subject)}`
@@ -42,7 +42,7 @@ export class SubjectType extends Registerable {
   }
 
   /**
-   * Whether a subject of this type holds its roles itself, as users and agents
+   * Whether a subject of this type holds its roles itself, as users and identities
    * do. A team passes its roles on to its members instead: such a role applies
    * on the scope it is held on, but it never makes a member an admin of what is
    * inside that scope.
@@ -145,16 +145,18 @@ export class UserSubjectType extends SubjectType {
 
   get avatarComponent() {
     return (this._avatarComponent ??= ({ subject, size }) => {
-      const isAgent = subject.identity_type === 'agent'
+      const isIdentity = subject.user_type === 'identity'
       return (
         <Avatar
-          class={isAgent ? 'agent-avatar' : undefined}
+          class={isIdentity ? 'identity-avatar' : undefined}
           initials={
-            isAgent ? '' : nameAbbreviation(this.getDisplayName(subject) || '')
+            isIdentity
+              ? ''
+              : nameAbbreviation(this.getDisplayName(subject) || '')
           }
-          icon={isAgent ? 'baserow-icon-agent' : ''}
-          color={isAgent ? 'purple' : 'blue'}
-          rounded={!isAgent}
+          icon={isIdentity ? 'baserow-icon-agent' : ''}
+          color={isIdentity ? 'purple' : 'blue'}
+          rounded={!isIdentity}
           size={size}
         />
       )
@@ -163,15 +165,15 @@ export class UserSubjectType extends SubjectType {
 
   getTypeDisplayName(subject) {
     return this.$t(
-      subject?.identity_type === 'agent'
-        ? 'subjectType.agent'
+      subject?.user_type === 'identity'
+        ? 'subjectType.identity'
         : 'subjectType.user'
     )
   }
 
   getBadge(subject) {
-    return subject?.identity_type === 'agent'
-      ? this.$t('subjectType.agent')
+    return subject?.user_type === 'identity'
+      ? this.$t('subjectType.identity')
       : null
   }
 
@@ -218,12 +220,16 @@ export class UserSubjectType extends SubjectType {
   async fetchAssignableSubjects(workspace) {
     const users = workspace.users || []
     if (
-      !this.app.$featureFlagIsEnabled?.(FF_AGENTS) ||
-      !this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
+      !this.app.$featureFlagIsEnabled?.(FF_IDENTITIES) ||
+      !this.app.$hasPermission(
+        'workspace.list_identities',
+        workspace,
+        workspace.id
+      )
     ) {
       return users
     }
-    const { data } = await AgentService(this.app.$client).list(workspace.id)
+    const { data } = await IdentityService(this.app.$client).list(workspace.id)
     return [...users, ...data.results]
   }
 

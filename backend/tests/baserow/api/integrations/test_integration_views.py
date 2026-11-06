@@ -102,21 +102,21 @@ def test_create_integration(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_and_update_local_baserow_integration_with_agent(
+def test_create_and_update_local_baserow_integration_with_identity(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(workspace=workspace)
-    agent = data_fixture.create_agent(workspace=workspace, name="Row writer")
+    identity = data_fixture.create_identity(workspace=workspace, name="Row writer")
     url = reverse("api:integrations:list", kwargs={"application_id": application.id})
 
     response = api_client.post(
         url,
         {
             "type": "local_baserow",
-            "name": "Agent connection",
-            "authorized_subject_id": agent.id,
+            "name": "Identity connection",
+            "authorized_subject_id": identity.id,
             "authorized_subject_type": "auth.User",
         },
         format="json",
@@ -125,9 +125,9 @@ def test_create_and_update_local_baserow_integration_with_agent(
 
     assert response.status_code == HTTP_200_OK
     assert response.json()["authorized_subject"] == {
-        "id": agent.id,
+        "id": identity.id,
         "first_name": "Row writer",
-        "identity_type": "agent",
+        "user_type": "identity",
         "email": None,
         "username": None,
         "trashed": False,
@@ -135,7 +135,7 @@ def test_create_and_update_local_baserow_integration_with_agent(
     }
 
     integration = Integration.objects.get(id=response.json()["id"]).specific
-    assert integration.authorized_subject == agent
+    assert integration.authorized_subject == identity
 
     item_url = reverse(
         "api:integrations:item", kwargs={"integration_id": integration.id}
@@ -154,15 +154,17 @@ def test_create_and_update_local_baserow_integration_with_agent(
 
 
 @pytest.mark.django_db
-def test_local_baserow_integration_serializes_a_trashed_agent(api_client, data_fixture):
+def test_local_baserow_integration_serializes_a_trashed_identity(
+    api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(workspace=workspace)
-    agent = data_fixture.create_agent(workspace=workspace, name="Row writer")
+    identity = data_fixture.create_identity(workspace=workspace, name="Row writer")
     integration = data_fixture.create_local_baserow_integration(
-        application=application, user=user, authorized_agent=agent
+        application=application, user=user, authorized_identity=identity
     )
-    TrashHandler.trash(user, workspace, None, agent.profile)
+    TrashHandler.trash(user, workspace, None, identity.profile)
 
     response = api_client.get(
         reverse("api:integrations:list", kwargs={"application_id": application.id}),
@@ -174,9 +176,9 @@ def test_local_baserow_integration_serializes_a_trashed_agent(api_client, data_f
         item for item in response.json() if item["id"] == integration.id
     ]
     assert response_integration["authorized_subject"] == {
-        "id": agent.id,
+        "id": identity.id,
         "first_name": "Row writer",
-        "identity_type": "agent",
+        "user_type": "identity",
         "email": None,
         "username": None,
         "trashed": True,
@@ -185,13 +187,13 @@ def test_local_baserow_integration_serializes_a_trashed_agent(api_client, data_f
 
 
 @pytest.mark.django_db
-def test_local_baserow_integration_rejects_agent_from_another_workspace(
+def test_local_baserow_integration_rejects_identity_from_another_workspace(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_builder_application(user=user)
-    other_agent = data_fixture.create_agent(
-        workspace=data_fixture.create_workspace(), name="Other agent"
+    other_identity = data_fixture.create_identity(
+        workspace=data_fixture.create_workspace(), name="Other identity"
     )
     url = reverse("api:integrations:list", kwargs={"application_id": application.id})
 
@@ -200,7 +202,7 @@ def test_local_baserow_integration_rejects_agent_from_another_workspace(
         {
             "type": "local_baserow",
             "name": "Invalid connection",
-            "authorized_subject_id": other_agent.id,
+            "authorized_subject_id": other_identity.id,
             "authorized_subject_type": "auth.User",
         },
         format="json",

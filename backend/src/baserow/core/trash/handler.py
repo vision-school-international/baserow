@@ -37,6 +37,7 @@ from baserow.core.trash.registries import (
     trash_operation_type_registry,
 )
 from baserow.core.trash.signals import before_permanently_deleted, permanently_deleted
+from baserow.core.user.types import Identity
 
 User = get_user_model()
 
@@ -44,7 +45,7 @@ User = get_user_model()
 class TrashHandler:
     @staticmethod
     def trash(
-        requesting_user: User,
+        requesting_user: User | Identity | None,
         workspace: Workspace,
         application: Optional[Application],
         trash_item,

@@ -274,18 +274,18 @@ def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
     workspace = data_fixture.create_workspace(
         user=admin, custom_permissions=[(member, "MEMBER")]
     )
-    admin_agent = data_fixture.create_agent(
-        workspace=workspace, name="Admin agent", role_uid="ADMIN"
+    admin_identity = data_fixture.create_identity(
+        workspace=workspace, name="Admin identity", role_uid="ADMIN"
     )
-    member_agent = data_fixture.create_agent(
-        workspace=workspace, name="Member agent", role_uid="MEMBER"
+    member_identity = data_fixture.create_identity(
+        workspace=workspace, name="Member identity", role_uid="MEMBER"
     )
     user_subject_type = subject_type_registry.get_by_model(admin)
-    agent_subject_type = subject_type_registry.get_by_model(admin_agent)
+    identity_subject_type = subject_type_registry.get_by_model(admin_identity)
     get_user_roles = mocker.spy(user_subject_type, "get_workspace_role_uids")
     checks = [
         PermissionCheck(actor, UpdateWorkspaceOperationType.type, workspace)
-        for actor in [admin, member, admin_agent, member_agent]
+        for actor in [admin, member, admin_identity, member_identity]
     ]
 
     result = BasicPermissionManagerType().check_multiple_permissions(checks, workspace)
@@ -298,8 +298,8 @@ def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
     assert set(get_user_roles.call_args.args[0]) == {
         admin,
         member,
-        admin_agent,
-        member_agent,
+        admin_identity,
+        member_identity,
     }
 
 
@@ -308,43 +308,45 @@ def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
     ("role_uid", "is_admin"),
     [("ADMIN", True), ("MEMBER", False), ("NO_ACCESS", False)],
 )
-def test_basic_permission_manager_get_permissions_object_for_agent(
+def test_basic_permission_manager_get_permissions_object_for_identity(
     data_fixture, role_uid, is_admin
 ):
     workspace = data_fixture.create_workspace()
-    agent = data_fixture.create_agent(
-        workspace=workspace, name=f"{role_uid} agent", role_uid=role_uid
+    identity = data_fixture.create_identity(
+        workspace=workspace, name=f"{role_uid} identity", role_uid=role_uid
     )
 
-    permissions = BasicPermissionManagerType().get_permissions_object(agent, workspace)
+    permissions = BasicPermissionManagerType().get_permissions_object(
+        identity, workspace
+    )
 
     assert permissions["is_admin"] is is_admin
 
 
 @pytest.mark.django_db
-def test_basic_permission_manager_rejects_agent_from_another_workspace(data_fixture):
+def test_basic_permission_manager_rejects_identity_from_another_workspace(data_fixture):
     workspace = data_fixture.create_workspace()
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=data_fixture.create_workspace(),
         name="Other admin",
         role_uid="ADMIN",
     )
-    check = PermissionCheck(agent, UpdateWorkspaceOperationType.type, workspace)
+    check = PermissionCheck(identity, UpdateWorkspaceOperationType.type, workspace)
     permission_manager = BasicPermissionManagerType()
 
     result = permission_manager.check_multiple_permissions([check], workspace)
 
     assert isinstance(result[check], UserInvalidWorkspacePermissionsError)
-    assert permission_manager.get_permissions_object(agent, workspace) is None
+    assert permission_manager.get_permissions_object(identity, workspace) is None
 
 
 @pytest.mark.django_db
-def test_basic_permission_manager_can_include_trashed_agent(data_fixture):
+def test_basic_permission_manager_can_include_trashed_identity(data_fixture):
     workspace = data_fixture.create_workspace()
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=workspace, name="Trashed admin", role_uid="ADMIN", trashed=True
     )
-    check = PermissionCheck(agent, UpdateWorkspaceOperationType.type, workspace)
+    check = PermissionCheck(identity, UpdateWorkspaceOperationType.type, workspace)
     permission_manager = BasicPermissionManagerType()
 
     without_trash = permission_manager.check_multiple_permissions([check], workspace)
@@ -354,9 +356,9 @@ def test_basic_permission_manager_can_include_trashed_agent(data_fixture):
 
     assert isinstance(without_trash[check], UserInvalidWorkspacePermissionsError)
     assert with_trash[check] is True
-    assert permission_manager.get_permissions_object(agent, workspace) is None
+    assert permission_manager.get_permissions_object(identity, workspace) is None
     assert permission_manager.get_permissions_object(
-        agent, workspace, include_trash=True
+        identity, workspace, include_trash=True
     )["is_admin"]
 
 
@@ -709,9 +711,9 @@ def test_get_permissions(data_fixture):
                     "workspace.empty_trash",
                     "workspace_user.update",
                     "workspace_user.delete",
-                    "agent.create",
-                    "agent.update",
-                    "agent.delete",
+                    "identity.create",
+                    "identity.update",
+                    "identity.delete",
                 ],
                 "is_admin": True,
             },
@@ -855,9 +857,9 @@ def test_get_permissions(data_fixture):
                     "workspace.empty_trash",
                     "workspace_user.update",
                     "workspace_user.delete",
-                    "agent.create",
-                    "agent.update",
-                    "agent.delete",
+                    "identity.create",
+                    "identity.update",
+                    "identity.delete",
                 ],
                 "is_admin": True,
             },
@@ -1001,9 +1003,9 @@ def test_get_permissions(data_fixture):
                     "workspace.empty_trash",
                     "workspace_user.update",
                     "workspace_user.delete",
-                    "agent.create",
-                    "agent.update",
-                    "agent.delete",
+                    "identity.create",
+                    "identity.update",
+                    "identity.delete",
                 ],
                 "is_admin": False,
             },

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AuditLogActorDropdown > renders agents among users and selects an agent 1`] = `
+exports[`AuditLogActorDropdown > renders identities among users and selects an identity 1`] = `
 "<div class="dropdown" tabindex="0"><a class="dropdown__selected">All Actors<i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i></a>
   <div class="dropdown__items hidden">
     <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" tabindex="0"></div>

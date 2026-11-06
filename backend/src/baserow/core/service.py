@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, AnonymousUser, User
 from django.db.models import QuerySet
 
 from baserow.core.db import specific_iterator
@@ -13,6 +13,7 @@ from baserow.core.operations import (
     ReadWorkspaceOperationType,
 )
 from baserow.core.registries import application_type_registry
+from baserow.core.user.types import Identity
 
 
 class CoreService:
@@ -20,7 +21,7 @@ class CoreService:
         self.handler = CoreHandler()
 
     def _enhance_and_filter_application_queryset_for_workspaces(
-        self, user: AbstractUser, workspaces: List[Workspace]
+        self, user: User | Identity | AnonymousUser, workspaces: List[Workspace]
     ):
         return lambda model, queryset: application_type_registry.get_by_model(
             model
@@ -62,7 +63,7 @@ class CoreService:
 
     def list_applications_in_workspace(
         self,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         workspace: Workspace,
         specific: bool = True,
         base_queryset: Optional[QuerySet] = None,
@@ -85,7 +86,7 @@ class CoreService:
 
     def list_applications_in_workspaces(
         self,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         workspaces: List[Workspace],
         specific: bool = True,
         base_queryset: Optional[QuerySet] = None,
@@ -134,7 +135,7 @@ class CoreService:
 
     def get_application(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         application_id: int,
         specific: bool = True,
         base_queryset: Optional[QuerySet] = None,

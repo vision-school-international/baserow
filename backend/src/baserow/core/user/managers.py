@@ -8,7 +8,7 @@ from django_cte import CTEQuerySet
 
 
 class PeopleUserQuerySet(QuerySet):
-    """People, including disabled people, with valid identity metadata."""
+    """People, including disabled people, with a valid human user type."""
 
     def __init__(self, model=None, query=None, using=None, hints=None):
         super().__init__(model=model, query=query, using=using, hints=hints)
@@ -17,12 +17,12 @@ class PeopleUserQuerySet(QuerySet):
 
             # A subquery keeps ordinary User row locks independent of Profile joins.
             people = UserProfile.objects_and_trash.filter(
-                user_id=OuterRef("pk"), identity_type="human"
+                user_id=OuterRef("pk"), user_type="human"
             )
             self.query.add_q(Q(Exists(people)))
 
 
-class UsersAndAgentsManager(UserManager):
+class UsersAndIdentitiesManager(UserManager):
     use_in_migrations = False
 
     def _create_user(self, username, email, password, **extra_fields):
@@ -40,7 +40,7 @@ class UsersAndAgentsManager(UserManager):
         )
 
 
-class PeopleUserManager(UsersAndAgentsManager):
+class PeopleUserManager(UsersAndIdentitiesManager):
     use_in_migrations = True
     _queryset_class = PeopleUserQuerySet
 
@@ -65,10 +65,10 @@ class PeopleUserManager(UsersAndAgentsManager):
 
 class WorkspaceUserQuerySet(CTEQuerySet):
     def people(self):
-        return self.filter(user__profile__identity_type="human")
+        return self.filter(user__profile__user_type="human")
 
-    def agents(self):
-        return self.filter(user__profile__identity_type="agent")
+    def identities(self):
+        return self.filter(user__profile__user_type="identity")
 
 
 def install_user_managers() -> None:
@@ -78,4 +78,4 @@ def install_user_managers() -> None:
     if isinstance(user_model.objects, PeopleUserManager):
         return
     user_model.add_to_class("objects", PeopleUserManager())
-    user_model.add_to_class("objects_and_agents", UsersAndAgentsManager())
+    user_model.add_to_class("objects_and_identities", UsersAndIdentitiesManager())

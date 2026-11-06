@@ -78,7 +78,7 @@ const rows = (wrapper) =>
         row.find('.invite-list__subtitle').text().replace(/\s+/g, ' ')
     )
 
-test('counts members and agents per role under the level their role comes from', async () => {
+test('counts members and identities per role under the level their role comes from', async () => {
   const wrapper = await mountSummary(
     { type: 'scope', scopeType: 'database_view', scope: view, database, table },
     [

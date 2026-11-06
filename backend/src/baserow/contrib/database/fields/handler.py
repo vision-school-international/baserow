@@ -15,7 +15,7 @@ from typing import (
 )
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.db import DEFAULT_DB_ALIAS, connection
 from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
@@ -57,11 +57,12 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry, User
+from baserow.core.models import TrashEntry
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
+from baserow.core.user.types import Identity
 from baserow.core.utils import (
     ChildProgressBuilder,
     extract_allowed,
@@ -283,7 +284,7 @@ class FieldHandler:
 
     def create_field(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         table: Table,
         type_name: str,
         primary: bool = False,
@@ -508,7 +509,7 @@ class FieldHandler:
 
     def update_field(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         field: SpecificFieldForUpdate,
         new_type_name: Optional[str] = None,
         return_updated_fields: bool = False,
@@ -1011,7 +1012,7 @@ class FieldHandler:
 
     def delete_field(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         field: Field,
         existing_trash_entry: Optional[TrashEntry] = None,
         update_collector: Optional[FieldUpdateCollector] = None,

@@ -21,17 +21,17 @@ from baserow.core.user_sources.operations import (
     ReadUserSourceOperationType,
 )
 
-from .agents.operations import (
-    CreateAgentOperationType,
-    DeleteAgentOperationType,
-    UpdateAgentOperationType,
-)
 from .ai_provider.operations import ManageAIProvidersOperationType
 from .exceptions import (
     IsNotAdminError,
     PermissionDenied,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
+)
+from .identities.operations import (
+    CreateIdentityOperationType,
+    DeleteIdentityOperationType,
+    UpdateIdentityOperationType,
 )
 from .operations import (
     CreateInvitationsWorkspaceOperationType,
@@ -59,7 +59,7 @@ from .registries import (
 )
 from .subjects import AnonymousUserSubjectType, UserSubjectType
 from .trash.operations import EmptyWorkspaceTrashOperationType
-from .user.identity import is_human_user
+from .user.identity import is_user
 
 User = get_user_model()
 
@@ -108,7 +108,7 @@ class CorePermissionManagerType(PermissionManagerType):
     supported_actor_types = [UserSubjectType.type]
 
     def actor_is_supported(self, actor):
-        return is_human_user(actor)
+        return is_user(actor)
 
     ALWAYS_ALLOWED_OPERATIONS = [
         ListWorkspacesOperationType.type,
@@ -166,9 +166,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     supported_actor_types = [UserSubjectType.type, AnonymousUserSubjectType.type]
 
     def actor_is_supported(self, actor):
-        return is_human_user(actor) or isinstance(
-            actor, AnonymousUserSubjectType.model_class
-        )
+        return is_user(actor) or isinstance(actor, AnonymousUserSubjectType.model_class)
 
     OPERATION_ALLOWED_ON_TEMPLATES = [
         ReadWorkspaceOperationType.type,
@@ -341,7 +339,7 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
             return {
                 check: PermissionDenied(check.actor)
                 for check in checks
-                if not is_human_user(check.actor)
+                if not is_user(check.actor)
             }
 
         permission_by_check = {}
@@ -384,7 +382,7 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
         queryset,
         workspace=None,
     ):
-        if (workspace is None and not is_human_user(actor)) or (
+        if (workspace is None and not is_user(actor)) or (
             workspace is not None and not self.is_actor_in_workspace(actor, workspace)
         ):
             return queryset.none(), True
@@ -421,9 +419,9 @@ class BasicPermissionManagerType(PermissionManagerType):
         EmptyWorkspaceTrashOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
-        CreateAgentOperationType.type,
-        UpdateAgentOperationType.type,
-        DeleteAgentOperationType.type,
+        CreateIdentityOperationType.type,
+        UpdateIdentityOperationType.type,
+        DeleteIdentityOperationType.type,
     ]
 
     def get_workspace_role_uids_by_actor(
@@ -506,7 +504,7 @@ class StaffOnlySettingOperationPermissionManagerType(PermissionManagerType):
     supported_actor_types = [UserSubjectType.type]
 
     def actor_is_supported(self, actor):
-        return is_human_user(actor)
+        return is_user(actor)
 
     # Maps `CoreOperationType` to `Setting` boolean field.
     STAFF_ONLY_SETTING_OPERATION_MAP = {

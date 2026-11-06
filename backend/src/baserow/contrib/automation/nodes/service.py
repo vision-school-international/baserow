@@ -1,6 +1,6 @@
 from typing import Any, Iterable, Optional
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, AnonymousUser, User
 
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
@@ -40,6 +40,7 @@ from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.types import Identity
 
 
 class AutomationNodeService:
@@ -68,7 +69,7 @@ class AutomationNodeService:
 
     def get_nodes(
         self,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         workflow: AutomationWorkflow,
         specific: Optional[bool] = True,
     ) -> Iterable[AutomationNode]:
@@ -133,7 +134,7 @@ class AutomationNodeService:
 
     def create_node(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         reference_node_id: int | None = None,
@@ -217,7 +218,7 @@ class AutomationNodeService:
 
     def update_node(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         node_id: int,
         **kwargs,
     ) -> UpdatedAutomationNode:
@@ -268,7 +269,10 @@ class AutomationNodeService:
         )
 
     def delete_node(
-        self, user: AbstractUser | None, node_id: int, ignore_user_for_signal=False
+        self,
+        user: User | Identity | None,
+        node_id: int,
+        ignore_user_for_signal=False,
     ) -> AutomationNode:
         """
         Deletes the specified automation node.

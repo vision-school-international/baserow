@@ -11,9 +11,10 @@ describes the tool to any client, and must not mention a client's own tools.
 from dataclasses import dataclass, field
 from typing import Callable
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import User
 
 from baserow.core.models import Workspace
+from baserow.core.user.types import Identity
 
 
 def _ignore_status(message: str) -> None:
@@ -24,9 +25,9 @@ def _ignore_status(message: str) -> None:
 class ToolContext:
     """Who a shared tool acts for, and where it reports its progress."""
 
-    user: AbstractUser
+    user: User | Identity
     workspace: Workspace
     update_status: Callable[[str], None] = field(default=_ignore_status)
     timezone: str | None = None
-    """The timezone date values are in, UTC when None. Not read from ``user``,
-    because an actor such as an Agent has no profile."""
+    """The timezone date values are in, UTC when None. Set by the caller so
+    tools use the execution timezone for either a user or an identity."""

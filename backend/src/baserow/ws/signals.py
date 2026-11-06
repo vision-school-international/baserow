@@ -4,10 +4,10 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
 
-from baserow.api.agents.serializers import AgentSerializer
 from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
+from baserow.api.identities.serializers import IdentitySerializer
 from baserow.api.user.serializers import PublicUserSerializer
 from baserow.api.workspaces.invitations.serializers import (
     UserWorkspaceInvitationSerializer,
@@ -18,12 +18,12 @@ from baserow.api.workspaces.serializers import (
     WorkspaceUserWorkspaceSerializer,
 )
 from baserow.core import signals
-from baserow.core.agents import signals as agent_signals
-from baserow.core.agents.handler import AgentHandler
-from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
+from baserow.core.identities import signals as identity_signals
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.operations import ListIdentitiesWorkspaceOperationType
 from baserow.core.jobs import signals as jobs_signals
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.models import Application, Workspace, WorkspaceUser
@@ -350,60 +350,60 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
     )
 
 
-@receiver(agent_signals.agent_created)
-def agent_created(sender, agent, user=None, **kwargs):
-    """Notify permitted users when an agent is created or restored."""
+@receiver(identity_signals.identity_created)
+def identity_created(sender, identity, user=None, **kwargs):
+    """Notify permitted users when an identity is created or restored."""
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            AgentHandler().get_workspace(agent).id,
-            ListAgentsWorkspaceOperationType.type,
+            IdentityHandler().get_workspace(identity).id,
+            ListIdentitiesWorkspaceOperationType.type,
             "workspace",
-            AgentHandler().get_workspace(agent).id,
+            IdentityHandler().get_workspace(identity).id,
             {
-                "type": "agent_created",
-                "workspace_id": AgentHandler().get_workspace(agent).id,
-                "agent": AgentSerializer(agent).data,
+                "type": "identity_created",
+                "workspace_id": IdentityHandler().get_workspace(identity).id,
+                "identity": IdentitySerializer(identity).data,
             },
             getattr(user, "web_socket_id", None),
         )
     )
 
 
-@receiver(agent_signals.agent_updated)
-def agent_updated(sender, agent, user, **kwargs):
-    """Notify users who can list agents about updated agent details."""
+@receiver(identity_signals.identity_updated)
+def identity_updated(sender, identity, user, **kwargs):
+    """Notify users who can list identities about updated identity details."""
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            AgentHandler().get_workspace(agent).id,
-            ListAgentsWorkspaceOperationType.type,
+            IdentityHandler().get_workspace(identity).id,
+            ListIdentitiesWorkspaceOperationType.type,
             "workspace",
-            AgentHandler().get_workspace(agent).id,
+            IdentityHandler().get_workspace(identity).id,
             {
-                "type": "agent_updated",
-                "workspace_id": AgentHandler().get_workspace(agent).id,
-                "agent": AgentSerializer(agent).data,
+                "type": "identity_updated",
+                "workspace_id": IdentityHandler().get_workspace(identity).id,
+                "identity": IdentitySerializer(identity).data,
             },
             getattr(user, "web_socket_id", None),
         )
     )
 
 
-@receiver(agent_signals.agent_deleted)
-def agent_deleted(sender, agent, user, **kwargs):
-    """Notify users who can list agents that an agent was deleted."""
+@receiver(identity_signals.identity_deleted)
+def identity_deleted(sender, identity, user, **kwargs):
+    """Notify users who can list identities that an identity was deleted."""
 
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            AgentHandler().get_workspace(agent).id,
-            ListAgentsWorkspaceOperationType.type,
+            IdentityHandler().get_workspace(identity).id,
+            ListIdentitiesWorkspaceOperationType.type,
             "workspace",
-            AgentHandler().get_workspace(agent).id,
+            IdentityHandler().get_workspace(identity).id,
             {
-                "type": "agent_deleted",
-                "workspace_id": AgentHandler().get_workspace(agent).id,
-                "agent_id": agent.id,
+                "type": "identity_deleted",
+                "workspace_id": IdentityHandler().get_workspace(identity).id,
+                "identity_id": identity.id,
             },
             getattr(user, "web_socket_id", None),
         )

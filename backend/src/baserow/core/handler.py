@@ -30,7 +30,7 @@ from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import is_agent_user, is_human_user
+from baserow.core.user.identity import is_identity, is_user
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
@@ -801,10 +801,10 @@ class CoreHandler:
             WorkspaceUser.objects.people()
             .select_related("workspace")
             .annotate(
-                workspace_agent_count=Count(
+                workspace_identity_count=Count(
                     "workspace__workspaceuser",
                     filter=Q(
-                        workspace__workspaceuser__user__profile__identity_type="agent",
+                        workspace__workspaceuser__user__profile__user_type="identity",
                         workspace__workspaceuser__user__profile__trashed=False,
                     ),
                     distinct=True,
@@ -902,9 +902,11 @@ class CoreHandler:
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
 
-        if not is_human_user(user):
-            raise ValueError("An agent's membership is managed through its identity.")
-        User.objects_and_agents.select_for_update(of=("self",)).get(pk=user.pk)
+        if not is_user(user):
+            raise ValueError(
+                "Identity membership is managed through the identity lifecycle."
+            )
+        User.objects_and_identities.select_for_update(of=("self",)).get(pk=user.pk)
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -1168,7 +1170,7 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
-            User.objects_and_agents.select_for_update(of=("self",)).get(
+            User.objects_and_identities.select_for_update(of=("self",)).get(
                 pk=workspace_user.user_id
             )
             if kwargs["permissions"] != "ADMIN":
@@ -1216,11 +1218,13 @@ class CoreHandler:
                 "Cannot delete yourself from workspace."
             )
 
-        User.objects_and_agents.select_for_update(of=("self",)).get(
+        User.objects_and_identities.select_for_update(of=("self",)).get(
             pk=workspace_user.user_id
         )
-        if is_agent_user(workspace_user.user):
-            raise ValueError("An agent's membership is managed through its identity.")
+        if is_identity(workspace_user.user):
+            raise ValueError(
+                "Identity membership is managed through the identity lifecycle."
+            )
         self.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
         before_workspace_user_deleted.send(
@@ -1536,17 +1540,17 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
-            # All membership writes lock the User, including AgentHandler creation.
-            User.objects_and_agents.select_for_update(of=("self",)).get(pk=user.pk)
-            if is_agent_user(user):
+            # All membership writes lock the User, including IdentityHandler creation.
+            User.objects_and_identities.select_for_update(of=("self",)).get(pk=user.pk)
+            if is_identity(user):
                 memberships = list(WorkspaceUser.objects_and_trash.filter(user=user))
                 if len(memberships) != 1 or memberships[0].workspace_id != workspace.id:
                     raise ValueError(
-                        "An agent must retain its single workspace membership."
+                        "An identity must retain its single workspace membership."
                     )
                 return memberships[0]
-            if not is_human_user(user):
-                raise ValueError("A workspace member must have a valid identity.")
+            if not is_user(user):
+                raise ValueError("A workspace member must be a user or an identity.")
             workspace_user, created = WorkspaceUser.objects.get_or_create(
                 user=user,
                 workspace=workspace,
@@ -2588,7 +2592,7 @@ class CoreHandler:
         :return:
         """
 
-        if not is_human_user(workspace_user.user):
+        if not is_user(workspace_user.user):
             return
         admins_in_workspace_count = len(
             WorkspaceUser.objects.people()

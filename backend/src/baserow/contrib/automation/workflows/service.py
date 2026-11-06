@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
@@ -30,7 +30,8 @@ from baserow.core.exceptions import UntrustedContentCannotBePublished
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Job
-from baserow.core.user.identity import is_human_user
+from baserow.core.user.identity import is_user
+from baserow.core.user.types import Identity
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -111,7 +112,7 @@ class AutomationWorkflowService:
 
     def create_workflow(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         automation_id: int,
         name: str,
         notification_recipient_ids=None,
@@ -139,7 +140,7 @@ class AutomationWorkflowService:
         workflow = self.handler.create_workflow(automation, name)
         recipients = self._validate_notification_recipients(
             automation.workspace,
-            ([user.id] if is_human_user(user) else [])
+            ([user.id] if is_user(user) else [])
             if notification_recipient_ids is None
             else notification_recipient_ids,
         )

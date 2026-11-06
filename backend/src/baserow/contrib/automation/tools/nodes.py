@@ -5,7 +5,7 @@ Node tools shared by the clients that act for a user.
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Callable
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -47,6 +47,7 @@ from baserow.core.mcp.exceptions import (
     to_mcp_error,
 )
 from baserow.core.tools import ToolContext
+from baserow.core.user.types import Identity
 
 
 def get_node_in_workspace(ctx: ToolContext, node_id: int) -> AutomationNode:
@@ -86,7 +87,7 @@ CHILD_OUTPUT = "child"
 
 
 def nodes_in_order(
-    user: AbstractUser, workflow: AutomationWorkflow
+    user: User | Identity, workflow: AutomationWorkflow
 ) -> list[tuple[AutomationNode, AutomationNode | None, str]]:
     """
     The nodes of a workflow in execution order: the trigger, then each node after
@@ -322,7 +323,7 @@ def table_field_ids() -> Callable[[int], set[int]]:
     return field_ids
 
 
-def node_refs(user: AbstractUser, workflow: AutomationWorkflow) -> NodeRefs:
+def node_refs(user: User | Identity, workflow: AutomationWorkflow) -> NodeRefs:
     """The nodes of a workflow that a new node can follow, by their ID."""
 
     refs = NodeRefs()

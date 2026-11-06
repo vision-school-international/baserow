@@ -409,11 +409,11 @@ def test_can_configure_specific_field_permission_users_and_teams(
     url = reverse(
         "api:enterprise:field_permissions:item", kwargs={"field_id": field.id}
     )
-    agent = enterprise_data_fixture.create_agent(
-        workspace=workspace, name="Field agent"
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Field identity"
     )
     subjects = [
-        {"subject_id": agent.id, "subject_type": "auth.User"},
+        {"subject_id": identity.id, "subject_type": "auth.User"},
         {"subject_id": user.id, "subject_type": "auth.User"},
         {
             "subject_id": team.id,
@@ -434,7 +434,7 @@ def test_can_configure_specific_field_permission_users_and_teams(
         (subject["subject_type"], subject["subject_id"])
         for subject in rsp.json()["subjects"]
     } == {
-        ("auth.User", agent.id),
+        ("auth.User", identity.id),
         ("auth.User", user.id),
         ("baserow_enterprise.Team", team.id),
     }
@@ -522,13 +522,13 @@ def test_can_search_paginated_field_permission_subject_options(
         kwargs={"field_id": field.id},
     )
 
-    agent = enterprise_data_fixture.create_agent(
-        workspace=workspace, name="Person agent"
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Person identity"
     )
-    enterprise_data_fixture.create_agent(
+    enterprise_data_fixture.create_identity(
         workspace=workspace, name="Person deleted", trashed=True
     )
-    enterprise_data_fixture.create_agent(
+    enterprise_data_fixture.create_identity(
         workspace=enterprise_data_fixture.create_workspace(), name="Person outsider"
     )
     first_page = api_client.get(
@@ -548,7 +548,7 @@ def test_can_search_paginated_field_permission_subject_options(
     assert len(first_page.json()["results"]) == 2
     options = first_page.json()["results"] + second_page.json()["results"]
     assert {(option["subject_type"], option["subject_id"]) for option in options} == {
-        ("auth.User", agent.id),
+        ("auth.User", identity.id),
         ("auth.User", first_user.id),
         ("auth.User", second_user.id),
         ("baserow_enterprise.Team", team.id),
@@ -567,7 +567,7 @@ def test_can_search_paginated_field_permission_subject_options(
         url,
         {
             "search": "person",
-            "exclude_user_ids": f"{first_user.id},{agent.id}",
+            "exclude_user_ids": f"{first_user.id},{identity.id}",
             "exclude_team_ids": str(team.id),
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -616,11 +616,11 @@ def test_cannot_add_invalid_specific_field_permission_subjects(
     assert not FieldPermissions.objects.filter(field=field).exists()
     assert FieldPermissionsHandler._get_field_permission_subjects(field) == []
 
-    for agent in [
-        enterprise_data_fixture.create_agent(
+    for identity in [
+        enterprise_data_fixture.create_identity(
             workspace=enterprise_data_fixture.create_workspace(), name="Outside"
         ),
-        enterprise_data_fixture.create_agent(
+        enterprise_data_fixture.create_identity(
             workspace=database.workspace, name="Deleted", trashed=True
         ),
     ]:
@@ -630,7 +630,7 @@ def test_cannot_add_invalid_specific_field_permission_subjects(
             HTTP_AUTHORIZATION=f"JWT {token}",
             data={
                 "role": "CUSTOM",
-                "subjects": [{"subject_id": agent.id, "subject_type": "auth.User"}],
+                "subjects": [{"subject_id": identity.id, "subject_type": "auth.User"}],
             },
         )
         assert rsp.status_code == HTTP_404_NOT_FOUND

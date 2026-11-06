@@ -326,10 +326,10 @@ describe('integration store', () => {
       authorized_subject: {
         id: 3,
         type: 'auth.User',
-        identity_type: 'agent',
-        name: 'Writer agent',
+        user_type: 'identity',
+        name: 'Writer identity',
       },
-      context_data: { databases: [{ id: 4, name: 'Agent database' }] },
+      context_data: { databases: [{ id: 4, name: 'Identity database' }] },
     }
     testApp.mock.onPatch('/integration/1/').reply(200, updatedIntegration)
 

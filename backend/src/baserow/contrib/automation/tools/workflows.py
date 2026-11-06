@@ -6,6 +6,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Annotated, Any
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -27,6 +28,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
+from baserow.core.user.types import Identity
 
 
 def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automation:
@@ -192,7 +194,7 @@ class WorkflowCreation:
     failed: list[str] = field(default_factory=list)
     """Why each workflow that could not be saved wasn't."""
 
-    def to_response(self, user) -> dict[str, Any]:
+    def to_response(self, user: User | Identity) -> dict[str, Any]:
         from baserow.contrib.automation.tools.nodes import describe_node, nodes_in_order
 
         result: dict[str, Any] = {

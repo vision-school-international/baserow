@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.action_scopes import (
@@ -18,6 +18,7 @@ from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.types import Identity
 
 
 class CreateAutomationNodeActionType(UndoableActionType):
@@ -38,7 +39,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         data: dict,
@@ -105,7 +106,7 @@ class UpdateAutomationNodeActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         node_id: int,
         new_data: dict,
     ) -> AutomationNode:
@@ -170,7 +171,7 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         node_type: str
 
     @classmethod
-    def do(cls, user: AbstractUser, node_id: int) -> None:
+    def do(cls, user: User | Identity, node_id: int) -> None:
         node = AutomationNodeService().delete_node(user, node_id)
         automation = node.workflow.automation
         cls.register_action(

@@ -2,7 +2,7 @@ import traceback
 from typing import Any, Dict, List, NewType, Optional, Tuple, cast
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, AnonymousUser, User
 from django.db import DatabaseError, IntegrityError
 from django.db.models import Q, QuerySet, Sum
 from django.db.models.functions import Coalesce, Now
@@ -41,6 +41,7 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
+from baserow.core.user.types import Identity
 from baserow.core.user_files.models import UserFile
 from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name, grouper
 
@@ -264,7 +265,11 @@ class TableHandler:
         )
 
     def list_workspace_tables(
-        self, user: AbstractUser, workspace, include_trashed=False, base_queryset=None
+        self,
+        user: User | Identity | AnonymousUser | None,
+        workspace,
+        include_trashed=False,
+        base_queryset=None,
     ) -> QuerySet[Table]:
         """
         Lists available tables for a user/workspace combination.
@@ -362,7 +367,7 @@ class TableHandler:
 
     def create_table(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         database: Database,
         name: str,
         data: Optional[List[List[Any]]] = None,
@@ -430,7 +435,7 @@ class TableHandler:
 
     def create_table_and_fields(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         database: Database,
         name: str,
         fields: List[Tuple[str, str, Dict[str, Any]]],

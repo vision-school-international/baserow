@@ -67,12 +67,12 @@ def test_create_local_baserow_list_rows_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_before_dispatch_updates_authorized_agent_last_active(data_fixture):
+def test_before_dispatch_updates_authorized_identity_last_active(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    agent = data_fixture.create_agent(workspace=workspace, name="Reader")
+    identity = data_fixture.create_identity(workspace=workspace, name="Reader")
     integration = data_fixture.create_local_baserow_integration(
-        authorized_agent=agent,
+        authorized_identity=identity,
         application=data_fixture.create_builder_application(workspace=workspace),
     )
     service = data_fixture.create_local_baserow_list_rows_service(
@@ -81,10 +81,10 @@ def test_before_dispatch_updates_authorized_agent_last_active(data_fixture):
 
     before = timezone.now()
     service.get_type().before_dispatch(service, FakeDispatchContext())
-    agent.profile.refresh_from_db()
+    identity.profile.refresh_from_db()
 
-    assert agent.profile.last_active is not None
-    assert agent.profile.last_active >= before
+    assert identity.profile.last_active is not None
+    assert identity.profile.last_active >= before
 
 
 @pytest.mark.django_db

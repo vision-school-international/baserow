@@ -866,11 +866,11 @@ def test_create_workflow_history_records_who_triggered_it(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_workflow_history_records_agent_who_triggered_it(data_fixture):
+def test_create_workflow_history_records_identity_who_triggered_it(data_fixture):
     workflow = data_fixture.create_automation_workflow()
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=workflow.automation.workspace,
-        name="Workflow agent",
+        name="Workflow identity",
     )
 
     history = AutomationHistoryHandler().create_workflow_history(
@@ -878,12 +878,12 @@ def test_create_workflow_history_records_agent_who_triggered_it(data_fixture):
         workflow=workflow,
         started_on=timezone.now(),
         is_test_run=False,
-        triggered_by=agent,
+        triggered_by=identity,
     )
 
-    assert history.triggered_by_id == agent.id
+    assert history.triggered_by_id == identity.id
     assert history.triggered_by_type == "auth.User"
-    assert history.triggered_by_name == agent.first_name
+    assert history.triggered_by_name == identity.first_name
 
 
 @pytest.mark.django_db

@@ -144,7 +144,7 @@ def test_list_teams_in_workspace(data_fixture, enterprise_data_fixture):
             "subject_id": sales_subj.subject_id,
             "subject_type": sales_subj.subject_type_natural_key,
             "subject_label": user.get_full_name().strip(),
-            "identity_type": "human",
+            "user_type": "human",
         }
     ]
     assert teams_qs[1].id == engineering.id
@@ -223,15 +223,15 @@ def test_update_team_subjects(data_fixture, enterprise_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "identity_type,agents_enabled",
-    [("human", False), ("human", True), ("agent", True)],
+    "user_type,identities_enabled",
+    [("human", False), ("human", True), ("identity", True)],
 )
 def test_update_team_removes_all_duplicate_memberships(
-    data_fixture, enterprise_data_fixture, settings, identity_type, agents_enabled
+    data_fixture, enterprise_data_fixture, settings, user_type, identities_enabled
 ):
     """Remove every membership and inherited role without mixing subject types."""
     subject_type = "auth.User"
-    settings.FEATURE_FLAGS = ["agents"] if agents_enabled else []
+    settings.FEATURE_FLAGS = ["identities"] if identities_enabled else []
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -245,15 +245,15 @@ def test_update_team_removes_all_duplicate_memberships(
     role_handler.assign_role(team, workspace, builder)
     subject = member
     retained = []
-    if agents_enabled:
-        agent = data_fixture.create_agent(
+    if identities_enabled:
+        identity = data_fixture.create_identity(
             workspace=workspace,
-            name="Agent",
+            name="Identity",
             role_uid="NO_ROLE_LOW_PRIORITY",
         )
-        subject = agent if identity_type == "agent" else member
+        subject = identity if user_type == "identity" else member
         retained_type = "auth.User"
-        retained_subject = member if identity_type == "agent" else agent
+        retained_subject = member if user_type == "identity" else identity
         retained_membership = handler.create_subject(
             admin, {"id": retained_subject.id}, retained_type, team
         )
@@ -266,7 +266,7 @@ def test_update_team_removes_all_duplicate_memberships(
     handler.update_team(admin, team, team.name, subjects=retained, default_role=builder)
 
     assert list(team.subjects.values_list("id", flat=True)) == (
-        [retained_membership.id] if agents_enabled else []
+        [retained_membership.id] if identities_enabled else []
     )
     assert builder not in role_handler.get_roles_per_scope(workspace, subject)[0][1]
 
@@ -312,15 +312,15 @@ def test_create_subject_with_unsupported_lookup(data_fixture, enterprise_data_fi
 
 
 @pytest.mark.django_db
-def test_create_agent_subject_with_email_lookup_is_rejected(
+def test_create_identity_subject_with_email_lookup_is_rejected(
     data_fixture, enterprise_data_fixture
 ):
     user = data_fixture.create_user()
     team = enterprise_data_fixture.create_team()
 
-    agent = data_fixture.create_agent(workspace=team.workspace)
+    identity = data_fixture.create_identity(workspace=team.workspace)
     with pytest.raises(TeamSubjectBadRequest):
-        TeamHandler().create_subject(user, {"email": agent.email}, "auth.User", team)
+        TeamHandler().create_subject(user, {"email": identity.email}, "auth.User", team)
 
 
 @pytest.mark.django_db

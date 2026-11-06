@@ -14,7 +14,7 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
     matching_user = data_fixture.create_user(email="matching@example.com")
     data_fixture.create_user(email="other@example.com")
     workspace = data_fixture.create_workspace(user=staff)
-    matching_agent = data_fixture.create_agent(
+    matching_identity = data_fixture.create_identity(
         workspace=workspace, name="Matching robot"
     )
 
@@ -23,7 +23,7 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
         {
             "search": "matching",
             "subject_types": UserSubjectType.type,
-            "identity_type": "all",
+            "user_type": "all",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -37,17 +37,17 @@ def test_staff_can_search_global_subject_options(api_client, data_fixture):
             "name": matching_user.first_name,
             "label": matching_user.email,
             "email": matching_user.email,
-            "identity_type": "human",
+            "user_type": "human",
             "subject_count": None,
         },
         {
-            "id": f"{UserSubjectType.type}:{matching_agent.id}",
-            "subject_id": matching_agent.id,
+            "id": f"{UserSubjectType.type}:{matching_identity.id}",
+            "subject_id": matching_identity.id,
             "subject_type": UserSubjectType.type,
-            "name": matching_agent.first_name,
-            "label": matching_agent.first_name,
+            "name": matching_identity.first_name,
+            "label": matching_identity.first_name,
             "email": None,
-            "identity_type": "agent",
+            "user_type": "identity",
             "subject_count": None,
         },
     ]
@@ -68,22 +68,24 @@ def test_non_staff_cannot_list_global_subject_options(api_client, data_fixture):
 def test_workspace_subject_options_are_scoped(api_client, data_fixture):
     admin, token = data_fixture.create_user_and_token(email="admin@example.com")
     workspace = data_fixture.create_workspace(user=admin)
-    agent = data_fixture.create_agent(workspace=workspace, name="Workspace robot")
+    identity = data_fixture.create_identity(workspace=workspace, name="Workspace robot")
     other_workspace = data_fixture.create_workspace()
-    data_fixture.create_agent(workspace=other_workspace, name="Other robot")
+    data_fixture.create_identity(workspace=other_workspace, name="Other robot")
 
     response = api_client.get(
         reverse("api:subjects:list"),
         {
             "workspace_id": workspace.id,
             "subject_types": UserSubjectType.type,
-            "identity_type": "agent",
+            "user_type": "identity",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK
-    assert [result["subject_id"] for result in response.json()["results"]] == [agent.id]
+    assert [result["subject_id"] for result in response.json()["results"]] == [
+        identity.id
+    ]
 
 
 @pytest.mark.django_db
@@ -128,7 +130,7 @@ def test_workspace_subject_options_exclude_inactive_and_deletion_scheduled_users
         {
             "workspace_id": workspace.id,
             "subject_types": UserSubjectType.type,
-            "identity_type": "human",
+            "user_type": "human",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -139,13 +141,15 @@ def test_workspace_subject_options_exclude_inactive_and_deletion_scheduled_users
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("state", ["disabled", "trashed"])
-def test_agent_subject_options_hide_unavailable_agents(api_client, data_fixture, state):
-    """Agent users test plan 13.1.2."""
+def test_identity_subject_options_hide_unavailable_identities(
+    api_client, data_fixture, state
+):
+    """Identity users test plan 13.1.2."""
 
     admin, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=admin)
-    active = data_fixture.create_agent(workspace=workspace, name="Active")
-    data_fixture.create_agent(
+    active = data_fixture.create_identity(workspace=workspace, name="Active")
+    data_fixture.create_identity(
         workspace=workspace,
         name="Unavailable",
         is_active=state != "disabled",
@@ -157,7 +161,7 @@ def test_agent_subject_options_hide_unavailable_agents(api_client, data_fixture,
         {
             "workspace_id": workspace.id,
             "subject_types": UserSubjectType.type,
-            "identity_type": "agent",
+            "user_type": "identity",
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

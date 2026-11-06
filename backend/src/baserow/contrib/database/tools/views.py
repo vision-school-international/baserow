@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
@@ -41,6 +41,7 @@ from baserow.contrib.database.views.models import FormView, View, ViewFilter
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.exceptions import PermissionException
 from baserow.core.tools import ToolContext
+from baserow.core.user.types import Identity
 
 
 class FormFieldOption(BaseModel):
@@ -797,7 +798,7 @@ def get_view(ctx: ToolContext, view_id: int) -> View:
 
 
 def create_view_filter(
-    user: AbstractUser,
+    user: User | Identity,
     orm_view: View,
     table_fields: dict[int, Any],
     view_filter_item: ViewFilterItemCreate,

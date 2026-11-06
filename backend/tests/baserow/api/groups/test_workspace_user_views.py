@@ -349,12 +349,12 @@ def test_get_workspace_user_sorts(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_list_workspace_users_hides_agents(api_client, data_fixture):
-    """Agent users test plan 3.2.1."""
+def test_list_workspace_users_hides_identities(api_client, data_fixture):
+    """Identity users test plan 3.2.1."""
 
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_agent(workspace=workspace, role_uid="ADMIN")
+    data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
 
     response = api_client.get(
         reverse("api:workspaces:users:list", kwargs={"workspace_id": workspace.id}),

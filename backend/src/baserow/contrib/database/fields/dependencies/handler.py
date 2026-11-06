@@ -3,7 +3,7 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, QuerySet
 
@@ -23,6 +23,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.types import PermissionCheck
+from baserow.core.user.types import Identity
 
 from .models import FieldDependency
 
@@ -744,7 +745,7 @@ class FieldDependencyHandler:
     def rebuild_or_raise_if_user_doesnt_have_permissions_after(
         cls,
         workspace: Workspace,
-        user: AbstractUser,
+        user: User | Identity,
         field: Field,
         field_cache: FieldCache,
         field_operation_name: str,
@@ -760,7 +761,7 @@ class FieldDependencyHandler:
     def raise_if_user_doesnt_have_operation_on_dependencies_in_other_tables(
         cls,
         workspace: Workspace,
-        user: AbstractUser,
+        user: User | Identity,
         field: Field,
         dependencies: List[FieldDependency],
         field_operation_name: str,

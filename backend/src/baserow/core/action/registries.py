@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, NewType, Optional
 from uuid import uuid4
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, AnonymousUser, User
 from django.utils.translation import gettext_lazy as _
 
 from opentelemetry import trace
@@ -24,6 +24,7 @@ from baserow.core.telemetry.utils import (
     add_baserow_trace_attrs,
     baserow_trace,
 )
+from baserow.core.user.types import Identity
 
 from .models import Action
 from .signals import ActionCommandType, action_done
@@ -283,7 +284,7 @@ class ActionType(
     @classmethod
     def send_action_done_signal(
         cls,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         params: Dict[str, Any],
         scope: ActionScopeStr,
         workspace: Optional[Workspace] = None,
@@ -326,7 +327,7 @@ class ActionType(
     @classmethod
     def register_action(
         cls,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         params: Any,
         scope: ActionScopeStr,
         workspace: Optional[Workspace] = None,
@@ -382,7 +383,7 @@ class UndoableActionTypeMixin:
     @classmethod
     def register_action(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         params: Any,
         scope: ActionScopeStr,
         workspace: Optional[Workspace] = None,

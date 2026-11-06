@@ -327,36 +327,38 @@ def test_republishing_work_management_platform_performance(
 
 
 @pytest.mark.django_db
-def test_domain_publishing_preserves_local_baserow_authorized_agent(data_fixture):
+def test_domain_publishing_preserves_local_baserow_authorized_identity(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)
-    agent = data_fixture.create_agent(workspace=workspace, name="Builder agent")
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Builder identity"
+    )
     data_fixture.create_local_baserow_integration(
         application=builder,
         authorized_user=user,
-        authorized_agent=agent,
+        authorized_identity=identity,
     )
     domain = data_fixture.create_builder_custom_domain(builder=builder)
 
     domain = DomainHandler().publish(domain)
 
     published_integration = domain.published_to.integrations.get().specific
-    assert published_integration.authorized_subject == agent
+    assert published_integration.authorized_subject == identity
 
 
 @pytest.mark.django_db
-def test_domain_publishing_rejects_trashed_local_baserow_agent(data_fixture):
+def test_domain_publishing_rejects_trashed_local_baserow_identity(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)
-    agent = data_fixture.create_agent(
-        workspace=workspace, name="Trashed agent", trashed=True
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Trashed identity", trashed=True
     )
     data_fixture.create_local_baserow_integration(
         application=builder,
         authorized_user=user,
-        authorized_agent=agent,
+        authorized_identity=identity,
     )
     domain = data_fixture.create_builder_custom_domain(builder=builder)
 

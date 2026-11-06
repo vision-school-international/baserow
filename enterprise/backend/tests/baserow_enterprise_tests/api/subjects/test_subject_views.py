@@ -39,7 +39,9 @@ def test_subject_options_check_each_requested_type_permission(
     roles = RoleAssignmentHandler()
     roles.assign_role(editor, workspace, roles.get_role_by_uid("EDITOR"))
     roles.assign_role(builder, workspace, roles.get_role_by_uid("BUILDER"))
-    agent = data_fixture.create_agent(workspace=workspace, name="Private agent")
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Private identity"
+    )
     url = reverse("api:subjects:list")
 
     editor_users_response = api_client.get(
@@ -50,23 +52,23 @@ def test_subject_options_check_each_requested_type_permission(
         },
         HTTP_AUTHORIZATION=f"JWT {editor_token}",
     )
-    editor_agents_response = api_client.get(
+    editor_identities_response = api_client.get(
         url,
         {
             "workspace_id": workspace.id,
             "subject_types": UserSubjectType.type,
-            "identity_type": "agent",
+            "user_type": "identity",
         },
         HTTP_AUTHORIZATION=f"JWT {editor_token}",
     )
     editor_all_response = api_client.get(
         url,
-        {"workspace_id": workspace.id, "identity_type": "all"},
+        {"workspace_id": workspace.id, "user_type": "all"},
         HTTP_AUTHORIZATION=f"JWT {editor_token}",
     )
     builder_all_response = api_client.get(
         url,
-        {"workspace_id": workspace.id, "identity_type": "all"},
+        {"workspace_id": workspace.id, "user_type": "all"},
         HTTP_AUTHORIZATION=f"JWT {builder_token}",
     )
 
@@ -75,11 +77,11 @@ def test_subject_options_check_each_requested_type_permission(
         result["subject_type"] == UserSubjectType.type
         for result in editor_users_response.json()["results"]
     )
-    assert editor_agents_response.status_code == HTTP_401_UNAUTHORIZED
+    assert editor_identities_response.status_code == HTTP_401_UNAUTHORIZED
     assert editor_all_response.status_code == HTTP_401_UNAUTHORIZED
     assert builder_all_response.status_code == HTTP_200_OK
     assert any(
         result["subject_type"] == UserSubjectType.type
-        and result["subject_id"] == agent.id
+        and result["subject_id"] == identity.id
         for result in builder_all_response.json()["results"]
     )

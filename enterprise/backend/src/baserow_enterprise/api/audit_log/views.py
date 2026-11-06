@@ -233,7 +233,7 @@ class AuditLogActorFilterView(APIView):
         tags=["Audit log"],
         operation_id="audit_log_actors",
         description=(
-            "List users and agents available as audit log actor filters."
+            "List users and identities available as audit log actor filters."
             "\n\nThis is an **enterprise** feature."
         ),
         parameters=[
@@ -249,7 +249,7 @@ class AuditLogActorFilterView(APIView):
     @map_exceptions({WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST})
     @validate_query_parameters(AuditLogActorFilterQueryParamsSerializer)
     def get(self, request, query_params):
-        """Return searchable users and agents as audit-log actor options."""
+        """Return searchable users and identities as audit-log actor options."""
 
         workspace_id = query_params.get("workspace_id")
         check_for_license_and_permissions_or_raise(request.user, workspace_id)

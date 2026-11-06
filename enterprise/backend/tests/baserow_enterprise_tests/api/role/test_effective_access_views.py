@@ -52,7 +52,7 @@ def test_list_effective_access_of_a_table(
     )
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=workspace, name="Bot", role_uid="VIEWER"
     )
     team = enterprise_data_fixture.create_team(
@@ -70,7 +70,7 @@ def test_list_effective_access_of_a_table(
         {
             "subject_type": "auth.User",
             "subject_id": admin.id,
-            "identity_type": "human",
+            "user_type": "human",
             "role": "ADMIN",
             "source_scope_type": "workspace",
             "source_scope_id": workspace.id,
@@ -80,7 +80,7 @@ def test_list_effective_access_of_a_table(
         {
             "subject_type": "auth.User",
             "subject_id": member.id,
-            "identity_type": "human",
+            "user_type": "human",
             "role": "EDITOR",
             "source_scope_type": "application",
             "source_scope_id": database.id,
@@ -89,8 +89,8 @@ def test_list_effective_access_of_a_table(
         },
         {
             "subject_type": "auth.User",
-            "subject_id": agent.id,
-            "identity_type": "agent",
+            "subject_id": identity.id,
+            "user_type": "identity",
             "role": "VIEWER",
             "source_scope_type": "workspace",
             "source_scope_id": workspace.id,
@@ -217,7 +217,7 @@ def test_list_effective_access_query_count_does_not_grow_with_members(
             )
             assign(team, workspace, "EDITOR", database.application_ptr)
             assign(member, workspace, "VIEWER", table)
-            data_fixture.create_agent(
+            data_fixture.create_identity(
                 workspace=workspace, name="Bot", role_uid="VIEWER"
             )
 

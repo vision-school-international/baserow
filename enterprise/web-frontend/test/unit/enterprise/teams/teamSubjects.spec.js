@@ -10,10 +10,10 @@ import {
 import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 const userSubjectType = new UserSubjectType()
-const agentSubjectType = new UserSubjectType()
+const identitySubjectType = new UserSubjectType()
 
 describe('teamSubjects', () => {
-  test('normalizes users and agents with User selection IDs', () => {
+  test('normalizes users and identities with User selection IDs', () => {
     const user = makeTeamSubject(
       {
         id: 10,
@@ -23,10 +23,10 @@ describe('teamSubjects', () => {
       },
       userSubjectType
     )
-    const agent = makeTeamSubject(
-      { id: 2, name: 'Writer', identity_type: 'agent' },
-      agentSubjectType,
-      'Agent'
+    const identity = makeTeamSubject(
+      { id: 2, name: 'Writer', user_type: 'identity' },
+      identitySubjectType,
+      'Identity'
     )
 
     expect(user).toEqual({
@@ -37,31 +37,31 @@ describe('teamSubjects', () => {
       name: 'Ada',
       email: 'ada@example.com',
     })
-    expect(agent).toEqual({
+    expect(identity).toEqual({
       id: 'auth.User:2',
       subject_id: 2,
       subject_type: 'auth.User',
       name: 'Writer',
-      identity_type: 'agent',
-      email: 'Agent',
+      user_type: 'identity',
+      email: 'Identity',
     })
-    expect(getTeamSubjectKey(user)).not.toBe(getTeamSubjectKey(agent))
+    expect(getTeamSubjectKey(user)).not.toBe(getTeamSubjectKey(identity))
   })
 
-  test('shows agents in the member selector with their avatar component', async () => {
-    const agent = makeTeamSubject(
-      { id: 2, name: 'Writer', identity_type: 'agent' },
-      agentSubjectType,
-      'Agent'
+  test('shows identities in the member selector with their avatar component', async () => {
+    const identity = makeTeamSubject(
+      { id: 2, name: 'Writer', user_type: 'identity' },
+      identitySubjectType,
+      'Identity'
     )
     const wrapper = await mountSuspended(MemberSelectionList, {
-      props: { members: [agent] },
+      props: { members: [identity] },
     })
 
     expect(wrapper.html()).toMatchSnapshot()
   })
 
-  test('shows users and agents at the same size in the teams table', async () => {
+  test('shows users and identities at the same size in the teams table', async () => {
     const wrapper = await mountSuspended(SubjectSampleField, {
       props: {
         row: {
@@ -86,11 +86,11 @@ describe('teamSubjects', () => {
     expect(wrapper.html()).toMatchSnapshot()
   })
 
-  test('removing an agent does not submit the team form', async () => {
-    const agent = makeTeamSubject(
-      { id: 2, name: 'Writer', identity_type: 'agent' },
-      agentSubjectType,
-      'Agent'
+  test('removing an identity does not submit the team form', async () => {
+    const identity = makeTeamSubject(
+      { id: 2, name: 'Writer', user_type: 'identity' },
+      identitySubjectType,
+      'Identity'
     )
     const wrapper = await mountSuspended(ManageTeamForm, {
       props: {
@@ -110,14 +110,14 @@ describe('teamSubjects', () => {
           },
         },
         loading: false,
-        invitedSubjects: [agent],
+        invitedSubjects: [identity],
         defaultValues: { name: 'Writers', default_role: 'MEMBER' },
       },
     })
 
     await wrapper.find('.button-icon').trigger('click')
 
-    expect(wrapper.emitted('remove-subject')).toEqual([[agent]])
+    expect(wrapper.emitted('remove-subject')).toEqual([[identity]])
     expect(wrapper.emitted('submitted')).toBeUndefined()
   })
 })

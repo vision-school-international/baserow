@@ -45,11 +45,11 @@ def test_local_baserow_create_rows_service_dispatch_data(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=page.builder.workspace, name="Row writer"
     )
     integration.authorized_subject_type = "auth.User"
-    integration.authorized_subject_id = agent.id
+    integration.authorized_subject_id = identity.id
     integration.save(update_fields=["authorized_subject_type", "authorized_subject_id"])
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
@@ -681,16 +681,16 @@ def test_local_baserow_update_rows_service_dispatch_data_rejects_duplicate_ids(
 
 
 @pytest.mark.django_db
-def test_local_baserow_upsert_row_service_dispatch_data_with_published_agent(
+def test_local_baserow_upsert_row_service_dispatch_data_with_published_identity(
     data_fixture,
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=page.builder.workspace, name="Row writer"
     )
     integration = data_fixture.create_local_baserow_integration(
-        application=page.builder, user=user, authorized_agent=agent
+        application=page.builder, user=user, authorized_identity=identity
     )
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace

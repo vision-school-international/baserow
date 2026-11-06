@@ -32,11 +32,11 @@ def clear_permanently_deleted_user_authorization(sender, user_id, **kwargs):
 
 
 @receiver(before_permanently_deleted)
-def clear_permanently_deleted_agent_authorization(sender, trash_item, **kwargs):
-    """Retain integrations when an agent is permanently deleted from trash."""
+def clear_permanently_deleted_identity_authorization(sender, trash_item, **kwargs):
+    """Retain integrations when an identity is permanently deleted from trash."""
 
     if (
         isinstance(trash_item, UserProfile)
-        and trash_item.identity_type == UserProfile.IdentityType.AGENT
+        and trash_item.user_type == UserProfile.UserType.IDENTITY
     ):
         _clear_authorized_subject("auth.User", trash_item.user_id)

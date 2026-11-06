@@ -144,10 +144,12 @@ def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
     other_user = enterprise_data_fixture.create_user(email="other@test.com")
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     other_workspace = enterprise_data_fixture.create_workspace(user=other_user)
-    agent = enterprise_data_fixture.create_agent(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Workspace robot"
     )
-    enterprise_data_fixture.create_agent(workspace=other_workspace, name="Other robot")
+    enterprise_data_fixture.create_identity(
+        workspace=other_workspace, name="Other robot"
+    )
 
     response = api_client.get(
         reverse("api:enterprise:audit_log:actors") + f"?workspace_id={workspace.id}",
@@ -164,10 +166,10 @@ def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
             "value": admin.email,
         },
         {
-            "id": f"{UserSubjectType.type}:{agent.id}",
-            "actor_id": agent.id,
+            "id": f"{UserSubjectType.type}:{identity.id}",
+            "actor_id": identity.id,
             "actor_type": UserSubjectType.type,
-            "value": agent.first_name,
+            "value": identity.first_name,
         },
     ]
 
@@ -210,15 +212,15 @@ def test_workspace_audit_log_actor_filter_includes_disabled_and_deletion_schedul
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_workspace_audit_log_actor_filter_includes_trashed_agents(
+def test_workspace_audit_log_actor_filter_includes_trashed_identities(
     api_client, enterprise_data_fixture
 ):
-    """Historical agent actors remain selectable after being trashed."""
+    """Historical identity actors remain selectable after being trashed."""
 
     enterprise_data_fixture.enable_enterprise()
     admin, token = enterprise_data_fixture.create_user_and_token(email="admin@test.com")
     workspace = enterprise_data_fixture.create_workspace(user=admin)
-    agent = enterprise_data_fixture.create_agent(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Trashed robot", trashed=True
     )
 
@@ -233,7 +235,7 @@ def test_workspace_audit_log_actor_filter_includes_trashed_agents(
         (actor["actor_type"], actor["actor_id"]) for actor in response.json()["results"]
     } == {
         (UserSubjectType.type, admin.id),
-        (UserSubjectType.type, agent.id),
+        (UserSubjectType.type, identity.id),
     }
 
 

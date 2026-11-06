@@ -38,11 +38,13 @@ pytestmark = pytest.mark.enable_signals(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_create_collaborator_notification_keeps_agent_sender(data_fixture):
+def test_identity_row_create_collaborator_notification_keeps_identity_sender(
+    data_fixture,
+):
     owner = data_fixture.create_user()
     collaborator = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, collaborator])
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -55,7 +57,7 @@ def test_agent_row_create_collaborator_notification_keeps_agent_sender(data_fixt
     )
 
     RowHandler().create_row(
-        user=agent,
+        user=identity,
         table=table,
         values={collaborator_field.id: [{"id": collaborator.id}]},
     )
@@ -63,15 +65,15 @@ def test_agent_row_create_collaborator_notification_keeps_agent_sender(data_fixt
     notification = Notification.objects.get(
         type=CollaboratorAddedToRowNotificationType.type
     )
-    assert notification.sender == agent
+    assert notification.sender == identity
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_update_mention_notification_keeps_agent_sender(data_fixture):
+def test_identity_row_update_mention_notification_keeps_identity_sender(data_fixture):
     owner = data_fixture.create_user()
     mentioned_user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, mentioned_user])
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -83,9 +85,9 @@ def test_agent_row_update_mention_notification_keeps_agent_sender(data_fixture):
         long_text_enable_rich_text=True,
     )
     with transaction.atomic():
-        row = RowHandler().create_row(user=agent, table=table)
+        row = RowHandler().create_row(user=identity, table=table)
         RowHandler().update_row(
-            user=agent,
+            user=identity,
             table=table,
             row=row,
             values={rich_text_field.id: f"Hello @{mentioned_user.id}"},
@@ -94,12 +96,12 @@ def test_agent_row_update_mention_notification_keeps_agent_sender(data_fixture):
     notification = Notification.objects.get(
         type=UserMentionInRichTextFieldNotificationType.type
     )
-    assert notification.sender == agent
+    assert notification.sender == identity
     assert (
         UserMentionInRichTextFieldNotificationType.get_notification_title_for_email(
             notification, {}
         )
-        == f"{agent.first_name} mentioned you in {rich_text_field.name} in row "
+        == f"{identity.first_name} mentioned you in {rich_text_field.name} in row "
         f"{row} in {table.name}."
     )
 

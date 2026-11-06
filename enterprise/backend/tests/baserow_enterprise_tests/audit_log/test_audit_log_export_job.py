@@ -226,24 +226,24 @@ def test_audit_log_export_filters_work_correctly(
     job.refresh_from_db()
     job_type = AuditLogExportJobType()
 
-    agent = enterprise_data_fixture.create_agent(workspace=workspace_1)
-    agent_entry = AuditLogEntry.objects.first()
-    agent_entry.pk = None
-    agent_entry.actor_id = agent.id
-    agent_entry.save()
+    identity = enterprise_data_fixture.create_identity(workspace=workspace_1)
+    identity_entry = AuditLogEntry.objects.first()
+    identity_entry.pk = None
+    identity_entry.actor_id = identity.id
+    identity_entry.save()
 
     assert job.filter_actor_type is None
     assert job_type.get_filtered_queryset(job).count() == 3
 
-    job.filter_actor_id = agent.id + 10000
+    job.filter_actor_id = identity.id + 10000
     assert job_type.get_filtered_queryset(job).count() == 0
-    job.filter_actor_id = agent.id
+    job.filter_actor_id = identity.id
     job.filter_actor_type = UserSubjectType.type
     assert job_type.get_filtered_queryset(job).count() == 1
     job.filter_actor_id = user.id
     assert job_type.get_filtered_queryset(job).count() == 2
     job.filter_actor_id = None
-    agent_entry.delete()
+    identity_entry.delete()
 
     job.filter_workspace_id = workspace_1.id
     assert job_type.get_filtered_queryset(job).count() == 1

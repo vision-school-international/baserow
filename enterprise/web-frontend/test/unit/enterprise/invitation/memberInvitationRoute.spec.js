@@ -101,7 +101,7 @@ function createTargetType() {
 }
 
 function createClient({
-  withAgentAssignment = false,
+  withIdentityAssignment = false,
   assignmentsPerScopeType = {},
 } = {}) {
   return {
@@ -129,12 +129,12 @@ function createClient({
               scope_id: 20,
               scope_type: 'database_table',
             },
-            ...(withAgentAssignment
+            ...(withIdentityAssignment
               ? [
                   {
                     id: 7,
                     subject_type: 'auth.User',
-                    subject: { id: 4, name: 'Smith', identity_type: 'agent' },
+                    subject: { id: 4, name: 'Smith', user_type: 'identity' },
                     role: 'VIEWER',
                     scope_id: 20,
                     scope_type: 'database_table',
@@ -144,12 +144,12 @@ function createClient({
           ],
         })
       }
-      if (url === '/agents/workspace/12/') {
+      if (url === '/identities/workspace/12/') {
         return Promise.resolve({
           data: {
             results: [
-              { id: 4, name: 'Smith', identity_type: 'agent' },
-              { id: 5, name: 'Neo', identity_type: 'agent' },
+              { id: 4, name: 'Smith', user_type: 'identity' },
+              { id: 5, name: 'Neo', user_type: 'identity' },
             ],
             next: null,
           },
@@ -178,7 +178,7 @@ async function mountRoute(
   client,
   targetType,
   {
-    canListAgents = false,
+    canListIdentities = false,
     captcha = false,
     canInviteNewUsers = true,
     realList = false,
@@ -195,7 +195,7 @@ async function mountRoute(
     $client: client,
     $featureFlagIsEnabled: () => true,
     $hasPermission: (operation) =>
-      operation !== 'workspace.list_agents' || canListAgents,
+      operation !== 'workspace.list_identities' || canListIdentities,
     $i18n: { t: (key) => key },
   }
   const wrapper = await mountSuspended(MemberInvitationRoute, {
@@ -228,10 +228,10 @@ async function mountRoute(
           ],
           template:
             '<div class="picker" :data-email-disabled-reason="emailDisabledReason">' +
-            '{{ subjects["auth.User"].filter((u) => u.identity_type !== "agent").map((u) => u.name).join(",") }}</div>' +
-            '<div class="picker-agents" ' +
+            '{{ subjects["auth.User"].filter((u) => u.user_type !== "identity").map((u) => u.name).join(",") }}</div>' +
+            '<div class="picker-identities" ' +
             ':data-enabled="String(\'auth.User\' in subjects)">' +
-            '{{ (subjects["auth.User"] || []).filter((a) => a.identity_type === "agent").map((a) => a.name).join(",") }}' +
+            '{{ (subjects["auth.User"] || []).filter((a) => a.user_type === "identity").map((a) => a.name).join(",") }}' +
             '</div>' +
             '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>' +
             '<div class="picker-assigned">{{ JSON.stringify(assignedRoles) }}</div>' +
@@ -299,12 +299,12 @@ test('lists pending invitations first and tells the picker who already has a rol
     expect(wrapper.find('.picker-assigned').text()).toBe(
       '{"auth.User:8":"VIEWER"}'
     )
-    expect(wrapper.find('.picker-agents').text()).toBe('')
-    expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
+    expect(wrapper.find('.picker-identities').text()).toBe('')
+    expect(wrapper.find('.picker-identities').attributes('data-enabled')).toBe(
       'true'
     )
     expect(client.get).not.toHaveBeenCalledWith(
-      '/agents/workspace/12/',
+      '/identities/workspace/12/',
       expect.anything()
     )
     expect(wrapper.find('.inherited').exists()).toBe(true)
@@ -419,20 +419,20 @@ test('shows existing scope users, including the current user with a read-only ro
   }
 })
 
-test('lists assigned agents and offers agents when listing is permitted', async () => {
+test('lists assigned identities and offers identities when listing is permitted', async () => {
   const wrapper = await mountRoute(
-    createClient({ withAgentAssignment: true }),
+    createClient({ withIdentityAssignment: true }),
     createTargetType(),
     {
-      canListAgents: true,
+      canListIdentities: true,
     }
   )
   try {
     expect(wrapper.find('.access').text()).toBe(
       'invitation:1,auth.User:8,auth.User:4'
     )
-    expect(wrapper.find('.picker-agents').text()).toBe('Smith,Neo')
-    expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
+    expect(wrapper.find('.picker-identities').text()).toBe('Smith,Neo')
+    expect(wrapper.find('.picker-identities').attributes('data-enabled')).toBe(
       'true'
     )
   } finally {
@@ -623,7 +623,7 @@ const assignment = (id, subjectType, subject, role, scopeType, scopeId) => ({
 const mark = { id: 8, name: 'Mark Delgado', email: 'mark@x.com' }
 const jane = { id: 9, name: 'Jane Roe', email: 'jane@x.com' }
 const managers = { id: 3, name: 'Management', subject_count: 2 }
-const smith = { id: 4, name: 'Smith', identity_type: 'agent' }
+const smith = { id: 4, name: 'Smith', user_type: 'identity' }
 
 test('locks the role of admins of the workspace and of the database', async () => {
   const client = createClient({

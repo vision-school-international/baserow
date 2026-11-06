@@ -18,7 +18,7 @@ from typing import (
 )
 
 from django import db
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.core.exceptions import ValidationError
 from django.db import connection, router, transaction
 from django.db.models import Field as DjangoField
@@ -89,6 +89,7 @@ from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.types import PermissionCheck
+from baserow.core.user.types import Identity
 from baserow.core.utils import Progress, get_non_unique_values, grouper
 
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
@@ -1879,7 +1880,7 @@ class RowHandler:
     @baserow_trace(tracer)
     def import_rows(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         table: Table,
         data: list[list[Any]],
         configuration: FileImportConfiguration | None = None,

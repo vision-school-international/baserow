@@ -1,7 +1,7 @@
 import dataclasses
 from typing import Any, Dict, List, Optional, Tuple
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.database.action.scopes import DATABASE_ACTION_CONTEXT
@@ -17,6 +17,7 @@ from baserow.core.action.registries import (
 )
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.types import Identity
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -42,7 +43,7 @@ class CreateTableActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         database: Database,
         name: str,
         data: Optional[List[List[Any]]] = None,

@@ -7,7 +7,7 @@ from copy import deepcopy
 from hashlib import shake_128
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
-from django.contrib.auth.models import AbstractUser, AnonymousUser
+from django.contrib.auth.models import AbstractUser, AnonymousUser, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import (
@@ -127,6 +127,7 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
+from baserow.core.user.types import Identity
 from baserow.core.utils import (
     MirrorDict,
     atomic_if_not_already,
@@ -700,7 +701,7 @@ class ViewIndexingHandler:
 class ViewHandler:
     def list_views(
         self,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         table: Table,
         _type: str | None = None,
         filters: bool = True,
@@ -857,7 +858,7 @@ class ViewHandler:
     @baserow_trace(tracer)
     def get_view_as_user(
         self,
-        user: AbstractUser,
+        user: User | Identity | AnonymousUser,
         view_id: int,
         view_model: Optional[Type[View]] = None,
         base_queryset: Optional[QuerySet] = None,
@@ -996,7 +997,7 @@ class ViewHandler:
         return self.get_view_as_user(user, view_id, view_model, base_queryset)
 
     def create_view(
-        self, user: AbstractUser, table: Table, type_name: str, **kwargs
+        self, user: User | Identity, table: Table, type_name: str, **kwargs
     ) -> View:
         """
         Creates a new view based on the provided type.
@@ -1388,7 +1389,7 @@ class ViewHandler:
         return dest_view
 
     def update_view(
-        self, user: AbstractUser, view: View, **data: Dict[str, Any]
+        self, user: User | Identity, view: View, **data: Dict[str, Any]
     ) -> UpdatedViewWithChangedAttributes:
         """
         Updates an existing view instance.
@@ -1613,7 +1614,7 @@ class ViewHandler:
         self,
         view: View,
         field_options: FieldOptionsDict,
-        user: Optional[AbstractUser] = None,
+        user: User | Identity | None = None,
         fields: Optional[QuerySet[Field]] = None,
         send_signal: bool = True,
     ):
@@ -2026,7 +2027,7 @@ class ViewHandler:
 
     def create_filter(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         view: View,
         field: Field,
         type_name: str,
@@ -2196,7 +2197,7 @@ class ViewHandler:
 
     def get_filter_group(
         self,
-        user: AbstractUser,
+        user: User | Identity,
         filter_group_id: int,
         base_queryset: Optional[QuerySet] = None,
     ) -> ViewFilterGroup:

@@ -83,10 +83,10 @@ def test_get_acting_user_raises_when_the_integration_has_no_authorized_subject(
 
 
 @pytest.mark.django_db
-def test_dispatch_rejects_a_trashed_authorized_agent(data_fixture):
+def test_dispatch_rejects_a_trashed_authorized_identity(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=page.builder.workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -95,7 +95,7 @@ def test_dispatch_rejects_a_trashed_authorized_agent(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder,
         user=user,
-        authorized_agent=agent,
+        authorized_identity=identity,
     )
     table, name_field = _table_with_name_field(
         data_fixture, user, workspace=page.builder.workspace
@@ -108,25 +108,25 @@ def test_dispatch_rejects_a_trashed_authorized_agent(data_fixture):
 
     with pytest.raises(
         ServiceImproperlyConfiguredDispatchException,
-        match="authorized agent is trashed",
+        match="authorized identity is trashed",
     ):
         ServiceHandler().dispatch_service(service, FakeDispatchContext())
 
     assert table.get_model().objects.count() == 0
-    # Only the trash-inclusive lookup returns the agent, so it can never act.
+    # Only the trash-inclusive lookup returns the identity, so it can never act.
     integration.refresh_from_db()
     assert integration.authorized_subject is None
-    assert integration.authorized_subject_including_trash == agent
+    assert integration.authorized_subject_including_trash == identity
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("state", ["disabled", "other_workspace"])
-def test_dispatch_denies_an_unavailable_authorized_agent(data_fixture, state):
-    """Agent users test plan 12.1.2."""
+def test_dispatch_denies_an_unavailable_authorized_identity(data_fixture, state):
+    """Identity users test plan 12.1.2."""
 
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=(
             page.builder.workspace
             if state == "disabled"
@@ -136,7 +136,7 @@ def test_dispatch_denies_an_unavailable_authorized_agent(data_fixture, state):
         is_active=state != "disabled",
     )
     integration = data_fixture.create_local_baserow_integration(
-        application=page.builder, user=user, authorized_agent=agent
+        application=page.builder, user=user, authorized_identity=identity
     )
     table, name_field = _table_with_name_field(
         data_fixture, user, workspace=page.builder.workspace

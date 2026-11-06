@@ -3,7 +3,7 @@ from collections import defaultdict
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Type
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.database.action.scopes import (
@@ -51,6 +51,7 @@ from baserow.core.action.registries import (
 )
 from baserow.core.action.signals import ActionCommandType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.types import Identity
 
 
 class CreateViewFilterActionType(UndoableActionType):
@@ -88,7 +89,7 @@ class CreateViewFilterActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         view: View,
         field: Field,
         filter_type: str,
@@ -1251,7 +1252,7 @@ class UpdateViewFieldOptionsActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         view: View,
         field_options: FieldOptionsDict,
     ):
@@ -1506,7 +1507,7 @@ class CreateViewActionType(UndoableActionType):
         database_name: str
 
     @classmethod
-    def do(cls, user: AbstractUser, table: Table, type_name: str, **kwargs) -> View:
+    def do(cls, user: User | Identity, table: Table, type_name: str, **kwargs) -> View:
         """
         Creates a new view based on the provided type.
         See baserow.contrib.views.handler.ViewsHandler.create_view for further details.

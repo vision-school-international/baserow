@@ -5,13 +5,13 @@ import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 // The registry supplies the complete appearance, including shape, at either size.
 test.each([
   ['user', new UserSubjectType(), 'human'],
-  ['agent', new UserSubjectType(), 'agent'],
+  ['identity', new UserSubjectType(), 'identity'],
   ['team', new TeamSubjectType(), null],
 ])(
   '%s avatar owns its appearance in compact and large lists',
-  async (_, type, identityType) => {
+  async (_, type, userType) => {
     const wrapper = mount(type.avatarComponent, {
-      props: { subject: { name: 'Ada Lovelace', identity_type: identityType } },
+      props: { subject: { name: 'Ada Lovelace', user_type: userType } },
     })
     try {
       expect(wrapper.html()).toMatchSnapshot('compact')

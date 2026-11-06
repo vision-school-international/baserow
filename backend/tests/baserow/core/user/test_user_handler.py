@@ -1136,22 +1136,24 @@ def test_change_email_already_exists(data_fixture):
 
 
 @pytest.mark.django_db
-def test_human_account_uniqueness_includes_agent_identities(data_fixture):
-    agent = data_fixture.create_agent()
+def test_human_account_uniqueness_includes_identity_identities(data_fixture):
+    identity = data_fixture.create_identity()
     with pytest.raises(UserAlreadyExist):
-        UserHandler().force_create_user(agent.email, "Person", "password")
+        UserHandler().force_create_user(identity.email, "Person", "password")
 
 
 @pytest.mark.django_db
-def test_loaded_agent_cannot_use_human_password_and_email_flows(
+def test_loaded_identity_cannot_use_human_password_and_email_flows(
     data_fixture, mailoutbox
 ):
-    agent = data_fixture.create_agent()
+    identity = data_fixture.create_identity()
     handler = UserHandler()
-    assert not handler.send_reset_password_email(agent)
-    assert not handler.send_email_pending_verification(agent)
+    assert not handler.send_reset_password_email(identity)
+    assert not handler.send_email_pending_verification(identity)
     with pytest.raises(InvalidPassword):
-        handler.change_password(agent, "password", "new-password")
+        handler.change_password(identity, "password", "new-password")
     with pytest.raises(ChangeEmailNotAllowed):
-        handler.send_change_email_confirmation(agent, "person@example.com", "password")
+        handler.send_change_email_confirmation(
+            identity, "person@example.com", "password"
+        )
     assert not mailoutbox

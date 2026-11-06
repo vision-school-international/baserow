@@ -155,7 +155,7 @@ describe('FieldPermissionSubjectsSelector', () => {
     expect(wrapper.find('.dropdown__items').classes()).toContain('hidden')
     expect(wrapper.emitted('selection-change').at(-1)).toEqual([2])
   })
-  test('selects and removes an agent user alongside a person', async () => {
+  test('selects and removes an identity user alongside a person', async () => {
     fetchSubjectOptions.mockResolvedValue({
       data: {
         count: 1,
@@ -163,7 +163,7 @@ describe('FieldPermissionSubjectsSelector', () => {
           {
             subject_id: 4,
             subject_type: 'auth.User',
-            name: 'Import agent',
+            name: 'Import identity',
             email: null,
             subject_count: null,
           },
@@ -177,7 +177,7 @@ describe('FieldPermissionSubjectsSelector', () => {
     await flushPromises()
     const selected = wrapper.findAll('.field-permission-subjects__item')
     expect(selected).toHaveLength(2)
-    expect(selected[1].text()).toContain('Import agent')
+    expect(selected[1].text()).toContain('Import identity')
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
     expect(fetchSubjectOptions).toHaveBeenLastCalledWith(
@@ -196,12 +196,12 @@ describe('FieldPermissionSubjectsSelector', () => {
         {
           subject_id: 4,
           subject_type: 'auth.User',
-          subject: { id: 4, first_name: 'Saved agent' },
+          subject: { id: 4, first_name: 'Saved identity' },
         },
       ],
     })
     expect(wrapper.find('.field-permission-subjects__item').text()).toContain(
-      'Saved agent'
+      'Saved identity'
     )
     wrapper.unmount()
   })

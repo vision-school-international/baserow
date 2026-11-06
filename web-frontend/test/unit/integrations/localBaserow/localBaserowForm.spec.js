@@ -18,15 +18,15 @@ describe('LocalBaserowForm', () => {
           id: 'auth.User:10',
           subject_id: 10,
           subject_type: 'auth.User',
-          identity_type: 'agent',
-          name: 'Writer agent',
+          user_type: 'identity',
+          name: 'Writer identity',
         },
         {
           id: 'auth.User:11',
           subject_id: 11,
           subject_type: 'auth.User',
-          identity_type: 'agent',
-          name: 'Reader agent',
+          user_type: 'identity',
+          name: 'Reader identity',
         },
       ],
     })
@@ -45,7 +45,7 @@ describe('LocalBaserowForm', () => {
     })
   }
 
-  test('lists agents and emits the selected typed subject', async () => {
+  test('lists identities and emits the selected typed subject', async () => {
     const wrapper = await mountComponent()
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
@@ -55,15 +55,15 @@ describe('LocalBaserowForm', () => {
       page: 1,
       search: '',
       subject_types: 'auth.User',
-      identity_type: 'agent',
+      user_type: 'identity',
       size: 100,
     })
 
     const items = wrapper.findAllComponents({ name: 'DropdownItem' })
     expect(items.map((item) => item.props('name'))).toEqual([
       'localBaserowForm.currentUser',
-      'Writer agent',
-      'Reader agent',
+      'Writer identity',
+      'Reader identity',
     ])
 
     await items.at(1).find('.select__item-link').trigger('click')
@@ -75,27 +75,29 @@ describe('LocalBaserowForm', () => {
     })
   })
 
-  test('shows the saved agent as selected', async () => {
+  test('shows the saved identity as selected', async () => {
     const wrapper = await mountComponent({
       authorized_subject: {
         id: 11,
         type: 'auth.User',
-        identity_type: 'agent',
-        name: 'Reader agent',
+        user_type: 'identity',
+        name: 'Reader identity',
       },
     })
     await flushPromises()
 
-    expect(wrapper.find('.dropdown__selected-text').text()).toBe('Reader agent')
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'Reader identity'
+    )
   })
 
-  test('shows nothing selected for a saved trashed agent', async () => {
+  test('shows nothing selected for a saved trashed identity', async () => {
     const wrapper = await mountComponent({
       authorized_subject: {
         id: 11,
         type: 'auth.User',
-        identity_type: 'agent',
-        name: 'Reader agent',
+        user_type: 'identity',
+        name: 'Reader identity',
         trashed: true,
       },
     })
@@ -138,8 +140,8 @@ describe('LocalBaserowForm', () => {
       authorized_subject: {
         id: 11,
         type: 'auth.User',
-        identity_type: 'agent',
-        name: 'Reader agent',
+        user_type: 'identity',
+        name: 'Reader identity',
       },
     })
     await flushPromises()

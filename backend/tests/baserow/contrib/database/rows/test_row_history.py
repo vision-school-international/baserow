@@ -112,12 +112,12 @@ def test_update_rows_insert_multiple_entries_in_row_history(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.row_history
-def test_agent_is_stored_as_typed_row_history_actor(data_fixture):
+def test_identity_is_stored_as_typed_row_history_actor(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
     field = data_fixture.create_text_field(table=table, name="Name")
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=database.workspace,
         name="A" * 150,
         role_uid="ADMIN",
@@ -125,21 +125,21 @@ def test_agent_is_stored_as_typed_row_history_actor(data_fixture):
     row = RowHandler().force_create_row(user, table, {field.id: "Before"})
 
     UpdateRowsActionType.do(
-        agent,
+        identity,
         table,
         [{"id": row.id, f"field_{field.id}": "After"}],
     )
 
     entry = RowHistory.objects.get()
-    assert entry.actor_id == agent.id
+    assert entry.actor_id == identity.id
     assert entry.actor_type == UserSubjectType.type
-    assert entry.actor_name == agent.first_name
+    assert entry.actor_name == identity.first_name
     assert RowHistorySerializer(entry).data["actor"] == {
-        "id": agent.id,
+        "id": identity.id,
         "type": UserSubjectType.type,
-        "name": agent.first_name,
+        "name": identity.first_name,
     }
-    assert RowHistorySerializer(entry).data["user"]["id"] == agent.id
+    assert RowHistorySerializer(entry).data["user"]["id"] == identity.id
 
 
 @pytest.mark.django_db

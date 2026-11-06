@@ -1615,7 +1615,7 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
         """
 
         model_class = self.get(type_name).model_class
-        manager = getattr(model_class, "objects_and_agents", None)
+        manager = getattr(model_class, "objects_and_identities", None)
         if manager is not None:
             queryset = manager.select_related("profile")
             if not include_trash:

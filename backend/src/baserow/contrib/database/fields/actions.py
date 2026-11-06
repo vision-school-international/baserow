@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from uuid import uuid4
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.database.action.scopes import (
@@ -31,6 +31,7 @@ from baserow.core.action.registries import (
     UndoableActionType,
 )
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.types import Identity
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -73,7 +74,7 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         field: SpecificFieldForUpdate,
         new_type_name: Optional[str] = None,
         **kwargs,
@@ -377,7 +378,7 @@ class CreateFieldActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         table: Table,
         type_name: str,
         primary=False,
@@ -478,7 +479,7 @@ class DeleteFieldActionType(UndoableActionType):
     @classmethod
     def do(
         cls,
-        user: AbstractUser,
+        user: User | Identity,
         field: Field,
     ) -> List[Field]:
         """

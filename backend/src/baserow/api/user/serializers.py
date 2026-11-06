@@ -62,20 +62,18 @@ token_refreshes_counter = meter.create_counter(
 
 class SubjectUserSerializer(serializers.ModelSerializer):
     trashed = serializers.BooleanField(source="profile.trashed", read_only=True)
-    identity_type = serializers.CharField(
-        source="profile.identity_type", read_only=True
-    )
+    user_type = serializers.CharField(source="profile.user_type", read_only=True)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        if instance.profile.identity_type == "agent":
+        if instance.profile.user_type == "identity":
             data["email"] = None
             data["username"] = None
         return data
 
     class Meta:
         model = User
-        fields = ["id", "username", "first_name", "email", "identity_type", "trashed"]
+        fields = ["id", "username", "first_name", "email", "user_type", "trashed"]
         extra_kwargs = {
             "id": {"read_only": True},
             "username": {"read_only": True},
@@ -361,9 +359,9 @@ def check_user_can_log_in_with_password(user):
     :return: The password provider.
     """
 
-    from baserow.core.user.identity import is_human_user
+    from baserow.core.user.identity import is_user
 
-    if not is_human_user(user):
+    if not is_user(user):
         raise AuthenticationFailed()
     password_provider = PasswordProviderHandler.get()
     if not password_provider.enabled and user.is_staff is False:

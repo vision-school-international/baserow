@@ -1,5 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 
 export class WorkspaceSettingsPageType extends Registerable {
   /**
@@ -82,21 +82,21 @@ export class MembersWorkspaceSettingsPageType extends WorkspaceSettingsPageType 
   }
 }
 
-export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
+export class IdentitiesWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   getOrder() {
     return 40
   }
 
   static getType() {
-    return 'agents'
+    return 'identities'
   }
 
   getBadge() {
-    return this.app.$i18n.t('agents.new')
+    return this.app.$i18n.t('identities.new')
   }
 
   getName() {
-    return this.app.$i18n.t('agents.tabTitle')
+    return this.app.$i18n.t('identities.tabTitle')
   }
 
   get developmentStage() {
@@ -105,14 +105,18 @@ export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
 
   hasPermission(workspace) {
     return (
-      this.app.$featureFlagIsEnabled(FF_AGENTS) &&
-      this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
+      this.app.$featureFlagIsEnabled(FF_IDENTITIES) &&
+      this.app.$hasPermission(
+        'workspace.list_identities',
+        workspace,
+        workspace.id
+      )
     )
   }
 
   getRoute(workspace) {
     return {
-      name: 'settings-agents',
+      name: 'settings-identities',
       params: { workspaceId: workspace.id },
     }
   }

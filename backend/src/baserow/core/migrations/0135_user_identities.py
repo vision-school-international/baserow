@@ -110,17 +110,17 @@ def refuse_legacy_agents(apps, schema_editor):
 def refuse_identity_rollback(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         set_lock_timeout(cursor, "2s")
-        # Hold the guard through reverse DDL so a new agent cannot become a person.
+        # Hold the guard through reverse DDL so a new identity cannot become a person.
         cursor.execute("LOCK TABLE core_userprofile IN ACCESS EXCLUSIVE MODE")
     Profile = apps.get_model("core", "UserProfile")
     if (
         Profile._base_manager.using(schema_editor.connection.alias)
-        .filter(identity_type="agent")
+        .filter(user_type="identity")
         .exists()
     ):
         raise RuntimeError(
-            "Cannot remove identity types while agent Users exist. "
-            "Permanently delete agent identities before rolling back."
+            "Cannot remove user types while identities exist. "
+            "Permanently delete identities before rolling back."
         )
 
 
@@ -133,12 +133,12 @@ class Migration(LockTimeoutMigration):
         migrations.RunPython(refuse_legacy_agents, migrations.RunPython.noop),
         migrations.AddField(
             model_name="userprofile",
-            name="identity_type",
+            name="user_type",
             field=models.CharField(
-                choices=[("human", "Human"), ("agent", "Agent")],
+                choices=[("human", "Human"), ("identity", "Identity")],
                 db_default="human",
                 default="human",
-                max_length=5,
+                max_length=8,
             ),
         ),
         migrations.AddField(

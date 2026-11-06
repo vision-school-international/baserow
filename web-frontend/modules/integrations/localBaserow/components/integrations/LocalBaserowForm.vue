@@ -3,7 +3,7 @@
     <FormGroup :label="$t('localBaserowForm.subject')" required small-label>
       <PaginatedDropdown
         :value="authenticationSubject"
-        :fetch-page="fetchAgentPage"
+        :fetch-page="fetchIdentityPage"
         :add-empty-item="false"
         :initial-display-name="initialSubjectName"
         :include-display-name-in-selected-event="true"
@@ -62,7 +62,7 @@ export default {
     },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
-      // A trashed agent isn't selectable, so show nothing selected and let the
+      // A trashed identity isn't selectable, so show nothing selected and let the
       // user pick another subject.
       if (subject?.trashed) {
         return null
@@ -93,12 +93,12 @@ export default {
     },
   },
   methods: {
-    fetchAgentPage(page, search) {
+    fetchIdentityPage(page, search) {
       return SubjectService(this.$client).list(this.application.workspace.id, {
         page,
         search,
         subjectTypes: 'auth.User',
-        identityType: 'agent',
+        userType: 'identity',
       })
     },
     setAuthenticationSubject({ value, item }) {

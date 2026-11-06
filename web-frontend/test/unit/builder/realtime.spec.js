@@ -310,7 +310,7 @@ describe('builder realtime integration events', () => {
   })
 })
 
-describe('builder realtime agent events', () => {
+describe('builder realtime identity events', () => {
   const matchingIntegration = {
     id: 5,
     type: 'local_baserow',
@@ -356,10 +356,10 @@ describe('builder realtime agent events', () => {
   })
 
   test.each([
-    ['agent_created', { workspace_id: 2, agent: { id: 10 } }],
-    ['agent_deleted', { workspace_id: 2, agent_id: 10 }],
+    ['identity_created', { workspace_id: 2, identity: { id: 10 } }],
+    ['identity_deleted', { workspace_id: 2, identity_id: 10 }],
   ])(
-    '%s re-dispatches data sources using the authorized agent',
+    '%s re-dispatches data sources using the authorized identity',
     (event, data) => {
       const handlers = getHandlers()
       const store = buildAppStore()

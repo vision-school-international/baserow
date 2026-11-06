@@ -279,9 +279,9 @@ def test_prepare_file_for_db_with_service_file(data_fixture):
 
 
 @pytest.mark.django_db
-def test_prepare_file_for_db_preserves_agent_attribution(data_fixture):
+def test_prepare_file_for_db_preserves_identity_attribution(data_fixture):
     user = data_fixture.create_user()
-    agent = data_fixture.create_agent(
+    identity = data_fixture.create_identity(
         workspace=data_fixture.create_workspace(user=user), name="File writer"
     )
     service_file = ServiceFile(
@@ -293,9 +293,9 @@ def test_prepare_file_for_db_preserves_agent_attribution(data_fixture):
         ),
     )
 
-    file_name = prepare_files_for_db(service_file, agent)[0]["name"]
+    file_name = prepare_files_for_db(service_file, identity)[0]["name"]
 
-    assert UserFileHandler().get_user_file_by_name(file_name).uploaded_by == agent
+    assert UserFileHandler().get_user_file_by_name(file_name).uploaded_by == identity
 
 
 @pytest.mark.django_db

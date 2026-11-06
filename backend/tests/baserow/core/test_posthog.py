@@ -131,11 +131,11 @@ def test_capture_event_action_done_ignores_non_interactive_subject(
     mock_capture_event, data_fixture
 ):
     workspace = data_fixture.create_workspace()
-    agent = data_fixture.create_agent(workspace=workspace, name="Writer")
+    identity = data_fixture.create_identity(workspace=workspace, name="Writer")
 
     capture_event_action_done(
         sender=None,
-        user=agent,
+        user=identity,
         action_type=TestActionType(),
         action_params={"must_be_kept": "yes"},
         action_timestamp=None,

@@ -19,7 +19,7 @@ from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig, subject_type_registry
-from baserow.core.user.identity import is_agent_user
+from baserow.core.user.identity import is_identity
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -56,7 +56,7 @@ class LocalBaserowIntegrationType(IntegrationType):
 
     serializer_field_overrides = {
         "context_data": LocalBaserowContextDataSerializer(read_only=True),
-        # Include a trashed agent so clients can show the integration in error.
+        # Include a trashed identity so clients can show the integration in error.
         "authorized_subject": AuthorizedSubjectSerializerField(
             source="authorized_subject_including_trash", read_only=True
         ),
@@ -115,7 +115,7 @@ class LocalBaserowIntegrationType(IntegrationType):
         else:
             subject_type = subject_type_registry.get(subject_type_name)
             subject = subject_type_registry.get_subject(subject_type_name, subject_id)
-            if subject_id != user.id and not is_agent_user(subject):
+            if subject_id != user.id and not is_identity(subject):
                 raise serializers.ValidationError(
                     {
                         "authorized_subject_id": (
@@ -176,7 +176,7 @@ class LocalBaserowIntegrationType(IntegrationType):
 
         if import_export_config and import_export_config.is_publishing:
             subject = instance.authorized_subject_including_trash
-            if is_agent_user(subject) and subject.profile.trashed:
+            if is_identity(subject) and subject.profile.trashed:
                 raise IntegrationImproperlyConfigured(
                     "The authorized subject is trashed."
                 )

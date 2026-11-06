@@ -1228,10 +1228,10 @@ def test_premium_license_builder_usage_license_extra_info(
 
 
 @pytest.mark.django_db
-def test_agents_cannot_be_assigned_license_seats(data_fixture):
+def test_identities_cannot_be_assigned_license_seats(data_fixture):
     admin = data_fixture.create_user(is_staff=True)
-    agent = data_fixture.create_agent()
+    identity = data_fixture.create_identity()
     license_object = License.objects.create(license=VALID_ONE_SEAT_LICENSE.decode())
     with pytest.raises(CantManuallyChangeSeatsError):
-        LicenseHandler.add_user_to_license(admin, license_object, agent)
+        LicenseHandler.add_user_to_license(admin, license_object, identity)
     assert not license_object.users.exists()

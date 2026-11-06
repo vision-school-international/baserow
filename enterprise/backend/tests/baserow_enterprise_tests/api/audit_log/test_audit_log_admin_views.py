@@ -91,14 +91,14 @@ def test_non_admins_cannot_export_audit_log_to_csv(api_client, enterprise_data_f
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_audit_log_actor_filter_returns_users_and_agents(
+def test_audit_log_actor_filter_returns_users_and_identities(
     api_client, enterprise_data_fixture
 ):
     admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
         email="admin@test.com"
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
-    agent = enterprise_data_fixture.create_agent(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Audit robot"
     )
 
@@ -121,10 +121,10 @@ def test_audit_log_actor_filter_returns_users_and_agents(
                 "value": admin.email,
             },
             {
-                "id": f"{UserSubjectType.type}:{agent.id}",
-                "actor_id": agent.id,
+                "id": f"{UserSubjectType.type}:{identity.id}",
+                "actor_id": identity.id,
                 "actor_type": UserSubjectType.type,
-                "value": agent.first_name,
+                "value": identity.first_name,
             },
         ],
     }
@@ -132,7 +132,7 @@ def test_audit_log_actor_filter_returns_users_and_agents(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_audit_log_actor_filter_searches_users_and_agents(
+def test_audit_log_actor_filter_searches_users_and_identities(
     api_client, enterprise_data_fixture
 ):
     admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
@@ -140,10 +140,10 @@ def test_audit_log_actor_filter_searches_users_and_agents(
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     matching_user = enterprise_data_fixture.create_user(email="matching@test.com")
-    matching_agent = enterprise_data_fixture.create_agent(
+    matching_identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Matching robot"
     )
-    enterprise_data_fixture.create_agent(workspace=workspace, name="Other robot")
+    enterprise_data_fixture.create_identity(workspace=workspace, name="Other robot")
 
     response = api_client.get(
         reverse("api:enterprise:audit_log:actors") + "?search=matching",
@@ -157,7 +157,7 @@ def test_audit_log_actor_filter_searches_users_and_agents(
         for result in response.json()["results"]
     } == {
         (UserSubjectType.type, matching_user.id),
-        (UserSubjectType.type, matching_agent.id),
+        (UserSubjectType.type, matching_identity.id),
     }
 
 
@@ -171,7 +171,7 @@ def test_audit_log_actor_filter_returns_pagination_links(
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     other_user = enterprise_data_fixture.create_user(email="other@test.com")
-    agent = enterprise_data_fixture.create_agent(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Audit robot"
     )
     url = reverse("api:enterprise:audit_log:actors")
@@ -198,10 +198,10 @@ def test_audit_log_actor_filter_returns_pagination_links(
     assert response.json()["previous"].endswith(f"{url}?size=1")
     assert response.json()["results"] == [
         {
-            "id": f"{UserSubjectType.type}:{agent.id}",
-            "actor_id": agent.id,
+            "id": f"{UserSubjectType.type}:{identity.id}",
+            "actor_id": identity.id,
             "actor_type": UserSubjectType.type,
-            "value": agent.first_name,
+            "value": identity.first_name,
         }
     ]
 

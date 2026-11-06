@@ -41,9 +41,9 @@ class CoreConfig(AppConfig):
 
         trash_item_type_registry.register(WorkspaceTrashableItemType())
         trash_item_type_registry.register(ApplicationTrashableItemType())
-        from .agents.trash_types import AgentTrashableItemType
+        from .identities.trash_types import IdentityTrashableItemType
 
-        trash_item_type_registry.register(AgentTrashableItemType())
+        trash_item_type_registry.register(IdentityTrashableItemType())
 
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
@@ -229,13 +229,13 @@ class CoreConfig(AppConfig):
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
 
-        from .agents.operations import (
-            CreateAgentOperationType,
-            DeleteAgentOperationType,
-            ListAgentsWorkspaceOperationType,
-            UpdateAgentOperationType,
-        )
         from .ai_provider.operations import ManageAIProvidersOperationType
+        from .identities.operations import (
+            CreateIdentityOperationType,
+            DeleteIdentityOperationType,
+            ListIdentitiesWorkspaceOperationType,
+            UpdateIdentityOperationType,
+        )
         from .notifications.operations import (
             ClearNotificationsOperationType,
             ListNotificationsOperationType,
@@ -316,10 +316,10 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(RestoreApplicationOperationType())
         operation_type_registry.register(RestoreWorkspaceOperationType())
         operation_type_registry.register(ReadApplicationOperationType())
-        operation_type_registry.register(ListAgentsWorkspaceOperationType())
-        operation_type_registry.register(CreateAgentOperationType())
-        operation_type_registry.register(UpdateAgentOperationType())
-        operation_type_registry.register(DeleteAgentOperationType())
+        operation_type_registry.register(ListIdentitiesWorkspaceOperationType())
+        operation_type_registry.register(CreateIdentityOperationType())
+        operation_type_registry.register(UpdateIdentityOperationType())
+        operation_type_registry.register(DeleteIdentityOperationType())
 
         from baserow.core.actions import (
             AcceptWorkspaceInvitationActionType,
@@ -622,7 +622,7 @@ class CoreConfig(AppConfig):
 
             patch_user_model_str()
 
-        import baserow.core.agents.receivers  # noqa: F401
+        import baserow.core.identities.receivers  # noqa: F401
         import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.mcp.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401

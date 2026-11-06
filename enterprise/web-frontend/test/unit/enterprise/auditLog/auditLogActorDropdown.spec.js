@@ -40,7 +40,7 @@ async function mountComponent(fetchPage = null) {
 }
 
 describe('AuditLogActorDropdown', () => {
-  test('renders agents among users and selects an agent', async () => {
+  test('renders identities among users and selects an identity', async () => {
     const wrapper = await mountComponent()
     await wrapper.findComponent(PaginatedDropdown).vm.fetch()
     await flushPromises()

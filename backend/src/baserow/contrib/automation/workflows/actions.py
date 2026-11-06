@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import List, Optional
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -19,6 +19,7 @@ from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.types import Identity
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -39,7 +40,7 @@ class CreateAutomationWorkflowActionType(UndoableActionType):
 
     @classmethod
     def do(
-        cls, user: AbstractUser, automation_id: int, data: dict
+        cls, user: User | Identity, automation_id: int, data: dict
     ) -> AutomationWorkflow:
         workflow = AutomationWorkflowService().create_workflow(
             user, automation_id, **data

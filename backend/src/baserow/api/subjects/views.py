@@ -6,9 +6,9 @@ from rest_framework.views import APIView
 from baserow.api.decorators import map_exceptions, validate_query_parameters
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST
 from baserow.api.pagination import PageNumberPagination
-from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.operations import ListIdentitiesWorkspaceOperationType
 from baserow.core.registries import subject_type_registry
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.subjects import UserSubjectType
@@ -46,10 +46,10 @@ class SubjectOptionsView(APIView):
                 for subject_type_name in requested_types
             }
             if UserSubjectType.type in requested_types and query_params[
-                "identity_type"
-            ] in {"agent", "all"}:
-                operation_types.add(ListAgentsWorkspaceOperationType.type)
-                if query_params["identity_type"] == "agent":
+                "user_type"
+            ] in {"identity", "all"}:
+                operation_types.add(ListIdentitiesWorkspaceOperationType.type)
+                if query_params["user_type"] == "identity":
                     operation_types.discard(
                         subject_type_registry.get(
                             UserSubjectType.type
@@ -73,9 +73,9 @@ class SubjectOptionsView(APIView):
                 subject_types=query_params.get("subject_types"),
                 subject_type_options_kwargs={
                     UserSubjectType.type: {
-                        "identity_type": None
-                        if query_params["identity_type"] == "all"
-                        else query_params["identity_type"]
+                        "user_type": None
+                        if query_params["user_type"] == "all"
+                        else query_params["user_type"]
                     }
                 },
             )

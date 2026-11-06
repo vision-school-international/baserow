@@ -520,25 +520,25 @@ def test_0135_identity_upgrade_and_guarded_rollback(migrator, teardown_table_met
 
     new_state = migrator.migrate(current)
     Profile = new_state.apps.get_model("core", "UserProfile")
-    assert Profile._base_manager.get(user_id=human.id).identity_type == "human"
+    assert Profile._base_manager.get(user_id=human.id).user_type == "human"
     assert "core_agent" not in connection.introspection.table_names()
 
     User = new_state.apps.get_model("auth", "User")
-    agent = User.objects.create(username="agent@example.invalid", is_active=True)
+    identity = User.objects.create(username="identity@example.invalid", is_active=True)
     Profile._base_manager.create(
-        user_id=agent.id, identity_type="agent", trashed=True, timezone="UTC"
+        user_id=identity.id, user_type="identity", trashed=True, timezone="UTC"
     )
-    with pytest.raises(RuntimeError, match="while agent Users exist"):
+    with pytest.raises(RuntimeError, match="while identities exist"):
         migrator.migrate(previous)
-    assert Profile._base_manager.get(user_id=agent.id).identity_type == "agent"
-    assert User.objects.get(id=agent.id).is_active
+    assert Profile._base_manager.get(user_id=identity.id).user_type == "identity"
+    assert User.objects.get(id=identity.id).is_active
     assert "core_agent" not in connection.introspection.table_names()
 
-    Profile._base_manager.filter(user_id=agent.id).delete()
-    User.objects.filter(id=agent.id).delete()
+    Profile._base_manager.filter(user_id=identity.id).delete()
+    User.objects.filter(id=identity.id).delete()
     reversed_state = migrator.migrate(previous)
     OldProfile = reversed_state.apps.get_model("core", "UserProfile")
-    assert "identity_type" not in {field.name for field in OldProfile._meta.fields}
+    assert "user_type" not in {field.name for field in OldProfile._meta.fields}
     assert "core_agent" in connection.introspection.table_names()
 
 
@@ -583,7 +583,7 @@ def test_0135_refuses_legacy_data_before_schema_changes(
                 connection.cursor(), "core_userprofile"
             )
         }
-        assert "identity_type" not in columns
+        assert "user_type" not in columns
         assert "core_agent" in connection.introspection.table_names()
     finally:
         item.delete()

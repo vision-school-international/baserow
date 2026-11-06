@@ -168,7 +168,7 @@ class RoleAssignmentHandler:
             RoleAssignment.objects.filter(id_filters)
             .exclude(
                 subject_type=ContentType.objects.get_for_model(User),
-                subject_id__in=User.objects_and_agents.filter(
+                subject_id__in=User.objects_and_identities.filter(
                     profile__trashed=True
                 ).values("id"),
             )
@@ -1370,7 +1370,7 @@ class RoleAssignmentHandler:
                 "subject",
                 [
                     TeamHandler().get_teams_queryset(),
-                    User.objects_and_agents.select_related("profile"),
+                    User.objects_and_identities.select_related("profile"),
                 ],
             ),
         )
@@ -1407,7 +1407,7 @@ class RoleAssignmentHandler:
         self, workspace: Workspace, scope: ScopeObject
     ) -> List[EffectiveAccess]:
         """
-        Resolves the role every user and agent of the workspace effectively holds on
+        Resolves the role every user and identity of the workspace effectively holds on
         the given scope, with the resolution the permission checks use, and where it
         comes from.
 
@@ -1539,7 +1539,7 @@ class RoleAssignmentHandler:
         self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
     ) -> Dict[Subject, List[SubjectRoleAssignment]]:
         """
-        Returns the roles the given users, agents or teams hold on databases, tables
+        Returns the roles the given users, identities or teams hold on databases, tables
         and views of the workspace, as shown to the given user: only on objects whose
         roles the user may read, not on objects in the trash, and on views only while
         they are restricted, as a role on any other view has no effect.
@@ -1550,7 +1550,7 @@ class RoleAssignmentHandler:
 
         :param user: The user the roles are shown to.
         :param workspace: The workspace the roles are held in.
-        :param subjects: The users, agents or teams to return the roles of.
+        :param subjects: The users, identities or teams to return the roles of.
         :return: The roles of every given subject, grouped by the database they are
             in, a database before its tables and a table before its views, then by
             name.
@@ -1621,7 +1621,7 @@ class RoleAssignmentHandler:
                 parent = parent.get_parent()
             return parents
 
-        # The scopes on which each user or agent holds the admin role themselves.
+        # The scopes on which each user or identity holds the admin role themselves.
         admin_keys_per_subject_key = defaultdict(set)
         for role_assignment in role_assignments:
             subject_key = (role_assignment.subject_type_id, role_assignment.subject_id)
@@ -1735,7 +1735,7 @@ class RoleAssignmentHandler:
 
         :param user: The user the roles are shown to.
         :param workspace: The workspace the roles are held in.
-        :param subjects: The users, agents or teams to count the roles of.
+        :param subjects: The users, identities or teams to count the roles of.
         :return: The number of listed roles per subject, or an empty dict when roles
             don't apply to the workspace.
         """
