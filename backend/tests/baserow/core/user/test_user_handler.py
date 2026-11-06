@@ -687,6 +687,25 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
 
 
 @pytest.mark.django_db
+def test_expired_last_human_admin_deletes_workspace_with_identity_admin(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+    user.profile.to_be_deleted = True
+    user.profile.save(update_fields=["to_be_deleted"])
+    user.last_login = datetime.now(tz=timezone.utc) - timedelta(days=10)
+    user.save(update_fields=["last_login"])
+
+    UserHandler().delete_expired_users_and_related_workspaces_if_last_admin(
+        grace_delay=timedelta(days=3)
+    )
+
+    assert not User.objects.filter(id=user.id).exists()
+    assert not Workspace.objects_and_trash.filter(id=workspace.id).exists()
+    assert not User.objects_and_identities.filter(id=identity.id).exists()
+
+
+@pytest.mark.django_db
 def test_active_users_qs_excludes_deactivated_users(data_fixture):
     deactivated_user = data_fixture.create_user(
         email="test1@localhost", is_active=False

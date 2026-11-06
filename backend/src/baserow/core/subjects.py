@@ -11,6 +11,7 @@ from django.db.models import (
     Q,
     Value,
     When,
+    prefetch_related_objects,
 )
 from django.db.models.functions import Cast
 
@@ -215,6 +216,9 @@ class UserSubjectType(SubjectType):
         workspace: Workspace,
         include_trash: bool = False,
     ) -> List[bool]:
+        # Classification and eligibility below need profiles for every subject.
+        # Batch any missing profiles without replacing already-loaded metadata.
+        prefetch_related_objects(list(subjects), "profile")
         manager = (
             WorkspaceUser.objects_and_trash if include_trash else WorkspaceUser.objects
         )

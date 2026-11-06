@@ -18,8 +18,9 @@ const ButtonIconStub = defineComponent({
 
 const AvatarStub = defineComponent({
   name: 'Avatar',
-  props: ['initials'],
-  template: '<div class="avatar-stub">{{ initials }}</div>',
+  props: ['initials', 'icon', 'rounded'],
+  template:
+    '<div class="avatar-stub" :class="{ rounded }"><i v-if="icon" :class="icon"></i>{{ initials }}</div>',
 })
 
 const simpleStub = (name) =>
@@ -164,6 +165,7 @@ describe('FieldPermissionSubjectsSelector', () => {
             subject_id: 4,
             subject_type: 'auth.User',
             name: 'Import identity',
+            user_type: 'identity',
             email: null,
             subject_count: null,
           },
@@ -173,11 +175,27 @@ describe('FieldPermissionSubjectsSelector', () => {
     const wrapper = await mountComponent()
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
+    const identityOption = wrapper.find(
+      '.field-permission-subjects__dropdown-option'
+    )
+    expect(
+      identityOption.find('.identity-avatar .baserow-icon-agent').exists()
+    ).toBe(true)
+    expect(identityOption.find('.avatar-stub').classes()).not.toContain(
+      'rounded'
+    )
+    expect(identityOption.find('small').text()).toContain(
+      'subjectType.identity'
+    )
     await wrapper.find('.select__item-link').trigger('click')
     await flushPromises()
     const selected = wrapper.findAll('.field-permission-subjects__item')
     expect(selected).toHaveLength(2)
     expect(selected[1].text()).toContain('Import identity')
+    expect(
+      selected[1].find('.identity-avatar .baserow-icon-agent').exists()
+    ).toBe(true)
+    expect(selected[1].find('small').text()).toContain('subjectType.identity')
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
     expect(fetchSubjectOptions).toHaveBeenLastCalledWith(
@@ -196,13 +214,27 @@ describe('FieldPermissionSubjectsSelector', () => {
         {
           subject_id: 4,
           subject_type: 'auth.User',
-          subject: { id: 4, first_name: 'Saved identity' },
+          subject: {
+            id: 4,
+            first_name: 'Saved identity',
+            user_type: 'identity',
+          },
         },
       ],
     })
     expect(wrapper.find('.field-permission-subjects__item').text()).toContain(
       'Saved identity'
     )
+    expect(
+      wrapper
+        .find(
+          '.field-permission-subjects__item .identity-avatar .baserow-icon-agent'
+        )
+        .exists()
+    ).toBe(true)
+    expect(
+      wrapper.find('.field-permission-subjects__item small').text()
+    ).toContain('subjectType.identity')
     wrapper.unmount()
   })
 })

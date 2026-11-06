@@ -325,9 +325,9 @@ def broadcast_to_permitted_users(
 
     users_in_workspace = [
         workspace_user.user
-        for workspace_user in WorkspaceUser.objects.filter(
-            workspace=workspace
-        ).select_related("user")
+        for workspace_user in WorkspaceUser.objects.people()
+        .filter(workspace=workspace)
+        .select_related("user__profile")
     ]
 
     scope_type = object_scope_type_registry.get(scope_name)
@@ -517,8 +517,9 @@ def _send_ai_provider_workspace_update(
 
     workspace, base_payload, provider_payload = rendered
     workspace_users = (
-        workspace.workspaceuser_set.order_by("id")
-        .select_related("user")
+        workspace.workspaceuser_set.people()
+        .order_by("id")
+        .select_related("user__profile")
         .iterator(chunk_size=AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE)
     )
     for workspace_user_batch in grouper(
@@ -745,9 +746,9 @@ def broadcast_to_group(
 
     user_ids = [
         user["user_id"]
-        for user in WorkspaceUser.objects.filter(workspace_id=workspace_id).values(
-            "user_id"
-        )
+        for user in WorkspaceUser.objects.people()
+        .filter(workspace_id=workspace_id)
+        .values("user_id")
     ]
     if len(user_ids) == 0:
         return
@@ -775,7 +776,8 @@ def broadcast_to_groups(
     from baserow.core.models import WorkspaceUser
 
     user_ids = list(
-        WorkspaceUser.objects.filter(workspace_id__in=workspace_ids)
+        WorkspaceUser.objects.people()
+        .filter(workspace_id__in=workspace_ids)
         .distinct("user_id")
         .order_by("user_id")
         .values_list("user_id", flat=True)
@@ -816,9 +818,9 @@ def broadcast_application_created(
     workspace = application.workspace
     users_in_workspace = [
         workspace_user.user
-        for workspace_user in WorkspaceUser.objects.filter(
-            workspace=workspace
-        ).select_related("user")
+        for workspace_user in WorkspaceUser.objects.people()
+        .filter(workspace=workspace)
+        .select_related("user__profile")
     ]
 
     user_ids = [

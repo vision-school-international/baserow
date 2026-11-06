@@ -1,9 +1,12 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from baserow.core.cache import local_cache
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.exceptions import (
@@ -48,6 +51,30 @@ def test_bulk_create_subjects(data_fixture):
         ],
     )
     assert len(subjects) == 3
+
+
+@pytest.mark.django_db
+def test_bulk_create_subjects_has_bounded_queries(enterprise_data_fixture):
+    query_counts = []
+    for member_count in (1, 25):
+        team = enterprise_data_fixture.create_team()
+        users = [
+            enterprise_data_fixture.create_user_workspace(workspace=team.workspace).user
+            for _ in range(member_count)
+        ]
+        identifiers = [
+            {"subject_id": user.id, "subject_type": "auth.User"} for user in users
+        ]
+
+        with local_cache.context(), CaptureQueriesContext(connection) as queries:
+            memberships = TeamHandler().bulk_create_subjects(team, identifiers)
+
+        assert {membership.subject_id for membership in memberships} == {
+            user.id for user in users
+        }
+        query_counts.append(len(queries))
+
+    assert query_counts[1] <= query_counts[0]
 
 
 @pytest.mark.django_db

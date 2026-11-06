@@ -3,8 +3,9 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import FileSystemStorage
+from django.db import connection
 from django.shortcuts import reverse
-from django.test.utils import override_settings
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 from pytest_unordered import unordered
@@ -15,6 +16,7 @@ from baserow.contrib.database.fields.exceptions import FieldNotInTable
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
@@ -69,6 +71,41 @@ def test_only_builder_and_up_can_get_field_permissions(
     assert field_permissions.role == "EDITOR"
     assert field_permissions.allow_in_forms is True
     assert field_permissions.subjects == []
+
+
+@pytest.mark.django_db
+def test_custom_field_permission_update_has_bounded_subject_queries(
+    enterprise_data_fixture, synced_roles, enable_enterprise
+):
+    query_counts = []
+    for member_count in (1, 25):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        database = enterprise_data_fixture.create_database_application(
+            workspace=workspace
+        )
+        table = enterprise_data_fixture.create_database_table(database=database)
+        field = enterprise_data_fixture.create_text_field(table=table)
+        member_ids = {
+            enterprise_data_fixture.create_user_workspace(workspace=workspace).user_id
+            for _ in range(member_count)
+        }
+
+        with local_cache.context(), CaptureQueriesContext(connection) as queries:
+            result = FieldPermissionsHandler.update_field_permissions(
+                user,
+                field,
+                FieldPermissionsRoleEnum.CUSTOM,
+                subjects=[
+                    {"subject_id": member_id, "subject_type": "auth.User"}
+                    for member_id in member_ids
+                ],
+            )
+
+        assert {assignment.subject_id for assignment in result.subjects} == member_ids
+        query_counts.append(len(queries))
+
+    assert query_counts[1] <= query_counts[0]
 
 
 @pytest.mark.django_db

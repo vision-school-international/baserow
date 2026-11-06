@@ -2,7 +2,6 @@ import pytest
 from asgiref.sync import sync_to_async
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-from tests.baserow.contrib.database.utils import get_message, received_message
 
 from baserow.config.asgi import application
 from baserow.contrib.database.table.tasks import (
@@ -13,6 +12,7 @@ from baserow.core.object_scopes import WorkspaceObjectScopeType
 from baserow.core.subjects import UserSubjectType
 from baserow.ws.tasks import send_messages_to_channel_group
 from baserow.ws.types import ChannelGroupMessage
+from tests.baserow.contrib.database.utils import get_message, received_message
 
 
 @pytest.mark.django_db

@@ -9,6 +9,41 @@ from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "feature_flags, expected_status",
+    [([], 403), (["agents"], 403), (["identities"], 200), (["*"], 200)],
+    ids=["disabled", "legacy-flag", "identities-flag", "wildcard"],
+)
+def test_identity_creation_requires_current_feature_flag(
+    data_fixture, api_client, settings, feature_flags, expected_status
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    managers = (User.objects_and_identities, UserProfile.objects, WorkspaceUser.objects)
+    counts_before = [manager.count() for manager in managers]
+    settings.FEATURE_FLAGS = feature_flags
+
+    response = api_client.post(
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        {"name": "Worker"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == expected_status
+    if expected_status == 403:
+        assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+        assert [manager.count() for manager in managers] == counts_before
+    else:
+        identity = IdentityHandler().get_identity(response.json()["id"])
+        assert IdentityHandler.get_workspace(identity) == workspace
+        assert identity.profile.user_type == UserProfile.UserType.IDENTITY
+        assert [manager.count() for manager in managers] == [
+            count + 1 for count in counts_before
+        ]
+
+
+@pytest.mark.django_db
 def test_admin_can_crud_search_and_soft_delete_identities(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)

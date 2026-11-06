@@ -68,7 +68,7 @@ class WorkspaceTrashableItemType(TrashableItemType):
         """
 
         super().restore(trashed_item, trash_entry)
-        for workspace_user in trashed_item.workspaceuser_set.all():
+        for workspace_user in trashed_item.workspaceuser_set.people():
             workspace_restored.send(self, workspace_user=workspace_user, user=None)
 
     def permanently_delete_item(

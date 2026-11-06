@@ -447,9 +447,11 @@ class ViewType(
                 )
 
             if owned_by_workspace is not None:
-                workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                    workspace_id=owned_by_workspace.id
-                ).select_related("user")
+                workspaceusers_from_workspace = (
+                    WorkspaceUser.objects.people()
+                    .filter(workspace_id=owned_by_workspace.id)
+                    .select_related("user")
+                )
 
                 for workspaceuser in workspaceusers_from_workspace:
                     id_mapping["owned_by"][workspaceuser.user.email] = (

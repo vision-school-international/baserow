@@ -232,12 +232,17 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
         workspace=workspace,
         permissions=WORKSPACE_USER_PERMISSION_MEMBER,
     )
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
     database = data_fixture.create_database_application(
         user=admin_user, workspace=workspace
     )
     TrashHandler.trash(admin_user, workspace, None, workspace)
 
     TrashHandler.restore_item(admin_user, "workspace", workspace.id)
+
+    workspace.refresh_from_db()
+    assert not workspace.trashed
+    assert workspace.workspaceuser_set.identities().get().user_id == identity.id
 
     args = mock_broadcast_to_users.delay.call_args_list
     expected_database_json = {

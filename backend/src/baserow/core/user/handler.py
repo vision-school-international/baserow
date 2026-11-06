@@ -891,6 +891,7 @@ class UserHandler:
                     "workspaceuser",
                     filter=(
                         Q(workspaceuser__permissions="ADMIN")
+                        & Q(workspaceuser__user__profile__user_type="human")
                         & ~Q(workspaceuser__user__in=users_to_delete)
                     ),
                 ),

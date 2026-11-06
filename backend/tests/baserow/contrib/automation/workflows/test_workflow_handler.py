@@ -10,7 +10,6 @@ from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
-from tests.baserow.contrib.automation.history.utils import assert_history
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
@@ -51,6 +50,7 @@ from baserow.core.notifications.models import Notification, NotificationRecipien
 from baserow.core.registries import ImportExportConfig
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
+from tests.baserow.contrib.automation.history.utils import assert_history
 
 WORKFLOWS_MODULE = "baserow.contrib.automation.workflows"
 HANDLER_MODULE = f"{WORKFLOWS_MODULE}.handler"

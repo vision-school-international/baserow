@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -16,7 +16,7 @@ from baserow.core.admin.workspaces.exceptions import CannotDeleteATemplateGroupE
 from baserow.core.admin.workspaces.handler import WorkspacesAdminHandler
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.usage.handler import UsageHandler
 
 from .errors import ERROR_CANNOT_DELETE_A_TEMPLATE_GROUP
@@ -42,7 +42,10 @@ class WorkspacesAdminView(AdminListingView):
     def get_queryset(self, request):
         return (
             Workspace.objects.prefetch_related(
-                "workspaceuser_set", "workspaceuser_set__user"
+                Prefetch(
+                    "workspaceuser_set",
+                    queryset=WorkspaceUser.objects.people().select_related("user"),
+                )
             )
             .annotate(
                 application_count=Count("application"),

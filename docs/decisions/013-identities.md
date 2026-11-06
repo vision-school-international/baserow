@@ -190,6 +190,21 @@ Profile discriminator while identities exist; otherwise an enabled identity
 could become a human account to older code. History snapshot fields have small
 companion migrations in their owning apps.
 
+### Deployment gate
+
+Keep identity creation disabled until every backend and worker running the previous
+version has drained. During this rollout, `FEATURE_FLAGS` must contain neither
+`identities` nor `*` on the backend or frontend. The creation API enforces the flag;
+do not create identities through internal services, scripts or imports during this
+interval. Enable `identities` only after all processes use the new human/identity
+boundaries.
+
+This gate is required because old code treats every User as human. For example,
+an identity with an ADMIN membership can make an old backend let the last human
+administrator leave. Disabling creation does not protect a database that already
+contains User-backed identities; such an environment must avoid old/new backend
+overlap. Removing the flag does not make a rollback to the old backend safe either.
+
 ## Alternatives
 
 - **Keep Agent plus User:** preserves class-based separation, but requires two
