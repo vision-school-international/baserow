@@ -13,6 +13,7 @@ from django.db.models import (
     Max,
     OuterRef,
     Prefetch,
+    Q,
     QuerySet,
     Value,
     When,
@@ -514,22 +515,26 @@ class AgentHandler:
     def list_conversations(
         self,
         agent: AgentApplication,
-        owner: AbstractUser,
+        user: AbstractUser,
         cursor: KeysetCursor | None = None,
         has_pending_approvals: bool = False,
     ) -> QuerySet[AgentConversation]:
         """
-        Return the owner's conversations with the agent.
+        Return the conversations the user sees in the agent: their own and the
+        shared ones a trigger started.
 
         :param agent: The agent the conversations belong to.
-        :param owner: The user whose conversations are returned.
+        :param user: The user whose own conversations are included.
         :param cursor: The last conversation of the previous page, to continue after.
         :param has_pending_approvals: Whether to return only the conversations with
-            held calls waiting for the owner's decision.
-        :return: The owner's conversations, most recently updated first.
+            held calls waiting for a decision.
+        :return: The conversations, most recently updated first, with the trigger
+            that started each shared one.
         """
 
-        conversations = AgentConversation.objects.filter(agent=agent, owner_user=owner)
+        conversations = AgentConversation.objects.filter(
+            Q(owner_user=user) | Q(owner_user__isnull=True), agent=agent
+        ).select_related("trigger__service")
         if cursor is not None:
             conversations = conversations.filter(cursor.get_filter("updated_on"))
         if has_pending_approvals:
@@ -543,30 +548,35 @@ class AgentHandler:
     def get_conversation(
         self,
         agent: AgentApplication,
-        owner: AbstractUser,
+        user: AbstractUser,
         uuid: UUID,
         for_update: bool = False,
     ) -> AgentConversation:
         """
-        Return one of the owner's conversations with the agent.
+        Return a conversation the user sees in the agent: their own or a shared one.
 
         :param agent: The agent the conversation belongs to.
-        :param owner: The user who owns the conversation.
+        :param user: The user reading the conversation.
         :param uuid: The uuid of the conversation.
         :param for_update: Whether to lock the conversation until the transaction ends.
         :raises AgentConversationDoesNotExist: When the conversation doesn't exist,
             also when it belongs to another owner or agent.
-        :return: The conversation, with the agent and the owner it was found for.
+        :return: The conversation, with the agent it was found in, and the user as
+            its owner unless it is shared.
         """
 
-        queryset = AgentConversation.objects.all()
+        queryset = AgentConversation.objects.filter(
+            Q(owner_user=user) | Q(owner_user__isnull=True)
+        )
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
         try:
-            conversation = queryset.get(uuid=uuid, agent=agent, owner_user=owner)
+            conversation = queryset.get(uuid=uuid, agent=agent)
         except AgentConversation.DoesNotExist as exc:
             raise AgentConversationDoesNotExist from exc
-        conversation.agent, conversation.owner_user = agent, owner
+        conversation.agent = agent
+        if conversation.owner_user_id is not None:
+            conversation.owner_user = user
         return conversation
 
     def update_conversation(
@@ -1054,21 +1064,21 @@ class AgentHandler:
         )
 
     def get_accessible_conversations(
-        self, owner: AbstractUser
+        self, user: AbstractUser
     ) -> QuerySet[AgentConversation]:
         """
-        Return the owner's conversations in untrashed Agents and workspaces, while
-        the owner is still a member of the workspace.
+        Return the user's own and the shared conversations in untrashed Agents and
+        workspaces, while the user is still a member of the workspace.
 
-        :param owner: The user who owns the conversations.
+        :param user: The user reading the conversations.
         :return: The conversations.
         """
 
         return AgentConversation.objects.filter(
-            owner_user_id=owner.id,
+            Q(owner_user_id=user.id) | Q(owner_user__isnull=True),
             agent__trashed=False,
             agent__workspace__trashed=False,
-            agent__workspace__workspaceuser__user_id=owner.id,
+            agent__workspace__workspaceuser__user_id=user.id,
         )
 
     def get_reply(self, reply_id: int) -> AgentMessage:

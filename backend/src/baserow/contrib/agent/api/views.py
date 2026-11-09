@@ -302,9 +302,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
         description=(
-            "Lists the authenticated user's own conversations with the agent, most "
-            "recently active first, each with its number of tool calls waiting for "
-            "the user's approval."
+            "Lists the authenticated user's own conversations with the agent and the "
+            "shared ones its triggers started, most recently active first, each with "
+            "its number of tool calls waiting for the user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -338,7 +338,7 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @map_exceptions(AGENT_EXCEPTIONS)
     @validate_query_parameters(AgentConversationsQuerySerializer, return_validated=True)
     def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
-        """List only the authenticated owner's conversations, a page at a time."""
+        """List the user's own and the shared conversations, a page at a time."""
 
         limit = query_params["limit"]
         # One more than requested tells whether a next page exists without a count.

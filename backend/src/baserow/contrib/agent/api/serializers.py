@@ -26,6 +26,7 @@ from baserow.contrib.agent.validators import (
 )
 from baserow.core.chat_runs.constants import ChatRunStepStatus
 from baserow.core.generative_ai.constants import ReasoningEffort
+from baserow.core.services.registries import service_type_registry
 from baserow.core.tools.errors import ToolErrorCode
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
@@ -306,6 +307,20 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         help_text="The number of held tool calls in this conversation waiting for "
         "the owner's decision."
     )
+    shared = serializers.SerializerMethodField(
+        help_text="Whether a trigger started this conversation. A shared conversation "
+        "is read by everyone who may read the agent's conversations and accepts no "
+        "messages or decisions."
+    )
+    trigger_id = serializers.IntegerField(
+        read_only=True,
+        allow_null=True,
+        help_text="The trigger that started this conversation, or null.",
+    )
+    trigger_type = serializers.SerializerMethodField(
+        help_text="The service type of the trigger that started this conversation, "
+        "such as periodic, or null."
+    )
 
     class Meta:
         model = AgentConversation
@@ -317,6 +332,9 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "updated_on",
             "run_id",
             "pending_approval_count",
+            "shared",
+            "trigger_id",
+            "trigger_type",
         )
 
     @extend_schema_field(serializers.UUIDField(allow_null=True))
@@ -328,6 +346,25 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_pending_approvals", {}).get(
             conversation.id, 0
         )
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_shared(self, conversation: AgentConversation) -> bool:
+        return conversation.owner_user_id is None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_trigger_type(self, conversation: AgentConversation) -> str | None:
+        """
+        Name the service type of the trigger that started the conversation, so a
+        list can show its icon.
+
+        :param conversation: The conversation being serialized.
+        :return: The type name, or None once the trigger is permanently deleted.
+        """
+
+        trigger = conversation.trigger
+        if trigger is None:
+            return None
+        return service_type_registry.get_by_model(trigger.service.specific_class).type
 
 
 class AgentConversationUpdateSerializer(

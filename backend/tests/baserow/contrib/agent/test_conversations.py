@@ -31,7 +31,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
-from baserow.core.exceptions import FeatureDisabledException
+from baserow.core.exceptions import FeatureDisabledException, PermissionException
 from baserow.core.models import TrashEntry
 from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
 from baserow.core.trash.handler import TrashHandler
@@ -70,6 +70,9 @@ def test_first_message_creates_a_private_conversation(
             "updated_on": ANY,
             "run_id": run_id,
             "pending_approval_count": 0,
+            "shared": False,
+            "trigger_id": None,
+            "trigger_type": None,
         },
         "message": {
             "id": message.id,
@@ -735,3 +738,43 @@ def test_updating_and_deleting_can_be_undone_and_redone(data_fixture, configured
     ActionHandler.redo(user, scopes, "session")
     assert not AgentConversation.objects.exists()
     assert AgentConversation.trash.get().title == "Renamed"
+
+
+@pytest.mark.django_db
+def test_shared_conversations_are_listed_and_read_by_every_member(
+    data_fixture, configured_agent, api_client, api_user
+):
+    member = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=api_user, members=[member])
+    agent = configured_agent(workspace=workspace)
+    private = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    data_fixture.create_agent_message(
+        conversation=shared, role="trigger", content="Tick"
+    )
+    service = AgentService()
+
+    listed = api_client.get(agent_url(agent, "conversations")).json()["results"]
+    messages = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=shared.uuid)
+    ).json()["results"]
+
+    assert [
+        (item["uuid"], item["shared"], item["trigger_id"], item["trigger_type"])
+        for item in listed
+    ] == [
+        (str(shared.uuid), True, shared.trigger_id, "periodic"),
+        (str(private.uuid), False, None, None),
+    ]
+    assert [(item["role"], item["content"]) for item in messages] == [
+        ("trigger", "Tick")
+    ]
+    assert [item.uuid for item in service.list_conversations(member, agent.id)] == [
+        shared.uuid
+    ]
+    assert service.list_messages(member, agent.id, shared.uuid)[0] == shared
+    with pytest.raises(PermissionException):
+        service.list_conversations(outsider, agent.id)
+    with pytest.raises(AgentConversationDoesNotExist):
+        service.list_messages(member, agent.id, private.uuid)

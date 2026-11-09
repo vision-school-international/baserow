@@ -58,6 +58,7 @@ def update_of(
     conversation: AgentConversation,
     run_id: UUID | None = None,
     pending_approval_count: int = 0,
+    trigger_type: str | None = None,
 ) -> dict:
     return {
         "type": "agent_conversation_activity",
@@ -71,6 +72,9 @@ def update_of(
             "updated_on": DateTimeField().to_representation(conversation.updated_on),
             "run_id": str(run_id) if run_id else None,
             "pending_approval_count": pending_approval_count,
+            "shared": conversation.owner_user_id is None,
+            "trigger_id": conversation.trigger_id,
+            "trigger_type": trigger_type,
         },
     }
 

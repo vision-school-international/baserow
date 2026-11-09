@@ -144,16 +144,17 @@ class AgentService:
         has_pending_approvals: bool = False,
     ) -> QuerySet[AgentConversation]:
         """
-        Return only the user's own conversations, never another owner's.
+        Return the user's own conversations and the shared ones, never another
+        owner's.
 
-        :param user: The user listing their conversations.
+        :param user: The user listing conversations.
         :param agent_id: The id of the agent.
         :param cursor: The last conversation of the previous page, to continue after.
         :param has_pending_approvals: Whether to return only the conversations with
             held calls waiting for the user's decision.
         :raises PermissionException: When the user may not read conversations of the
             agent.
-        :return: The user's conversations, most recently updated first.
+        :return: The conversations, most recently updated first.
         """
 
         agent = self._get_authorized_agent(
@@ -167,15 +168,15 @@ class AgentService:
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> tuple[AgentConversation, QuerySet[AgentMessage]]:
         """
-        Return one of the user's conversations with its messages.
+        Return one of the user's own or shared conversations with its messages.
 
         :param user: The user reading the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :raises PermissionException: When the user may not read conversations of the
             agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :return: The conversation, and its messages newest first.
         """
 
