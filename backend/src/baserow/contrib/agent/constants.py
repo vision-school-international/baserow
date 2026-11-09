@@ -34,6 +34,10 @@ HISTORY_MESSAGE_LIMIT = 20
 REPLY_REQUEST_LIMIT = 20
 AGENT_NOT_READY = "not_ready"
 AGENT_NOT_ALLOWED = "not_allowed"
+# The picker allowlist, widened as each trigger form is verified in the agent host.
+AGENT_TRIGGER_TYPES_ENABLED = ("periodic",)
+# Started by another automation or agent, which can't start an agent yet.
+AGENT_TRIGGER_TYPES_EXCLUDED = ("manual",)
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
 INTERRUPTED_CHANGES_NOTE = (
     "[Changes started before the interruption: {changes}. A stopped change may "

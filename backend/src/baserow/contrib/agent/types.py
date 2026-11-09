@@ -44,6 +44,7 @@ class AgentConfiguration:
     web_search_available: bool
     web_search_blocked_by_tools: bool
     ask_first_tools: list[str]
+    available_trigger_types: list[str]
     errors: dict[str, AgentConfigurationErrorCode]
 
 

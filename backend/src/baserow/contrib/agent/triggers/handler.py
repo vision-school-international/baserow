@@ -4,11 +4,18 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from baserow.contrib.agent.constants import (
+    AGENT_TRIGGER_TYPES_ENABLED,
+    AGENT_TRIGGER_TYPES_EXCLUDED,
+)
 from baserow.contrib.agent.models import AgentApplication, AgentTrigger
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
-from baserow.core.services.registries import TriggerServiceTypeMixin
+from baserow.core.services.registries import (
+    TriggerServiceTypeMixin,
+    service_type_registry,
+)
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 
@@ -49,6 +56,24 @@ class AgentTriggerHandler:
         """
 
         return AgentTrigger.objects.filter(agent=agent).select_related("service")
+
+    def available_trigger_types(self, agent: AgentApplication) -> list[str]:
+        """
+        List the trigger types a trigger of this Agent can have, in registry order.
+
+        :param agent: The Agent the triggers would belong to.
+        :return: The names of the registered trigger service types the picker
+            allows, minus the ones deactivated in the Agent's workspace.
+        """
+
+        return [
+            service_type.type
+            for service_type in service_type_registry.get_all()
+            if isinstance(service_type, TriggerServiceTypeMixin)
+            and service_type.type in AGENT_TRIGGER_TYPES_ENABLED
+            and service_type.type not in AGENT_TRIGGER_TYPES_EXCLUDED
+            and not service_type.is_deactivated(agent.workspace)
+        ]
 
     def create_trigger(
         self,
