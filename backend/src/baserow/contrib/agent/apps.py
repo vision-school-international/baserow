@@ -58,6 +58,10 @@ class AgentConfig(AppConfig):
             DeleteAgentTriggerActionType,
             UpdateAgentTriggerActionType,
         )
+        from .triggers.data_providers import (
+            TriggerDataProviderType,
+            agent_data_provider_type_registry,
+        )
         from .triggers.trash_types import AgentTriggerTrashableItemType
 
         application_type_registry.register(AgentApplicationType())
@@ -88,6 +92,7 @@ class AgentConfig(AppConfig):
         trash_item_type_registry.register(AgentConversationTrashableItemType())
         trash_item_type_registry.register(AgentTriggerTrashableItemType())
         chat_run_type_registry.register(AgentChatRunType())
+        agent_data_provider_type_registry.register(TriggerDataProviderType())
         for tool_type in (
             ListTablesAgentToolType,
             GetTableSchemaAgentToolType,

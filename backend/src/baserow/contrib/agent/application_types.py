@@ -12,6 +12,9 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
+from baserow.contrib.agent.triggers.data_providers import (
+    agent_data_provider_type_registry,
+)
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
@@ -27,6 +30,7 @@ from baserow.core.utils import ChildProgressBuilder
 class AgentApplicationType(ApplicationType):
     type = "agent"
     model_class = AgentApplication
+    data_provider_type_registry = agent_data_provider_type_registry
     serializer_field_names = ["name", "readiness"]
     serializer_mixins = [AgentApplicationSerializer]
     request_serializer_field_names = ["name"]
