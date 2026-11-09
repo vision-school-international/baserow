@@ -69,10 +69,12 @@ def call(
     service = AgentTriggerService()
     calls = {
         "list": lambda: service.list_triggers(user, agent.id),
-        "get": lambda: service.get_trigger(user, trigger.id),
+        "get": lambda: service.get_trigger(user, agent.id, trigger.id),
         "create": lambda: service.create_trigger(user, agent.id, "periodic"),
-        "update": lambda: service.update_trigger(user, trigger.id, enabled=False),
-        "delete": lambda: service.delete_trigger(user, trigger.id),
+        "update": lambda: service.update_trigger(
+            user, agent.id, trigger.id, enabled=False
+        ),
+        "delete": lambda: service.delete_trigger(user, agent.id, trigger.id),
     }
     return calls[name]()
 
@@ -354,3 +356,39 @@ def test_unknown_trigger_is_not_found(data_fixture, api_client, api_user, method
 
     assert response.status_code == 404
     assert response.json()["error"] == "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["patch", "delete"])
+def test_trigger_of_another_agent_is_not_found(
+    data_fixture, periodic_trigger, api_client, api_user, method
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    other_agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(other_agent)
+
+    response = getattr(api_client, method)(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"enabled": False}
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"
+    assert AgentTrigger.objects.filter(id=trigger.id, enabled=True).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["patch", "delete"])
+def test_trigger_of_a_trashed_agent_is_not_found(
+    data_fixture, periodic_trigger, api_client, api_user, method
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent)
+    CoreHandler().delete_application(api_user, agent)
+
+    response = getattr(api_client, method)(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"enabled": False}
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_APPLICATION_DOES_NOT_EXIST"
+    assert AgentTrigger.objects.filter(id=trigger.id, enabled=True).exists()

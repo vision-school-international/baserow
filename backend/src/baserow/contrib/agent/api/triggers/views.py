@@ -160,7 +160,7 @@ class AgentTriggerView(APIView):
     def patch(self, request: Request, agent_id: int, trigger_id: int) -> Response:
         """Validates the service values against the trigger's own type first."""
 
-        trigger = AgentTriggerService().get_trigger(request.user, trigger_id)
+        trigger = AgentTriggerService().get_trigger(request.user, agent_id, trigger_id)
         data = validate_data(
             UpdateAgentTriggerSerializer,
             request.data,
@@ -172,7 +172,7 @@ class AgentTriggerView(APIView):
             },
         )
         trigger = action_type_registry.get_by_type(UpdateAgentTriggerActionType).do(
-            request.user, trigger_id, **data
+            request.user, agent_id, trigger_id, **data
         )
         return Response(AgentTriggerSerializer(trigger).data)
 
@@ -196,6 +196,6 @@ class AgentTriggerView(APIView):
         """Trashes the trigger if the user can update the agent."""
 
         action_type_registry.get_by_type(DeleteAgentTriggerActionType).do(
-            request.user, trigger_id
+            request.user, agent_id, trigger_id
         )
         return Response(status=status.HTTP_204_NO_CONTENT)

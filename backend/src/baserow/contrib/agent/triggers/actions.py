@@ -97,6 +97,7 @@ class UpdateAgentTriggerActionType(ActionType):
     def do(
         cls,
         user: AbstractUser,
+        agent_id: int,
         trigger_id: int,
         enabled: bool | None = None,
         message: BaserowFormulaObject | str | None = None,
@@ -107,6 +108,7 @@ class UpdateAgentTriggerActionType(ActionType):
         values: the message and service values are configuration.
 
         :param user: The user updating the trigger.
+        :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
         :param enabled: The new switch state, or None to keep it.
         :param message: The new message formula, or None to keep it.
@@ -115,7 +117,12 @@ class UpdateAgentTriggerActionType(ActionType):
         """
 
         trigger = AgentTriggerService().update_trigger(
-            user, trigger_id, enabled=enabled, message=message, service_values=service
+            user,
+            agent_id,
+            trigger_id,
+            enabled=enabled,
+            message=message,
+            service_values=service,
         )
         given = (("enabled", enabled), ("message", message), ("service", service))
         cls.register_action(
@@ -152,15 +159,16 @@ class DeleteAgentTriggerActionType(ActionType):
 
     @classmethod
     @transaction.atomic
-    def do(cls, user: AbstractUser, trigger_id: int) -> None:
+    def do(cls, user: AbstractUser, agent_id: int, trigger_id: int) -> None:
         """
         Move a trigger to the trash and audit its type.
 
         :param user: The user deleting the trigger.
+        :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
         """
 
-        trigger = AgentTriggerService().delete_trigger(user, trigger_id)
+        trigger = AgentTriggerService().delete_trigger(user, agent_id, trigger_id)
         cls.register_action(
             user,
             cls.Params(trigger.agent_id, trigger.id, trigger.service.get_type().type),

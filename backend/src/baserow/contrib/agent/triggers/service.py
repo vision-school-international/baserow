@@ -39,19 +39,19 @@ class AgentTriggerService:
     def _get_authorized_trigger(
         self,
         user: AbstractUser,
+        agent_id: int,
         trigger_id: int,
         *operations: str,
         for_update: bool = False,
     ) -> AgentTrigger:
-        """Fetch the trigger and check each operation on its Agent."""
+        """Fetch the trigger of a live Agent and check each operation on it."""
 
-        base_queryset = (
-            AgentTrigger.objects.select_for_update(of=("self",))
-            if for_update
-            else None
-        )
-        trigger = self.handler.get_trigger(trigger_id, base_queryset=base_queryset)
-        self._check_permissions(user, trigger.agent, *operations)
+        agent = self.agent_handler.get_agent(agent_id, for_update=for_update)
+        queryset = AgentTrigger.objects.filter(agent=agent)
+        if for_update:
+            queryset = queryset.select_for_update(of=("self",))
+        trigger = self.handler.get_trigger(trigger_id, base_queryset=queryset)
+        self._check_permissions(user, agent, *operations)
         return trigger
 
     def available_trigger_types(self, agent: AgentApplication) -> list[str]:
@@ -79,20 +79,24 @@ class AgentTriggerService:
         self._check_permissions(user, agent, ReadAgentConfigurationOperationType.type)
         return list(self.handler.list_triggers(agent))
 
-    def get_trigger(self, user: AbstractUser, trigger_id: int) -> AgentTrigger:
+    def get_trigger(
+        self, user: AbstractUser, agent_id: int, trigger_id: int
+    ) -> AgentTrigger:
         """
         Return one trigger to a user allowed to read its Agent's configuration.
 
         :param user: The user reading the trigger.
+        :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
-        :raises AgentTriggerDoesNotExist: When the trigger doesn't exist or is
-            trashed.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
+            is trashed.
         :raises PermissionException: When the user may not read the configuration.
         :return: The trigger with its Agent and service.
         """
 
         return self._get_authorized_trigger(
-            user, trigger_id, ReadAgentConfigurationOperationType.type
+            user, agent_id, trigger_id, ReadAgentConfigurationOperationType.type
         )
 
     @transaction.atomic
@@ -144,6 +148,7 @@ class AgentTriggerService:
     def update_trigger(
         self,
         user: AbstractUser,
+        agent_id: int,
         trigger_id: int,
         enabled: bool | None = None,
         message: BaserowFormulaObject | str | None = None,
@@ -154,13 +159,15 @@ class AgentTriggerService:
         update and read its Agent's configuration.
 
         :param user: The user updating the trigger.
+        :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
         :param enabled: The new switch state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param service_values: The service values to set, by field name, or None.
         :raises FeatureDisabledException: When Agents are disabled.
-        :raises AgentTriggerDoesNotExist: When the trigger doesn't exist or is
-            trashed.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
+            is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
         :raises TriggerServiceMisconfigured: When the service values are invalid.
@@ -170,7 +177,7 @@ class AgentTriggerService:
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         # Locked so two debounced saves of one card can't lose each other's fields.
         trigger = self._get_authorized_trigger(
-            user, trigger_id, *WRITE_OPERATIONS, for_update=True
+            user, agent_id, trigger_id, *WRITE_OPERATIONS, for_update=True
         )
         prepared_service_values = None
         if service_values is not None:
@@ -186,16 +193,20 @@ class AgentTriggerService:
         )
 
     @transaction.atomic
-    def delete_trigger(self, user: AbstractUser, trigger_id: int) -> AgentTrigger:
+    def delete_trigger(
+        self, user: AbstractUser, agent_id: int, trigger_id: int
+    ) -> AgentTrigger:
         """
         Move a trigger to the trash, for a user who may update and read its Agent's
         configuration.
 
         :param user: The user deleting the trigger.
+        :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
         :raises FeatureDisabledException: When Agents are disabled.
-        :raises AgentTriggerDoesNotExist: When the trigger doesn't exist or is
-            trashed already.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
+            is trashed already.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
         :return: The trashed trigger.
@@ -203,7 +214,7 @@ class AgentTriggerService:
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         trigger = self._get_authorized_trigger(
-            user, trigger_id, *WRITE_OPERATIONS, for_update=True
+            user, agent_id, trigger_id, *WRITE_OPERATIONS, for_update=True
         )
         self.handler.delete_trigger(user, trigger)
         return trigger
