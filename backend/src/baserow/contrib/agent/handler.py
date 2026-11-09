@@ -1083,7 +1083,8 @@ class AgentHandler:
 
     def get_reply(self, reply_id: int) -> AgentMessage:
         """
-        Fetch a reply with its conversation, the conversation's owner and its agent.
+        Fetch a reply with its conversation, the conversation's owner and trigger,
+        and its agent.
 
         :param reply_id: The id of the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists or its
@@ -1093,7 +1094,9 @@ class AgentHandler:
 
         reply = (
             AgentMessage.objects.select_related(
-                "conversation__agent__workspace", "conversation__owner_user"
+                "conversation__agent__workspace",
+                "conversation__owner_user",
+                "conversation__trigger",
             )
             .filter(id=reply_id, conversation__trashed=False)
             .first()
@@ -1101,6 +1104,36 @@ class AgentHandler:
         if reply is None:
             raise AgentConversationDoesNotExist
         return reply
+
+    def _get_reply_tools(
+        self,
+        agent: AgentApplication,
+        acting_subject: Subject | None,
+        unattended: bool,
+    ) -> AgentToolConfiguration:
+        """
+        Pick the tools a reply may call: none without an identity to act as. An
+        unattended reply has nobody to approve a held call, so the tools that ask
+        first are left out rather than pausing it forever.
+
+        :param agent: The Agent replying.
+        :param acting_subject: Who the tools act as, or None.
+        :param unattended: Whether the reply runs in a shared conversation.
+        :return: The allowed tool names and the ask first tool names.
+        """
+
+        if acting_subject is None:
+            return {"allowed_tools": [], "ask_first_tools": []}
+        tools = self.get_tool_configuration(agent)
+        if not unattended:
+            return tools
+        ask_first = set(tools["ask_first_tools"])
+        return {
+            "allowed_tools": [
+                name for name in tools["allowed_tools"] if name not in ask_first
+            ],
+            "ask_first_tools": [],
+        }
 
     def get_reply_request(self, reply: AgentMessage) -> AgentReplyRequest:
         """
@@ -1114,6 +1147,7 @@ class AgentHandler:
 
         conversation = reply.conversation
         agent = conversation.agent
+        owner = conversation.owner_user
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
@@ -1129,11 +1163,7 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
-        tools: AgentToolConfiguration = (
-            self.get_tool_configuration(agent)
-            if acting_subject
-            else {"allowed_tools": [], "ask_first_tools": []}
-        )
+        tools = self._get_reply_tools(agent, acting_subject, owner is None)
         resume = (
             None
             if transcript is None
@@ -1169,7 +1199,7 @@ class AgentHandler:
             acting_subject=acting_subject,
             allowed_tool_names=tools["allowed_tools"],
             ask_first_tool_names=tools["ask_first_tools"],
-            timezone=conversation.owner_user.profile.timezone,
+            timezone=owner.profile.timezone if owner is not None else "UTC",
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,

@@ -55,7 +55,11 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
-from baserow.contrib.agent.replies import AgentResponder, create_reply_model
+from baserow.contrib.agent.replies import (
+    AgentResponder,
+    build_history,
+    create_reply_model,
+)
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import (
@@ -2003,3 +2007,69 @@ def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
         transcript.usage,
         transcript.paused_conversation,
     ) == (paused.model_messages, paused.usage, None)
+
+
+def test_history_treats_a_trigger_message_like_a_prompt():
+    messages = [
+        AgentMessage(role="trigger", content="Tick"),
+        AgentMessage(role="assistant", content="Done", status="completed"),
+        AgentMessage(role="user", content="More?"),
+    ]
+
+    assert [
+        (type(message).__name__, message.parts[0].content)
+        for message in build_history(messages)
+    ] == [
+        ("ModelRequest", "Tick"),
+        ("ModelResponse", "Done"),
+        ("ModelRequest", "More?"),
+    ]
+
+
+@pytest.mark.django_db
+def test_an_unattended_reply_offers_no_ask_first_tools_and_uses_utc(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent()
+    allow_tools(
+        data_fixture, agent, ("list_tables", "create_rows"), ask_first=("create_rows",)
+    )
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    respond(mocker)
+    requested = mocker.spy(AgentHandler, "get_reply_request")
+
+    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    run_reply(run_of(conversation))
+
+    request = requested.spy_return
+    assert (
+        request.allowed_tool_names,
+        request.ask_first_tool_names,
+        request.timezone,
+        request.prompt,
+    ) == (["list_tables"], [], "UTC", "Tick")
+    reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
+    assert reply_state(reply.id) == ("completed", "", "Done.")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["disable", "trash", "delete"])
+def test_an_unattended_reply_stops_once_its_trigger_is_gone(
+    data_fixture, configured_agent, change
+):
+    agent = configured_agent()
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    if change == "disable":
+        trigger.enabled = False
+        trigger.save(update_fields=["enabled"])
+    elif change == "trash":
+        trigger.trashed = True
+        trigger.save(update_fields=["trashed"])
+    else:
+        trigger.delete()
+
+    run_reply(run_of(conversation))
+
+    reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
+    assert reply_state(reply.id) == ("failed", "not_allowed", "")

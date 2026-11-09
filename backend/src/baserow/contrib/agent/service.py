@@ -348,33 +348,52 @@ class AgentService:
         )
         return all(allowed.values())
 
+    def _require_live_trigger(self, conversation: AgentConversation) -> None:
+        """
+        An unattended reply runs on its trigger's authority, so it stops once the
+        trigger is gone, trashed or disabled.
+
+        :param conversation: The shared conversation, with its trigger.
+        :raises PermissionDenied: When the trigger no longer allows the reply.
+        """
+
+        trigger = conversation.trigger
+        if trigger is None or trigger.trashed or not trigger.enabled:
+            raise PermissionDenied
+
     def prepare_reply(self, reply_id: int) -> AgentReplyRequest:
         """
         Load what a reply answers, or the paused run it continues, checking again
-        that the conversation's owner may still send it: access and configuration
-        can change while the reply waits.
+        that it may still be written: access and configuration can change while
+        the reply waits. The owner must still be allowed to send; an unattended
+        reply needs its trigger alive and enabled.
 
         :param reply_id: The id of the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists or its
             conversation is in the trash.
-        :raises PermissionException: When the agent or its workspace is trashed, or
-            the owner left the workspace or may no longer send messages to the agent.
+        :raises PermissionException: When the agent or its workspace is trashed, the
+            owner left the workspace or may no longer send messages to the agent,
+            or the trigger of a shared conversation is gone or disabled.
         :raises AgentNotReady: When the agent's configuration is no longer ready.
         :return: The instructions, the model and the tools, with the prompt and the
             earlier messages, or with the paused run and the owner's decisions.
         """
 
         reply = self.handler.get_reply(reply_id)
-        agent = reply.conversation.agent
+        conversation = reply.conversation
+        agent = conversation.agent
         # Workspace membership is part of the permission check below.
         if agent.trashed or agent.workspace is None or agent.workspace.trashed:
             raise PermissionDenied
-        CoreHandler().check_permissions(
-            reply.conversation.owner_user,
-            CreateAgentMessageOperationType.type,
-            workspace=agent.workspace,
-            context=agent,
-        )
+        if conversation.owner_user_id is None:
+            self._require_live_trigger(conversation)
+        else:
+            CoreHandler().check_permissions(
+                conversation.owner_user,
+                CreateAgentMessageOperationType.type,
+                workspace=agent.workspace,
+                context=agent,
+            )
         self._require_ready(agent)
         return self.handler.get_reply_request(reply)
 
