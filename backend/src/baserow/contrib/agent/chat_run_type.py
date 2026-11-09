@@ -123,8 +123,8 @@ class AgentChatRunType(ChatRunType):
         result: AgentReplyResult | None,
     ) -> dict | None:
         """
-        Save how the reply ended and tell all the owner's sessions, with their
-        pending count when the reply now waits for approvals.
+        Save how the reply ended and tell every session that sees the conversation,
+        with the owner's pending count when the reply now waits for approvals.
 
         :param run: The run that wrote the reply.
         :param status: The final status.

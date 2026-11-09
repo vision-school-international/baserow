@@ -474,8 +474,8 @@ class AgentService:
             Agent can't call its provider.
         :raises PermissionException: When the user may not send messages to the
             agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :raises AgentConversationReadOnly: When a trigger started the conversation.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
@@ -540,8 +540,8 @@ class AgentService:
         :raises FeatureDisabledException: When Agents are disabled.
         :raises PermissionException: When the user may not send messages to the
             agent, or may not update its configuration while always allowing.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :raises AgentConversationReadOnly: When a trigger started the conversation.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
