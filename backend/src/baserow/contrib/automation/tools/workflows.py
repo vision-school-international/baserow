@@ -26,7 +26,7 @@ from baserow.contrib.automation.workflows.operations import (
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.service import CoreService
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.applications import visible_applications
 from baserow.core.user.types import Identity
 
@@ -74,6 +74,7 @@ def describe_workflow(workflow: AutomationWorkflow) -> dict[str, Any]:
     return {"id": workflow.id, "name": workflow.name, "state": workflow.state}
 
 
+@tool_execution
 def list_workflows(
     ctx: ToolContext,
     automation_id: Annotated[
@@ -308,6 +309,7 @@ def create_workflows_in_automation(
     return WorkflowCreation(plan=plan, created=created, failed=failed)
 
 
+@tool_execution
 def create_workflows(
     ctx: ToolContext,
     automation_id: Annotated[

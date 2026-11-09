@@ -223,7 +223,13 @@ class UserSubjectType(SubjectType):
             WorkspaceUser.objects_and_trash if include_trash else WorkspaceUser.objects
         )
         prefetched = getattr(workspace, "_prefetched_objects_cache", {})
-        if not include_trash and "workspaceuser_set" in prefetched:
+        if (
+            not include_trash
+            and "workspaceuser_set" in prefetched
+            and all(is_user(subject) for subject in subjects)
+        ):
+            # Workspace lists batch memberships for their current human request.
+            # Tool entry points discard this snapshot before a new execution.
             user_ids = {
                 membership.user_id for membership in workspace.workspaceuser_set.all()
             }
@@ -234,12 +240,30 @@ class UserSubjectType(SubjectType):
                         workspace=workspace, user_id__in=missing
                     ).values_list("user_id", flat=True)
                 )
-        else:
-            user_ids = set(
-                manager.filter(workspace=workspace, user__in=subjects).values_list(
-                    "user_id", flat=True
-                )
-            )
+            return [
+                subject.id in user_ids
+                and subject.is_active
+                and not subject.profile.to_be_deleted
+                for subject in subjects
+            ]
+
+        # Execution contexts can retain users and prefetched memberships across
+        # calls. Eligibility must come from the current database state, while the
+        # already-loaded discriminator below must still fail closed if invalid.
+        current_user_types = dict(
+            manager.filter(
+                Q(user__profile__user_type=UserProfile.UserType.HUMAN)
+                | Q(
+                    user__profile__user_type=UserProfile.UserType.IDENTITY,
+                    user__profile__trashed=False,
+                    workspace__trashed=False,
+                ),
+                workspace=workspace,
+                user_id__in=[subject.id for subject in subjects],
+                user__is_active=True,
+                user__profile__to_be_deleted=False,
+            ).values_list("user_id", "user__profile__user_type")
+        )
 
         identity_ids = [subject.id for subject in subjects if is_identity(subject)]
         # Include trashed memberships: extra memberships must not expand identity scope.
@@ -254,17 +278,14 @@ class UserSubjectType(SubjectType):
             else {}
         )
         return [
-            subject.id in user_ids
-            and subject.is_active
-            and (is_user(subject) or is_identity(subject))
-            and not subject.profile.to_be_deleted
-            and (
+            (
                 is_user(subject)
-                or (
-                    identity_memberships.get(subject.id) == 1
-                    and not subject.profile.trashed
-                    and not workspace.trashed
-                )
+                and current_user_types.get(subject.id) == UserProfile.UserType.HUMAN
+            )
+            or (
+                is_identity(subject)
+                and current_user_types.get(subject.id) == UserProfile.UserType.IDENTITY
+                and identity_memberships.get(subject.id) == 1
             )
             for subject in subjects
         ]

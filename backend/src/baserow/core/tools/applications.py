@@ -13,7 +13,7 @@ from pydantic import Field
 from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
 from baserow.core.service import CoreService
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 
 MAX_PAGE_SIZE = 100
 
@@ -39,6 +39,7 @@ def visible_applications(
     return applications
 
 
+@tool_execution
 def list_applications(
     ctx: ToolContext,
     types: Annotated[

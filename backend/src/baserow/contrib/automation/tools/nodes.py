@@ -46,7 +46,7 @@ from baserow.core.mcp.exceptions import (
     INTERNAL_ERROR_MESSAGE,
     to_mcp_error,
 )
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.user.types import Identity
 
 
@@ -240,6 +240,7 @@ def describe_workflow_nodes(
     return nodes
 
 
+@tool_execution
 def list_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -437,6 +438,7 @@ def node_table_ids(nodes: list[TriggerNodeCreate | ActionNodeCreate]) -> set[int
     return table_ids
 
 
+@tool_execution
 def add_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -562,6 +564,7 @@ def _reload_graph(workflow: AutomationWorkflow) -> None:
     workflow.refresh_from_db(fields=["graph"])
 
 
+@tool_execution
 def update_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -638,6 +641,7 @@ def update_nodes(
     return result
 
 
+@tool_execution
 def delete_nodes(
     ctx: ToolContext,
     node_ids: Annotated[

@@ -44,7 +44,7 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import InstanceTypeDoesNotExist, PermissionException
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.mcp.exceptions import INTERNAL_ERROR_MESSAGE, to_mcp_error
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.user.types import Identity
 
 
@@ -1120,6 +1120,7 @@ def delete_field(ctx: ToolContext, field_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 
+@tool_execution
 def create_fields(
     ctx: ToolContext,
     table_id: Annotated[
@@ -1193,6 +1194,7 @@ def _lock_fields(ctx: ToolContext, field_ids: list[int]) -> None:
         ) from exc
 
 
+@tool_execution
 def update_fields(
     ctx: ToolContext,
     fields: Annotated[
@@ -1254,6 +1256,7 @@ def update_fields(
     return result
 
 
+@tool_execution
 def delete_fields(
     ctx: ToolContext,
     field_ids: Annotated[

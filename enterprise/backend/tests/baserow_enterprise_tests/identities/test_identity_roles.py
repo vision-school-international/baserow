@@ -5,14 +5,17 @@ import pytest
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.rows.operations import UpdateDatabaseRowOperationType
 from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
+from baserow.contrib.database.tools.tables import TableItemCreate, create_tables
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import WorkspaceActionScopeType
+from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
 from baserow.core.models import User
 from baserow.core.subjects import UserSubjectType
+from baserow.core.tools import ToolContext
 from baserow_enterprise.identities.identity_extension_types import (
     EnterpriseIdentityExtensionType,
 )
@@ -26,6 +29,32 @@ from baserow_enterprise.teams.models import TeamSubject
 @pytest.fixture(autouse=True)
 def enable_enterprise_and_roles(enable_enterprise, synced_roles):
     pass
+
+
+@pytest.mark.django_db
+def test_identity_tools_recheck_revoked_workspace_role(data_fixture):
+    owner = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=owner)
+    identity = data_fixture.create_identity(
+        workspace=database.workspace, role_uid="BUILDER"
+    )
+    context = ToolContext(user=identity, workspace=database.workspace)
+    create_tables(
+        context,
+        database.id,
+        [TableItemCreate(name="Before", primary_field_name="Name", fields=[])],
+    )
+
+    reloaded = User.objects_and_identities.get(id=identity.id)
+    IdentityService().update_identity(owner, reloaded, role_uid="NO_ACCESS")
+
+    with pytest.raises(PermissionException):
+        create_tables(
+            context,
+            database.id,
+            [TableItemCreate(name="After", primary_field_name="Name", fields=[])],
+        )
+    assert list(database.table_set.values_list("name", flat=True)) == ["Before"]
 
 
 @pytest.mark.django_db

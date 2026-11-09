@@ -49,7 +49,7 @@ from baserow.contrib.database.tools.fields import (
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionException
 from baserow.core.service import CoreService
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 
 # ---------------------------------------------------------------------------
 # Types
@@ -805,6 +805,7 @@ def _table_filter(
     return q
 
 
+@tool_execution
 def list_tables(
     ctx: ToolContext,
     database_id: Annotated[
@@ -889,6 +890,7 @@ def _schema_field(field: BaserowField) -> dict[str, Any]:
     }
 
 
+@tool_execution
 def get_table_schema(
     ctx: ToolContext,
     table_ids: Annotated[
@@ -942,6 +944,7 @@ def get_table_schema(
     ]
 
 
+@tool_execution
 def create_tables(
     ctx: ToolContext,
     database_id: Annotated[

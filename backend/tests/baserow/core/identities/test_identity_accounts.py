@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.urls import reverse
 from django.utils import timezone
 
 import pytest
@@ -14,6 +15,7 @@ from baserow.api.user.serializers import check_user_can_log_in_with_password
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.mcp.auth import INVALID_TOKEN, _resolve_bearer_sync
+from baserow.core.models import User
 from baserow.core.user.cache import set_cached_user
 from baserow.ws.auth import get_user
 
@@ -21,6 +23,76 @@ from baserow.ws.auth import get_user
 @pytest.fixture
 def identity_account(data_fixture):
     return data_fixture.create_identity(name="Worker", role_uid="ADMIN")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "kind,cached,expected_status",
+    [
+        ("human", False, 200),
+        ("human", True, 200),
+        ("identity", False, 401),
+        ("identity", True, 401),
+        ("unknown", False, 401),
+        ("unknown", True, 401),
+        ("stale_profile", True, 401),
+        ("anonymous", False, 401),
+    ],
+)
+def test_identity_creation_api_requires_a_current_human_profile(
+    data_fixture, api_client, settings, kind, cached, expected_status
+):
+    settings.BASEROW_CACHE_TTL_SECONDS = 30
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    if kind == "identity":
+        user = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+    elif kind == "unknown":
+        user.profile.user_type = "unknown"
+        user.profile.save(update_fields=["user_type"])
+    elif kind == "stale_profile":
+        del user.profile.__dict__["user_type"]
+    if cached:
+        set_cached_user(user)
+    headers = (
+        {}
+        if kind == "anonymous"
+        else {"HTTP_AUTHORIZATION": f"JWT {RefreshToken.for_user(user).access_token}"}
+    )
+    users_before = User.objects_and_identities.count()
+
+    response = api_client.post(
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        {"name": "Created by a user"},
+        format="json",
+        **headers,
+    )
+
+    assert response.status_code == expected_status
+    assert User.objects_and_identities.count() == users_before + (
+        expected_status == 200
+    )
+
+
+@pytest.mark.django_db
+def test_identity_password_login_api_does_not_issue_tokens(
+    identity_account, data_fixture, api_client
+):
+    data_fixture.create_password_provider()
+    identity_account.set_password("identity-test-password")
+    identity_account.save(update_fields=["password"])
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": identity_account.email, "password": "identity-test-password"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert "access_token" not in response.json()
+    assert "refresh_token" not in response.json()
+    identity_account.refresh_from_db()
+    assert identity_account.last_login is None
 
 
 @pytest.mark.django_db

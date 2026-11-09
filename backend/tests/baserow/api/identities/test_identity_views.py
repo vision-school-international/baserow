@@ -44,6 +44,66 @@ def test_identity_creation_requires_current_feature_flag(
 
 
 @pytest.mark.django_db
+def test_existing_identities_stay_protected_when_creation_is_disabled(
+    data_fixture, api_client, settings
+):
+    owner, owner_token = data_fixture.create_user_and_token()
+    _, outsider_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=owner)
+    identity = data_fixture.create_identity(workspace=workspace, name="Existing")
+    list_url = reverse(
+        "api:identities:workspace", kwargs={"workspace_id": workspace.id}
+    )
+    item_url = reverse("api:identities:item", kwargs={"identity_id": identity.id})
+    owner_headers = {"HTTP_AUTHORIZATION": f"JWT {owner_token}"}
+    outsider_headers = {"HTTP_AUTHORIZATION": f"JWT {outsider_token}"}
+    settings.FEATURE_FLAGS = []
+
+    response = api_client.get(list_url, **owner_headers)
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["results"]] == [identity.id]
+    response = api_client.get(list_url, **outsider_headers)
+    assert response.status_code == 401
+    assert response.json()["error"] == "PERMISSION_DENIED"
+    for response in [
+        api_client.patch(
+            item_url, {"name": "Forbidden"}, format="json", **outsider_headers
+        ),
+        api_client.delete(item_url, **outsider_headers),
+    ]:
+        assert response.status_code == 400
+        assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+    identity.refresh_from_db()
+    assert identity.first_name == "Existing"
+    assert not identity.profile.trashed
+
+    response = api_client.patch(
+        item_url, {"name": "Updated"}, format="json", **owner_headers
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated"
+    assert api_client.delete(item_url, **owner_headers).status_code == 204
+    assert api_client.get(list_url, **owner_headers).json()["count"] == 0
+    response = api_client.patch(
+        reverse("api:trash:restore"),
+        {"trash_item_type": "identity", "trash_item_id": identity.profile.id},
+        format="json",
+        **owner_headers,
+    )
+    assert response.status_code == 204
+    response = api_client.get(list_url, **owner_headers)
+    assert [(item["id"], item["name"]) for item in response.json()["results"]] == [
+        (identity.id, "Updated")
+    ]
+    response = api_client.post(
+        list_url, {"name": "New"}, format="json", **owner_headers
+    )
+    assert response.status_code == 403
+    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+    assert IdentityHandler().get_queryset(workspace).count() == 1
+
+
+@pytest.mark.django_db
 def test_admin_can_crud_search_and_soft_delete_identities(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)

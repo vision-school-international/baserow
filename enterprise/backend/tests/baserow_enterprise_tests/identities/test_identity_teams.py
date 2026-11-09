@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.urls import reverse
+
 import pytest
 from rest_framework.exceptions import ValidationError
 
@@ -8,7 +10,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.operations import ListIdentitiesWorkspaceOperationType
 from baserow.core.identities.service import IdentityService
-from baserow.core.models import User
+from baserow.core.models import User, UserProfile, WorkspaceUser
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.features import TEAMS
@@ -75,6 +77,57 @@ def test_identity_team_must_share_workspace(data_fixture, enterprise_data_fixtur
             role_uid="NO_ACCESS",
             team_ids=[other_team.id],
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["post", "patch"])
+@pytest.mark.parametrize("invalid_team", ["other_workspace", "missing"])
+def test_identity_api_rolls_back_invalid_team_changes(
+    data_fixture, enterprise_data_fixture, api_client, method, invalid_team
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    old_team = enterprise_data_fixture.create_team(workspace=workspace)
+    new_team = enterprise_data_fixture.create_team(workspace=workspace)
+    foreign_team = enterprise_data_fixture.create_team()
+    identity = IdentityService().create_identity(
+        user, workspace, name="Original", team_ids=[old_team.id]
+    )
+    invalid_team_id = (
+        foreign_team.id
+        if invalid_team == "other_workspace"
+        else foreign_team.id + 10000
+    )
+    url = (
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id})
+        if method == "post"
+        else reverse("api:identities:item", kwargs={"identity_id": identity.id})
+    )
+    managers = (
+        User.objects_and_identities,
+        UserProfile.objects_and_trash,
+        WorkspaceUser.objects_and_trash,
+        TeamSubject.objects_and_trash,
+    )
+    counts_before = [manager.count() for manager in managers]
+
+    response = getattr(api_client, method)(
+        url,
+        {"name": "Changed", "team_ids": [new_team.id, invalid_team_id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 400
+    assert "team_ids" in response.json()
+    assert [manager.count() for manager in managers] == counts_before
+    identity.refresh_from_db()
+    assert identity.first_name == "Original"
+    assert list(
+        TeamSubject.objects.filter(subject_id=identity.id).values_list(
+            "team_id", flat=True
+        )
+    ) == [old_team.id]
 
 
 @pytest.mark.django_db
