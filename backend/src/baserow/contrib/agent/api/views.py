@@ -35,6 +35,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
     AgentMessageConflict,
     AgentNotReady,
@@ -55,6 +56,7 @@ from baserow.core.service import CoreService
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    ERROR_AGENT_CONVERSATION_READ_ONLY,
     ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
@@ -86,6 +88,7 @@ AGENT_ID_PATH_PARAMETER = OpenApiParameter(
 AGENT_EXCEPTIONS = {
     ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
     AgentConversationDoesNotExist: ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    AgentConversationReadOnly: ERROR_AGENT_CONVERSATION_READ_ONLY,
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
@@ -115,6 +118,7 @@ MESSAGE_WRITE_ERRORS = {
     409: get_error_schema(
         [
             "ERROR_AGENT_MESSAGE_CONFLICT",
+            "ERROR_AGENT_CONVERSATION_READ_ONLY",
             "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
             "ERROR_CHAT_RUN_IN_PROGRESS",
         ]
@@ -122,7 +126,12 @@ MESSAGE_WRITE_ERRORS = {
 }
 APPROVAL_WRITE_ERRORS = {
     **CONVERSATION_WRITE_ERRORS,
-    409: get_error_schema(["ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING"]),
+    409: get_error_schema(
+        [
+            "ERROR_AGENT_CONVERSATION_READ_ONLY",
+            "ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING",
+        ]
+    ),
 }
 
 

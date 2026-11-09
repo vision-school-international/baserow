@@ -20,3 +20,7 @@ class AgentConversationWaitingForApproval(Exception):
 
 class AgentToolApprovalNotPending(Exception):
     """The approval is decided or isn't held by the conversation's waiting reply."""
+
+
+class AgentConversationReadOnly(Exception):
+    """A trigger started the conversation; nobody sends to it or decides in it."""

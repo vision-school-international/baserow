@@ -778,3 +778,29 @@ def test_shared_conversations_are_listed_and_read_by_every_member(
         service.list_conversations(outsider, agent.id)
     with pytest.raises(AgentConversationDoesNotExist):
         service.list_messages(member, agent.id, private.uuid)
+
+
+@pytest.mark.django_db
+def test_shared_conversations_accept_no_messages_or_decisions(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    approval = data_fixture.create_agent_tool_approval(conversation=shared)
+
+    sent = api_client.post(
+        agent_url(agent, "messages", conversation_uuid=shared.uuid),
+        {"uuid": str(uuid4()), "content": "Hello"},
+    )
+    decided = api_client.post(
+        agent_url(agent, "approvals", conversation_uuid=shared.uuid),
+        {"decisions": [{"id": approval.id, "approved": True}]},
+    )
+
+    for response in [sent, decided]:
+        assert response.status_code == 409
+        assert response.json()["error"] == "ERROR_AGENT_CONVERSATION_READ_ONLY"
+    approval.refresh_from_db()
+    assert approval.status == "pending"
+    assert not AgentMessage.objects.filter(role="user").exists()
+    assert not ChatRun.objects.exists()

@@ -14,7 +14,11 @@ from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
 from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
-from .exceptions import AgentConversationWaitingForApproval, AgentNotReady
+from .exceptions import (
+    AgentConversationReadOnly,
+    AgentConversationWaitingForApproval,
+    AgentNotReady,
+)
 from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage, AgentToolApproval
 from .operations import (
@@ -392,6 +396,7 @@ class AgentService:
             agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
+        :raises AgentConversationReadOnly: When a trigger started the conversation.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentConversationWaitingForApproval: When the latest reply waits for
@@ -412,6 +417,8 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        if conversation.owner_user_id is None:
+            raise AgentConversationReadOnly
         validate_message_content(content)
         retry = self.handler.get_message_retry(conversation, uuid, content)
         if retry is not None:
@@ -455,6 +462,7 @@ class AgentService:
             agent, or may not update its configuration while always allowing.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
+        :raises AgentConversationReadOnly: When a trigger started the conversation.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
@@ -477,6 +485,8 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        if conversation.owner_user_id is None:
+            raise AgentConversationReadOnly
         reply, decided, all_decided = self.handler.decide_approvals(
             conversation, user, decisions
         )
