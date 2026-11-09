@@ -33,6 +33,7 @@ from pydantic_ai import (
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStepStatus
+from baserow.core.chat_runs.exceptions import ChatRunLimitReached
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import (
     ACTIVE_CHAT_RUN_STATUSES,
@@ -53,6 +54,7 @@ from baserow.core.types import Subject
 from baserow.core.utils import extract_allowed, remove_unstorable_characters
 
 from .constants import (
+    AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
@@ -77,6 +79,7 @@ from .models import (
     AgentReplyStatus,
     AgentReplyTranscript,
     AgentToolApproval,
+    AgentTrigger,
 )
 from .registries import agent_tool_type_registry
 from .triggers.handler import AgentTriggerHandler
@@ -740,7 +743,36 @@ class AgentHandler:
                 message_uuid,
                 content,
             )
-        return self._add_message(conversation, message_uuid, content)
+        return self._add_message(conversation, content, uuid=message_uuid)
+
+    def start_trigger_conversation(
+        self, trigger: AgentTrigger, content: str
+    ) -> AgentConversation:
+        """
+        Start a shared conversation from a trigger's resolved message, titled after
+        it, with a system run writing the reply. A workspace at its maximum of
+        replies running fails the reply with ``chat_run_limit_reached`` instead of
+        raising: nobody can retry a trigger's message, so the list shows why it
+        wasn't answered.
+
+        :param trigger: The trigger that fired, with its agent.
+        :param content: The resolved trigger message.
+        :return: The new conversation, holding the trigger message and its reply.
+        """
+
+        conversation = AgentConversation.objects.create(
+            uuid=uuid4(),
+            agent=trigger.agent,
+            owner_user=None,
+            trigger=trigger,
+            title=normalize_title(content),
+        )
+        return self._add_message(
+            conversation,
+            content,
+            role=AgentMessage.Role.TRIGGER,
+            raise_on_run_limit=False,
+        ).conversation
 
     def get_message_retry(
         self, conversation: AgentConversation, uuid: UUID, content: str
@@ -780,15 +812,35 @@ class AgentHandler:
         """
 
         conversation.save(update_fields=["updated_on"])
-        return self._add_message(conversation, uuid, content)
+        return self._add_message(conversation, content, uuid=uuid)
 
     def _add_message(
-        self, conversation: AgentConversation, uuid: UUID, content: str
+        self,
+        conversation: AgentConversation,
+        content: str,
+        role: AgentMessage.Role = AgentMessage.Role.USER,
+        uuid: UUID | None = None,
+        raise_on_run_limit: bool = True,
     ) -> AgentMessageCreated:
-        """Add the message and its empty reply, and start the run writing it."""
+        """
+        Add the message and its empty reply, and start the run writing it.
+
+        :param conversation: The conversation to add the message to.
+        :param content: The content of the message.
+        :param role: Who sent the message: a person or a trigger.
+        :param uuid: The client's uuid of the message, or None for a new one.
+        :param raise_on_run_limit: Whether a workspace at its maximum of replies
+            running raises, or fails the reply with ``chat_run_limit_reached``.
+        :raises ChatRunLimitReached: When the limit is reached and raising is asked.
+        :return: The conversation, the new message, its reply and the run writing
+            it, or no run when the reply failed on the limit.
+        """
 
         message = AgentMessage.objects.create(
-            conversation=conversation, uuid=uuid, content=content
+            conversation=conversation,
+            uuid=uuid or uuid4(),
+            role=role,
+            content=content,
         )
         reply = AgentMessage.objects.create(
             conversation=conversation,
@@ -797,20 +849,29 @@ class AgentHandler:
             content="",
             status=ChatRunStatus.RUNNING,
         )
-        run = self._start_reply_run(conversation, reply)
+        run_id = None
+        try:
+            run_id = self._start_reply_run(conversation, reply).id
+        except ChatRunLimitReached:
+            if raise_on_run_limit:
+                raise
+            self.finish_reply(
+                reply.id, ChatRunStatus.FAILED, AGENT_RUN_LIMIT_REACHED, None
+            )
+            reply.refresh_from_db()
         return AgentMessageCreated(
             conversation,
             message,
             reply,
-            run_id=run.id,
-            conversation_run_id=run.id,
+            run_id=run_id,
+            conversation_run_id=run_id,
             created=True,
         )
 
     def _start_reply_run(
         self, conversation: AgentConversation, reply: AgentMessage
     ) -> ChatRun:
-        """Start the run writing the reply, for the conversation's owner."""
+        """Start the run writing the reply, as the owner or as a system run."""
 
         return ChatRunHandler().start_run(
             AGENT_RUN_TYPE,

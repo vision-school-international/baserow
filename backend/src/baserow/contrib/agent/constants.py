@@ -34,6 +34,7 @@ HISTORY_MESSAGE_LIMIT = 20
 REPLY_REQUEST_LIMIT = 20
 AGENT_NOT_READY = "not_ready"
 AGENT_NOT_ALLOWED = "not_allowed"
+AGENT_RUN_LIMIT_REACHED = "chat_run_limit_reached"
 # The picker allowlist, widened as each trigger form is verified in the agent host.
 AGENT_TRIGGER_TYPES_ENABLED = ("periodic",)
 # Started by another automation or agent, which can't start an agent yet.
