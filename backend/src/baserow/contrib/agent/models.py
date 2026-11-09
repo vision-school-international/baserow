@@ -2,12 +2,14 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
+from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     BigAutoFieldMixin,
     CreatedAndUpdatedOnMixin,
     TrashableModelMixin,
 )
 from baserow.core.models import Application
+from baserow.core.services.models import Service
 
 
 class AgentApplication(Application):
@@ -50,10 +52,29 @@ class AgentAllowedTool(models.Model):
         ]
 
 
+class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+    """An agent-owned trigger service whose events start shared conversations."""
+
+    agent = models.ForeignKey(
+        AgentApplication, on_delete=models.CASCADE, related_name="triggers"
+    )
+    service = models.OneToOneField(
+        Service, on_delete=models.CASCADE, related_name="agent_trigger"
+    )
+    enabled = models.BooleanField(default=True, db_default=True)
+    message = FormulaField(default="", db_default="", blank=True)
+
+    class Meta:
+        ordering = ("id",)
+
+
 class AgentConversation(
     TrashableModelMixin, BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
 ):
-    """A conversation with an agent, private to the user who started it."""
+    """
+    A conversation with an agent: private to the user who started it, or shared
+    (no owner) when a trigger started it.
+    """
 
     agent = models.ForeignKey(
         AgentApplication, on_delete=models.CASCADE, related_name="conversations"
@@ -62,10 +83,19 @@ class AgentConversation(
     title = models.CharField(max_length=250)
     owner_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
         on_delete=models.CASCADE,
         related_name="agent_conversations",
     )
-    # Reads are already narrowed to one owner's conversations by the index below.
+    trigger = models.ForeignKey(
+        AgentTrigger,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="conversations",
+    )
+    # Both indexes below lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
 
     class Meta:
@@ -74,6 +104,10 @@ class AgentConversation(
             models.Index(
                 fields=["agent", "owner_user", "-updated_on", "-id"],
                 name="agent_conversation_owner_idx",
+            ),
+            models.Index(
+                fields=["agent", "-updated_on", "-id"],
+                name="agent_conversation_shared_idx",
             ),
         ]
 
@@ -95,7 +129,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     class Role(models.TextChoices):
         USER = "user", "User"
         ASSISTANT = "assistant", "Assistant"
-        SYSTEM = "system", "System"
+        TRIGGER = "trigger", "Trigger"
 
     conversation = models.ForeignKey(
         AgentConversation, on_delete=models.CASCADE, related_name="messages"
