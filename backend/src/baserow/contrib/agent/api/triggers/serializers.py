@@ -1,0 +1,115 @@
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+from rest_framework.fields import SkipField, empty
+
+from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
+from baserow.api.services.serializers import (
+    PolymorphicServiceRequestSerializer,
+    PolymorphicServiceSerializer,
+)
+from baserow.contrib.agent.models import AgentTrigger
+from baserow.core.formula.serializers import FormulaSerializerField
+
+MESSAGE_HELP_TEXT = (
+    "The formula, resolved against the trigger's payload, whose text opens each "
+    "conversation the trigger starts. Empty opens it with the payload itself."
+)
+SERVICE_HELP_TEXT = "The service producing the trigger's events."
+
+
+class AgentTriggerSerializer(serializers.ModelSerializer):
+    type = serializers.SerializerMethodField(
+        help_text="The service type of the trigger."
+    )
+    # A ModelSerializer would render the TextField-based formula as a plain string.
+    message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
+    service = PolymorphicServiceSerializer(help_text=SERVICE_HELP_TEXT)
+    schema = serializers.SerializerMethodField(
+        help_text="The JSON schema of the payload one event provides to the "
+        "message, or null while the service can't tell yet."
+    )
+
+    class Meta:
+        model = AgentTrigger
+        fields = ("id", "type", "enabled", "message", "service", "schema")
+        extra_kwargs = {"id": {"read_only": True}}
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_type(self, instance: AgentTrigger) -> str:
+        """
+        Name the service type of the trigger.
+
+        :param instance: The trigger being serialized.
+        :return: The service type name, such as ``periodic``.
+        """
+
+        return instance.service.get_type().type
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_schema(self, instance: AgentTrigger) -> dict | None:
+        """
+        Describe the payload one event provides to the message formula.
+
+        :param instance: The trigger being serialized.
+        :return: The service type's JSON schema, or None while it can't tell yet.
+        """
+
+        service = instance.service.specific
+        return service.get_type().generate_schema(service)
+
+
+class AgentTriggerServiceRequestSerializer(PolymorphicServiceRequestSerializer):
+    def run_validation(self, data: object = empty) -> dict:
+        """
+        Skip the field when the payload leaves it out. The parent turns an
+        omitted service into ``{}``, which would run a no-op service update and
+        be audited as a change.
+
+        :param data: The service values given, or ``empty``.
+        :raises SkipField: When the payload has no ``service`` key.
+        :return: The validated service values, with the pinned ``type``.
+        """
+
+        if data is empty:
+            raise SkipField()
+        return super().run_validation(data)
+
+
+class CreateAgentTriggerSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    type = serializers.CharField(
+        max_length=255,
+        help_text="The service type of the trigger, one of the configuration's "
+        "available_trigger_types.",
+    )
+    message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
+    enabled = serializers.BooleanField(
+        required=False,
+        default=True,
+        help_text="Whether the trigger starts conversations right away.",
+    )
+
+
+class UpdateAgentTriggerSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+):
+    enabled = serializers.BooleanField(required=False)
+    message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
+
+    def get_fields(self) -> dict[str, serializers.Field]:
+        """
+        Add the service field pinned to the trigger's own service type, named in
+        the context, so the payload may leave `type` out and may not name another.
+
+        :return: The declared fields plus `service`.
+        """
+
+        fields = super().get_fields()
+        fields["service"] = AgentTriggerServiceRequestSerializer(
+            default_type_name=self.context.get("service_type_name"),
+            required=False,
+            help_text=SERVICE_HELP_TEXT,
+        )
+        return fields

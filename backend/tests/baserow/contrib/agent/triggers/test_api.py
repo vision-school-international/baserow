@@ -13,12 +13,14 @@ from baserow.contrib.agent.triggers.actions import (
 )
 from baserow.contrib.agent.triggers.exceptions import AgentTriggerTypeNotAvailable
 from baserow.contrib.agent.triggers.service import AgentTriggerService
+from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
     CorePeriodicTriggerServiceType,
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.handler import CoreHandler
+from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
 
 from ..utils import agent_url
@@ -153,3 +155,202 @@ def test_create_trigger_action_rejects_a_type_the_agent_can_not_use(data_fixture
             action.do(user, agent.id, type_name)
 
     assert not AgentTrigger.objects.exists()
+
+
+@pytest.mark.django_db
+def test_list_triggers_serializes_type_message_service_and_schema(
+    data_fixture, periodic_trigger, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent, interval="DAY", hour=9)
+
+    response = api_client.get(agent_url(agent, "triggers:list"))
+
+    assert response.status_code == 200, response.json()
+    [item] = response.json()
+    assert {key: item[key] for key in ("id", "type", "enabled", "message")} == {
+        "id": trigger.id,
+        "type": "periodic",
+        "enabled": True,
+        "message": MESSAGE,
+    }
+    assert (
+        item["service"]["type"],
+        item["service"]["interval"],
+        item["service"]["hour"],
+    ) == ("periodic", "DAY", 9)
+    assert list(item["schema"]["properties"]) == ["triggered_at", "next_run_at"]
+
+
+@pytest.mark.django_db
+def test_create_trigger_returns_it_and_registers_the_action(
+    data_fixture, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    registered = mocker.spy(CreateAgentTriggerActionType, "send_action_done_signal")
+
+    response = api_client.post(
+        agent_url(agent, "triggers:list"), {"type": "periodic", "message": MESSAGE}
+    )
+
+    assert response.status_code == 200, response.json()
+    trigger = AgentTrigger.objects.get()
+    assert isinstance(trigger.service.specific, CorePeriodicService)
+    # Created with no interval, so arm() scheduled nothing.
+    assert trigger.service.specific.next_run_at is None
+    body = response.json()
+    assert (body["id"], body["type"], body["enabled"], body["message"]) == (
+        trigger.id,
+        "periodic",
+        True,
+        MESSAGE,
+    )
+    assert registered.call_args.args[1] == {
+        "agent_id": agent.id,
+        "trigger_id": trigger.id,
+        "trigger_type": "periodic",
+    }
+
+
+@pytest.mark.django_db
+def test_create_rejects_a_type_the_agent_can_not_use(
+    data_fixture, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = api_client.post(agent_url(agent, "triggers:list"), {"type": "manual"})
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"
+    assert not AgentTrigger.objects.exists()
+
+
+@pytest.mark.django_db
+def test_update_trigger_saves_the_switch_message_and_service_values(
+    data_fixture, periodic_trigger, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    message = {**MESSAGE, "formula": "'Hourly check'"}
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id),
+        {
+            "enabled": False,
+            "message": message,
+            "service": {"interval": "HOUR", "minute": 30},
+        },
+    )
+
+    assert response.status_code == 200, response.json()
+    trigger.refresh_from_db()
+    service = CorePeriodicService.objects.get(id=trigger.service_id)
+    assert (trigger.enabled, trigger.message, service.interval, service.minute) == (
+        False,
+        message,
+        "HOUR",
+        30,
+    )
+    body = response.json()
+    assert (body["enabled"], body["message"], body["service"]["interval"]) == (
+        False,
+        message,
+        "HOUR",
+    )
+    assert registered.call_args.args[1] == {
+        "agent_id": agent.id,
+        "trigger_id": trigger.id,
+        "trigger_type": "periodic",
+        "changed_fields": ["enabled", "message", "service"],
+    }
+
+
+@pytest.mark.django_db
+def test_update_without_service_values_leaves_the_service_alone(
+    data_fixture, periodic_trigger, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent, interval="DAY", hour=9)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"enabled": False}
+    )
+
+    assert response.status_code == 200, response.json()
+    service = CorePeriodicService.objects.get(id=trigger.service_id)
+    assert (service.interval, service.hour) == ("DAY", 9)
+    assert registered.call_args.args[1]["changed_fields"] == ["enabled"]
+
+
+@pytest.mark.django_db
+def test_update_rejects_a_misconfigured_service(
+    data_fixture, periodic_trigger, api_client, api_user, settings
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent, interval="HOUR")
+    settings.INTEGRATIONS_PERIODIC_MINUTE_MIN = 5
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id),
+        {"service": {"interval": "MINUTE", "minute": 1}},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_TRIGGER_SERVICE_MISCONFIGURED"
+    assert CorePeriodicService.objects.get(id=trigger.service_id).interval == "HOUR"
+
+
+@pytest.mark.django_db
+def test_update_rejects_the_values_of_another_service_type(
+    data_fixture, periodic_trigger, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent)
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id),
+        {"service": {"type": "http_trigger"}},
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert body["detail"]["service"]["type"][0]["code"] == "type_mismatch"
+
+
+@pytest.mark.django_db
+def test_delete_trigger_moves_it_to_the_trash(
+    data_fixture, periodic_trigger, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent)
+    registered = mocker.spy(DeleteAgentTriggerActionType, "send_action_done_signal")
+
+    response = api_client.delete(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id)
+    )
+
+    assert response.status_code == 204
+    assert not AgentTrigger.objects.filter(id=trigger.id).exists()
+    assert AgentTrigger.objects_and_trash.get(id=trigger.id).trashed
+    assert TrashEntry.objects.get().trash_item_type == "agent_trigger"
+    assert registered.call_args.args[1] == {
+        "agent_id": agent.id,
+        "trigger_id": trigger.id,
+        "trigger_type": "periodic",
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["patch", "delete"])
+def test_unknown_trigger_is_not_found(data_fixture, api_client, api_user, method):
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = getattr(api_client, method)(
+        agent_url(agent, "triggers:item", trigger_id=0), {}
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"
