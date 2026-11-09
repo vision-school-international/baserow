@@ -23,6 +23,8 @@ export function useAgentTriggers(agent) {
   // Typed edits are batched per trigger so two cards never cancel each other.
   const pendingSaves = new Map()
   const scheduledSaves = new Map()
+  // The form keeps showing rejected values, so they ride along until saved.
+  const rejectedServiceValues = new Map()
   let scope = 0
 
   const agentId = () => agent.value?.id
@@ -67,10 +69,17 @@ export function useAgentTriggers(agent) {
     try {
       const { data } = await service.update(agentId(), trigger.id, values)
       if (!scopeIsCurrent(currentScope)) return
-      delete serviceErrors[trigger.id]
-      // A reply must not undo service values still waiting on the debounce.
-      if ('service' in values && !pendingSaves.get(trigger.id)?.service) {
-        Object.assign(trigger, { service: data.service, schema: data.schema })
+      if ('service' in values) {
+        forgetSavedServiceValues(trigger.id, values.service)
+        const rejected = rejectedServiceValues.get(trigger.id)
+        if (!rejected) delete serviceErrors[trigger.id]
+        // A reply must not undo service values still waiting on the debounce.
+        if (!pendingSaves.get(trigger.id)?.service) {
+          Object.assign(trigger, {
+            service: { ...data.service, ...rejected },
+            schema: data.schema,
+          })
+        }
       }
     } catch (error) {
       if (!scopeIsCurrent(currentScope)) return
@@ -78,6 +87,8 @@ export function useAgentTriggers(agent) {
         error.response?.data?.error ===
         API_ERROR_CODE.TRIGGER_SERVICE_MISCONFIGURED
       ) {
+        if (values.service)
+          rememberRejectedServiceValues(trigger, values.service)
         const detail = error.response.data.detail
         serviceErrors[trigger.id] =
           typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
@@ -87,6 +98,44 @@ export function useAgentTriggers(agent) {
       fetchTriggers()
     } finally {
       if (scopeIsCurrent(currentScope)) savingIds.delete(trigger.id)
+    }
+  }
+
+  /**
+   * Keeps the rejected service values the form still shows, to send them again.
+   *
+   * :param trigger: The trigger whose save was rejected.
+   * :param serviceValues: The service values of the rejected save.
+   */
+  function rememberRejectedServiceValues(trigger, serviceValues) {
+    const stillShown = Object.fromEntries(
+      Object.entries(serviceValues).filter(
+        ([field, value]) =>
+          field !== 'type' && isEqual(value, trigger.service[field])
+      )
+    )
+    const rejected = { ...rejectedServiceValues.get(trigger.id), ...stillShown }
+    if (Object.keys(rejected).length) {
+      rejectedServiceValues.set(trigger.id, rejected)
+    }
+  }
+
+  /**
+   * Drops the rejected service values that a successful save has now replaced.
+   *
+   * :param triggerId: The id of the saved trigger.
+   * :param savedServiceValues: The service values the server accepted.
+   */
+  function forgetSavedServiceValues(triggerId, savedServiceValues) {
+    const remaining = Object.fromEntries(
+      Object.entries(rejectedServiceValues.get(triggerId) || {}).filter(
+        ([field]) => !(field in savedServiceValues)
+      )
+    )
+    if (Object.keys(remaining).length) {
+      rejectedServiceValues.set(triggerId, remaining)
+    } else {
+      rejectedServiceValues.delete(triggerId)
     }
   }
 
@@ -148,7 +197,13 @@ export function useAgentTriggers(agent) {
     if (serviceValues || message !== undefined) {
       scheduleSave(trigger, {
         ...(serviceValues
-          ? { service: { type: trigger.service.type, ...serviceValues } }
+          ? {
+              service: {
+                type: trigger.service.type,
+                ...rejectedServiceValues.get(trigger.id),
+                ...serviceValues,
+              },
+            }
           : {}),
         ...(message !== undefined ? { message } : {}),
       })
@@ -159,6 +214,7 @@ export function useAgentTriggers(agent) {
     const currentScope = scope
     scheduledSaves.get(trigger.id)?.cancel()
     pendingSaves.delete(trigger.id)
+    rejectedServiceValues.delete(trigger.id)
     const index = triggers.value.indexOf(trigger)
     if (index === -1) return
     triggers.value.splice(index, 1)
@@ -176,6 +232,7 @@ export function useAgentTriggers(agent) {
     for (const scheduled of scheduledSaves.values()) scheduled.cancel()
     scheduledSaves.clear()
     pendingSaves.clear()
+    rejectedServiceValues.clear()
     ++scope
     triggers.value = []
     loading.value = false
