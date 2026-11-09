@@ -33,7 +33,7 @@
             class="agent-conversations__item agent-conversations__item--renaming"
           >
             <Icon
-              icon="iconoir-chat-bubble"
+              :icon="conversationIcon(item)"
               type="secondary"
               aria-hidden="true"
             />
@@ -60,7 +60,7 @@
             @click="$emit('select', item)"
           >
             <Icon
-              icon="iconoir-chat-bubble"
+              :icon="conversationIcon(item)"
               type="secondary"
               aria-hidden="true"
             />
@@ -129,17 +129,19 @@
       >
     </div>
     <Context ref="menu" @hidden="menuItem = null">
-      <ul class="context__menu">
-        <li v-if="canUpdate" class="context__menu-item">
+      <ul v-if="menuItem" class="context__menu">
+        <li v-if="canUpdateItem(menuItem)" class="context__menu-item">
           <a class="context__menu-item-link" @click="startRename">
             <i class="context__menu-item-icon iconoir-edit-pencil"></i>
             {{ $t('action.rename') }}
           </a>
         </li>
         <li
-          v-if="canDelete"
+          v-if="canDeleteItem(menuItem)"
           class="context__menu-item"
-          :class="{ 'context__menu-item--with-separator': canUpdate }"
+          :class="{
+            'context__menu-item--with-separator': canUpdateItem(menuItem),
+          }"
         >
           <a
             class="context__menu-item-link context__menu-item-link--delete"
@@ -158,6 +160,7 @@
 import { nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
+import { useNuxtApp } from '#app'
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -169,6 +172,8 @@ const props = defineProps({
   readyToSend: Boolean,
   canUpdate: Boolean,
   canDelete: Boolean,
+  /** Whether the viewer may update the agent, which shared conversations require. */
+  canUpdateAgent: Boolean,
 })
 const emit = defineEmits([
   'select',
@@ -178,6 +183,8 @@ const emit = defineEmits([
   'update',
   'delete',
 ])
+
+const { $registry } = useNuxtApp()
 
 const menu = ref(null)
 const menuItem = ref(null)
@@ -189,8 +196,19 @@ const shownItems = ref(props.items)
 const itemButtons = {}
 let renameOriginal = ''
 
+// A removed plugin's trigger type is unknown here, and Registry.get would throw.
+function conversationIcon(item) {
+  return item.trigger_type && $registry.exists('service', item.trigger_type)
+    ? $registry.get('service', item.trigger_type).icon
+    : 'iconoir-chat-bubble'
+}
+const canUpdateItem = (item) =>
+  props.canUpdate && (!item.shared || props.canUpdateAgent)
+const canDeleteItem = (item) =>
+  props.canDelete && (!item.shared || props.canUpdateAgent)
 // A draft exists only in this tab until its first message is sent.
-const hasOptions = (item) => !item.local && (props.canUpdate || props.canDelete)
+const hasOptions = (item) =>
+  !item.local && (canUpdateItem(item) || canDeleteItem(item))
 const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
 
 watch([() => props.items, renamingUuid], ([items, renaming]) => {

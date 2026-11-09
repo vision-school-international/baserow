@@ -161,4 +161,63 @@ describe('Agent components', () => {
       'Support assistant'
     )
   })
+
+  test('shows a trigger start as a collapsed card named after its trigger type', async () => {
+    const content =
+      'Trigger data:\n```json\n{"triggered_at": "2026-11-09T09:00:00+00:00"}\n```'
+    const wrapper = await testApp.mount(AgentMessage, {
+      props: {
+        message: {
+          role: 'trigger',
+          content,
+          created_on: '2026-11-03T10:00:00Z',
+        },
+        triggerType: 'periodic',
+      },
+      global: {
+        provide: { [nowKey]: ref(Date.parse('2026-11-03T10:03:00Z')) },
+      },
+    })
+    const header = wrapper.get('.agent-trigger-start__header')
+    const text = () => wrapper.get('.agent-trigger-start__text').text()
+
+    expect(wrapper.find('.chat-message__bubble').exists()).toBe(false)
+    expect(header.get('.agent-trigger-start__icon').classes()).toContain(
+      'iconoir-timer'
+    )
+    expect(header.get('.agent-trigger-start__title').text()).toBe(
+      'agent.startedBy'
+    )
+    expect(header.attributes('aria-expanded')).toBe('false')
+    expect(text()).toBe('Trigger data:')
+    await header.trigger('click')
+
+    expect(header.attributes('aria-expanded')).toBe('true')
+    expect(text()).toBe(content)
+    expect(
+      wrapper.get('.chat-message__footer time').attributes('datetime')
+    ).toBe('2026-11-03T10:00:00Z')
+  })
+
+  test('names the start card generically when its trigger type is gone', async () => {
+    const wrapper = await testApp.mount(AgentMessage, {
+      props: {
+        message: {
+          role: 'trigger',
+          content: 'Hello',
+          created_on: '2026-11-03T10:00:00Z',
+        },
+      },
+      global: {
+        provide: { [nowKey]: ref(Date.parse('2026-11-03T10:03:00Z')) },
+      },
+    })
+
+    expect(wrapper.get('.agent-trigger-start__title').text()).toBe(
+      'agent.startedByTrigger'
+    )
+    expect(wrapper.get('.agent-trigger-start__icon').classes()).toContain(
+      'iconoir-flash'
+    )
+  })
 })

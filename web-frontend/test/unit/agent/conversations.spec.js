@@ -27,6 +27,7 @@ import {
   page,
   selectConversation,
   selected,
+  sharedConversation,
   send,
   sendMessage,
   sentBodies,
@@ -722,5 +723,40 @@ describe('Agent conversations', () => {
 
     await rename('Gone')
     expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
+  })
+
+  test('shows a shared conversation read-only, with its trigger start card', async () => {
+    allowed.value = withoutConfiguration
+    mockConversations(
+      testApp,
+      conversationsPage([sharedConversation('digest', 'Daily digest')])
+    )
+    mockMessages(
+      testApp,
+      'digest',
+      page([
+        message('t1', 'Trigger data', { id: 1, role: 'trigger' }),
+        message('r1', 'Digest ready', {
+          id: 2,
+          role: 'assistant',
+          status: 'completed',
+        }),
+      ])
+    )
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Daily digest')
+
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.sharedReadOnly'
+    )
+    expect(wrapper.find('.agent-chat__shared .button').exists()).toBe(false)
+    expect(wrapper.get('.agent-trigger-start__text').text()).toBe(
+      'Trigger data'
+    )
+    expect(messages(wrapper)).toEqual(['Digest ready'])
+    expect(wrapper.find('.agent-conversations__options').exists()).toBe(false)
+    expect(warning(wrapper).exists()).toBe(false)
   })
 })

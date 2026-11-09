@@ -1,0 +1,57 @@
+<template>
+  <div
+    class="agent-trigger-start"
+    :class="{ 'agent-trigger-start--expanded': expanded }"
+  >
+    <button
+      type="button"
+      class="agent-trigger-start__header"
+      :aria-expanded="expanded"
+      :aria-controls="textId"
+      @click="expanded = !expanded"
+    >
+      <i class="agent-trigger-start__icon" :class="icon" aria-hidden="true" />
+      <span class="agent-trigger-start__title">{{ title }}</span>
+      <i
+        class="agent-trigger-start__chevron"
+        :class="expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'"
+        aria-hidden="true"
+      />
+    </button>
+    <div :id="textId" class="agent-trigger-start__text">
+      {{ expanded ? content : firstLine }}
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useNuxtApp } from '#app'
+
+/** The opening message of a trigger-started conversation. */
+const props = defineProps({
+  /** The resolved trigger message, exactly what the agent received. */
+  content: { type: String, required: true },
+  /** The trigger's service type key, null once the trigger is permanently deleted. */
+  triggerType: { type: String, default: null },
+})
+
+const { $registry } = useNuxtApp()
+const { t } = useI18n()
+const textId = useId()
+const expanded = ref(false)
+// A removed plugin's trigger type is unknown here, and Registry.get would throw.
+const serviceType = computed(() =>
+  props.triggerType && $registry.exists('service', props.triggerType)
+    ? $registry.get('service', props.triggerType)
+    : null
+)
+const icon = computed(() => serviceType.value?.icon || 'iconoir-flash')
+const title = computed(() =>
+  serviceType.value
+    ? t('agent.startedBy', { name: serviceType.value.name })
+    : t('agent.startedByTrigger')
+)
+const firstLine = computed(() => props.content.trim().split('\n', 1)[0])
+</script>

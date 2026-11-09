@@ -61,6 +61,7 @@ const REJECTED_MESSAGE_ERRORS = [
   API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
   API_ERROR_CODE.AGENT_BUSY,
   API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+  API_ERROR_CODE.AGENT_CONVERSATION_READ_ONLY,
 ]
 
 const SEND_ERRORS = {
@@ -69,6 +70,7 @@ const SEND_ERRORS = {
   [API_ERROR_CODE.AGENT_BUSY]: 'agent.agentsBusy',
   [API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL]:
     'agent.conversationWaitingForApproval',
+  [API_ERROR_CODE.AGENT_CONVERSATION_READ_ONLY]: 'agent.conversationReadOnly',
 }
 
 // Another session changed the conversation, so a refusal re-reads it.
@@ -78,7 +80,7 @@ const CONVERSATION_CHANGED_ERRORS = [
   API_ERROR_CODE.AGENT_TOOL_APPROVAL_NOT_PENDING,
 ]
 
-/** Page-local private conversations, gated by the Agent configuration. */
+/** Page-local conversations, private or shared, gated by the Agent configuration. */
 export function useAgentConversations(agent, configuration) {
   const store = useStore()
   const { $client, $hasPermission, $i18n, $registry } = useNuxtApp()
@@ -105,6 +107,8 @@ export function useAgentConversations(agent, configuration) {
   const canDeleteConversation = computed(() =>
     permission('agent_application.delete_conversation')
   )
+  // Shared conversations are changed only by whoever may update the agent.
+  const canUpdateAgent = computed(() => permission('application.update'))
 
   // Every conversation down to `loadedUntil`, newest first, and older waiting ones.
   const conversations = ref([])
@@ -164,12 +168,19 @@ export function useAgentConversations(agent, configuration) {
       ? null
       : error
   })
+  // A shared conversation is read-only until continuation ships.
   const canWriteSelected = computed(
     () =>
       canReadConversations.value &&
       canCreateMessage.value &&
       Boolean(selectedConversation.value) &&
+      !selectedConversation.value.shared &&
       (!selectedConversation.value.local || canCreateConversation.value)
+  )
+  const canStopSelected = computed(
+    () =>
+      Boolean(selectedConversation.value) &&
+      (!selectedConversation.value.shared || canUpdateAgent.value)
   )
   // Sending is blocked while a reply waits, so the waiting reply is the newest.
   const pendingApprovalCount = computed(
@@ -727,7 +738,7 @@ export function useAgentConversations(agent, configuration) {
 
   async function stopReply() {
     const runId = replyFollower.value?.runId
-    if (!runId) return
+    if (!runId || !canStopSelected.value) return
     try {
       await store.dispatch('chatRuns/cancelRun', runId)
     } catch (error) {
@@ -882,16 +893,19 @@ export function useAgentConversations(agent, configuration) {
     canCreateConversation,
     canUpdateConversation,
     canDeleteConversation,
+    canUpdateAgent,
     conversationItems,
     conversationsLoading,
     conversationsError,
     conversationsNext,
     selectedUuid,
+    selectedConversation,
     currentHistory,
     currentDraft,
     replyFollower,
     sendError,
     canWriteSelected,
+    canStopSelected,
     canSend,
     pendingApprovalCount,
     waitingForApproval,

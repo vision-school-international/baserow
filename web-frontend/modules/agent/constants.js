@@ -42,7 +42,7 @@ export const CONFIGURATION_SAVE_RESULT = Object.freeze({
 export const MESSAGE_ROLE = Object.freeze({
   USER: 'user',
   ASSISTANT: 'assistant',
-  SYSTEM: 'system',
+  TRIGGER: 'trigger',
 })
 
 // Error responses handled by the Agent API client, including shared API errors.
@@ -58,6 +58,7 @@ export const API_ERROR_CODE = Object.freeze({
   AGENT_CONVERSATION_WAITING_FOR_APPROVAL:
     'ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL',
   AGENT_TOOL_APPROVAL_NOT_PENDING: 'ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING',
+  AGENT_CONVERSATION_READ_ONLY: 'ERROR_AGENT_CONVERSATION_READ_ONLY',
   AGENT_TRIGGER_DOES_NOT_EXIST: 'ERROR_AGENT_TRIGGER_DOES_NOT_EXIST',
   AGENT_TRIGGER_TYPE_NOT_AVAILABLE: 'ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE',
   TRIGGER_SERVICE_MISCONFIGURED: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
@@ -66,6 +67,7 @@ export const API_ERROR_CODE = Object.freeze({
 export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   NOT_READY: 'not_ready',
   NOT_ALLOWED: 'not_allowed',
+  RUN_LIMIT_REACHED: 'chat_run_limit_reached',
 })
 
 export const RUN_AS_STATUS = Object.freeze({
