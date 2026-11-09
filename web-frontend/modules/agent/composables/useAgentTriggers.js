@@ -39,7 +39,10 @@ export function useAgentTriggers(agent) {
     loadError.value = false
     try {
       const { data } = await service.list(agentId())
-      if (scopeIsCurrent(currentScope)) triggers.value = data
+      if (scopeIsCurrent(currentScope)) {
+        triggers.value = data
+        forgetRejectedServiceValues()
+      }
     } catch {
       if (scopeIsCurrent(currentScope)) loadError.value = true
     } finally {
@@ -139,6 +142,12 @@ export function useAgentTriggers(agent) {
     }
   }
 
+  /** Drops every rejected service value, as the remounted forms show the server state. */
+  function forgetRejectedServiceValues() {
+    rejectedServiceValues.clear()
+    for (const key of Object.keys(serviceErrors)) delete serviceErrors[key]
+  }
+
   /** The given values that differ from the trigger, service values field by field. */
   function changedValues(trigger, values) {
     const changed = {}
@@ -232,13 +241,12 @@ export function useAgentTriggers(agent) {
     for (const scheduled of scheduledSaves.values()) scheduled.cancel()
     scheduledSaves.clear()
     pendingSaves.clear()
-    rejectedServiceValues.clear()
+    forgetRejectedServiceValues()
     ++scope
     triggers.value = []
     loading.value = false
     loadError.value = false
     savingIds.clear()
-    for (const key of Object.keys(serviceErrors)) delete serviceErrors[key]
   }
 
   onMounted(fetchTriggers)

@@ -191,6 +191,45 @@ describe('Agent triggers', () => {
     expect(card.find('[role="alert"]').exists()).toBe(false)
   })
 
+  test('drops a rejected service value once a refetch shows the saved trigger', async () => {
+    useFakeTimers()
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(400, {
+        error: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
+        detail: 'The schedule is invalid.',
+      })
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(500)
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, periodicTrigger())
+    const wrapper = await mountSection([periodicTrigger()])
+
+    await choose(
+      wrapper.get('.agent-trigger-card .dropdown'),
+      'periodicForm.everyDay'
+    )
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    await wrapper.get('.agent-trigger-card__switch').trigger('click')
+    await flushPromises()
+    const card = wrapper.get('.agent-trigger-card')
+    expect(card.find('[role="alert"]').exists()).toBe(false)
+
+    await card.get('input[type="number"]').setValue(9)
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'periodic', interval: 'DAY' } },
+      ],
+      ['/agent/10/triggers/1/', { enabled: false }],
+      ['/agent/10/triggers/1/', { service: { type: 'periodic', minute: '9' } }],
+    ])
+  })
+
   test('switches a trigger off at once and deletes it', async () => {
     testApp.mock
       .onPatch('/agent/10/triggers/1/')
