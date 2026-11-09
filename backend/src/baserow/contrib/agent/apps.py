@@ -53,6 +53,11 @@ class AgentConfig(AppConfig):
             UpdateRowsAgentToolType,
         )
         from .trash_types import AgentConversationTrashableItemType
+        from .triggers.actions import (
+            CreateAgentTriggerActionType,
+            DeleteAgentTriggerActionType,
+            UpdateAgentTriggerActionType,
+        )
         from .triggers.trash_types import AgentTriggerTrashableItemType
 
         application_type_registry.register(AgentApplicationType())
@@ -75,6 +80,9 @@ class AgentConfig(AppConfig):
             UpdateAgentConversationActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
+            CreateAgentTriggerActionType,
+            UpdateAgentTriggerActionType,
+            DeleteAgentTriggerActionType,
         ):
             action_type_registry.register(action())
         trash_item_type_registry.register(AgentConversationTrashableItemType())
