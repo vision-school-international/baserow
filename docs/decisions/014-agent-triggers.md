@@ -1,0 +1,151 @@
+# ADR 014: Start agent runs from core trigger services
+
+|              |                                                |
+| ------------ | ---------------------------------------------- |
+| Status       | Proposed                                       |
+| Date         | 2026-11-09                                     |
+| Issue        | https://github.com/baserow/baserow/issues/6259 |
+| Author       | Davide Silvestri (@silvestrid)                 |
+| Contributors | Bram Wiepjes (@bram2w)                         |
+
+## Summary
+
+Agents only answered when a person wrote to them. We let an agent own triggers built
+on the trigger services Automation workflows already start from, and open a
+conversation whenever one fires. Three decisions carry this: trigger service types
+notify every registered listener and expose `arm()` so a service can go live without
+Automation's publish step; a trigger-started conversation is shared, modelled as a
+conversation with no owner; and an unattended run never waits for a person.
+
+## Context
+
+Trigger service types (`periodic`, `http_trigger`, `email_trigger`, the row and field
+signal types) produce events and find the `Service` rows that should receive them.
+Until now each type held exactly one callback, set by the Automation trigger node type
+when it registered; a second consumer replaced it. Making a service live was done
+inline when a workflow was published: the import code set `next_run_at` for periodic
+services and `is_public` for HTTP and email services.
+
+Agent conversations had a non-null owner. The owner was the permission subject every
+reply ran as, the only reader, the realtime recipient and the only possible approver.
+Nothing expected a reply to start without a person, except the core chat-run engine,
+which already accepts runs with no user.
+
+Agent Builder is behind `FF_AGENT_BUILDER` and has no production users, so no
+mixed-version compatibility is needed for these changes.
+
+| Term                 | Meaning                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Trigger              | An `AgentTrigger` row: an agent-owned wrapper of one trigger service, with an enabled switch and a message formula. |
+| Trigger service      | The `Service` row (periodic, HTTP, email, rows) that produces events; owned by exactly one consumer.                |
+| Event payload        | The dict a service type produces per event; exposed to the trigger message as the `trigger` data provider.          |
+| Listener             | A callable a consumer registers to receive `(services, event_payload, user, isolate_failures)`.                     |
+| Armed                | A trigger service that receives real events now: periodic `next_run_at` set, HTTP/email `is_public`.                |
+| Shared conversation  | A conversation with `owner_user IS NULL`; readable by everyone with `read_conversations` on the agent.              |
+| Private conversation | A conversation started by a person; visible to that person only. Unchanged.                                         |
+| Run identity         | The subject the agent's tools act as. Never a conversation owner, never an author.                                  |
+| Ask-first tool       | An allowed tool whose calls pause the reply until a person approves them.                                           |
+
+In scope: how events reach consumers, how a service goes live, who owns and sees
+trigger-started conversations, and what an unattended run may do. Out of scope: which
+trigger types the picker offers (a constant, widened per release), rate limits and
+auto-disable, continuation of shared conversations, the agent-level pause and "Run
+once".
+
+## Decision
+
+### 1. Trigger fan-out and arming live in core
+
+`TriggerServiceTypeMixin` keeps a list of listeners. `start_listening(cb)` appends and
+calls `connect()` when the list was empty; `stop_listening(cb)` removes and calls
+`disconnect()` when it becomes empty; `on_event` materialises the services once and
+returns every listener's results concatenated. `ServiceTypeRegistry.add_trigger_listener(cb)`
+subscribes a consumer to every trigger type, including types registered later, so the
+order of `INSTALLED_APPS` and plugins does not matter.
+
+`arm(service)` is the one way to make a service receive real events. Periodic sets
+`next_run_at`; HTTP and email set `is_public`. Automation's publish calls the same hook
+instead of its three inline branches; agents call it when a trigger is created, its
+service values change, or it is enabled. There is no `disarm`: a disabled trigger keeps
+its schedule and is skipped at dispatch, a trashed one leaves the due set with its
+service.
+
+`TriggerServiceMisconfigured` is a core exception; Automation's error subclasses it, so
+the periodic service type no longer imports an Automation exception at module level.
+
+A consumer holds the foreign key to its service (`AgentTrigger.service`, as automation
+nodes, data sources and button actions do). `Service` knows no owner.
+
+### 2. A trigger-started conversation is shared: it has no owner
+
+`AgentConversation.owner_user` becomes nullable and a `trigger` foreign key (set to
+null when the trigger is deleted) records what started it. Shared means exactly
+`owner_user IS NULL`. Shared conversations are visible to everyone with
+`read_conversations` on the agent; private ones stay visible to their owner only.
+
+Renaming, trashing and stopping a shared conversation additionally require
+`application.update`. Sending a message or deciding an approval in one is refused in
+this release; continuation by editors is a later change. Realtime updates go to the
+users permitted to read the agent's conversations instead of one owner.
+
+The opening message, with role `trigger`, holds the resolved trigger message (a runtime
+formula over the event payload, or the payload as JSON when the formula is empty). It
+is the only record of what the model received; the title derives from it, and no raw
+payload column exists. Triggers that arrive through duplicate, snapshot restore or
+template install are always disabled.
+
+### 3. Unattended runs never wait
+
+Trigger runs start with no user (`created_by=None`): the per-user run cap does not
+apply, the workspace cap does, and a cap hit records a failed reply with the code
+`chat_run_limit_reached` instead of disappearing. Ask-first tools are not offered in
+these runs; only tools marked Allow are. Agent readiness is checked when the event is
+dispatched (skip and log, no conversation) and again when the run executes.
+
+The dispatcher resolves the payload of every matched trigger before filtering, so a
+disabled trigger still advances its schedule and never fires a backlog when enabled
+again. Each conversation start runs in its own savepoint and never raises into the
+request or task that produced the event.
+
+## Options considered
+
+| Option                                            | Why not                                                                                               |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| A registry of trigger consumers                   | Two consumers exist; a listener list is enough and keeps `Service` ignorant of who owns it.           |
+| A reverse foreign key from `Service` to its owner | Breaks the consumer-holds-the-key precedent of nodes, data sources and button actions.                |
+| Arm in `after_create` / `after_update`            | Also runs for automation drafts, which must not go live.                                              |
+| Owner = the trigger's creator or the run identity | Visibility would hang on one account; deleting it would trash the run log; identities are not people. |
+| A trigger-type column on the conversation         | Derivable from the service's content type; stale after a type rename.                                 |
+| Store the raw payload next to the opening message | A second source of truth; the periodic payload is two timestamps. Revisit with row triggers.          |
+| Let unattended runs wait for approval             | Nobody can approve in this release; the run would hang.                                               |
+| Refuse to arm while any allowed tool asks first   | Blocks the common digest case and leaks approval semantics into arming.                               |
+
+## Consequences
+
+- Any new trigger service type is available to agents with no agent code: a service
+  type, a form and, when going live needs state, an `arm` override.
+- Plugins that overrode `start_listening` or `stop_listening` on a trigger service type
+  must override `connect` and `disconnect` instead; the `on_event` class attribute is
+  now a method. Recorded as a breaking change.
+- `NULL` owner means shared, not missing. Every site that reads the owner (permission
+  subject, timezone, realtime recipient, pending counts, approvals) handles it, and new
+  code must too.
+- Readers of a shared conversation see what the run identity could read. Builders pick
+  the identity knowing that.
+- The periodic beat tick does more inside its transaction (agent inserts and run
+  starts). Acceptable while the picker offers periodic only; rate limits and auto-disable
+  follow before other types are offered.
+- Follow-ups: editors continuing shared conversations and approvals in them, the
+  agent-level pause switch, "Run once" and "Last run", HTTP, email and row triggers in
+  the picker, per trigger rate limits and auto-disable, the setup wizard's "Run
+  automatically" step, the "Who can use it" role settings, a "Row comment is created"
+  trigger type, and the `manual` type (hidden until something can start an agent).
+
+## Revisit triggers
+
+- A third consumer of trigger services appears, such as a button field starting an
+  agent: reconsider a consumer registry.
+- Row triggers ship and readers need the raw payload: add the payload column.
+- Approver-role rules land: re-open "never wait" for shared conversations.
+- Identities become users (ADR 013): trigger runs keep `created_by=None`, and the
+  identity's timezone replaces UTC in trigger replies.
