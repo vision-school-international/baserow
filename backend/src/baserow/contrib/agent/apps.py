@@ -53,6 +53,7 @@ class AgentConfig(AppConfig):
             UpdateRowsAgentToolType,
         )
         from .trash_types import AgentConversationTrashableItemType
+        from .triggers.trash_types import AgentTriggerTrashableItemType
 
         application_type_registry.register(AgentApplicationType())
         workspace_search_registry.register(AgentSearchType())
@@ -77,6 +78,7 @@ class AgentConfig(AppConfig):
         ):
             action_type_registry.register(action())
         trash_item_type_registry.register(AgentConversationTrashableItemType())
+        trash_item_type_registry.register(AgentTriggerTrashableItemType())
         chat_run_type_registry.register(AgentChatRunType())
         for tool_type in (
             ListTablesAgentToolType,
@@ -96,4 +98,5 @@ class AgentConfig(AppConfig):
             agent_tool_type_registry.register(tool_type())
 
         import baserow.contrib.agent.receivers  # noqa: F401
+        import baserow.contrib.agent.triggers.receivers  # noqa: F401
         import baserow.contrib.agent.ws.signals  # noqa: F401

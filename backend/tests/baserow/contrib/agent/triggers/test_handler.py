@@ -6,6 +6,7 @@ from freezegun import freeze_time
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.triggers.exceptions import AgentTriggerDoesNotExist
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItemType
 from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
@@ -14,7 +15,10 @@ from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
     CorePeriodicTriggerServiceType,
 )
+from baserow.core.models import TrashEntry
+from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.trash.handler import TrashHandler
 
 
 def daily_trigger(data_fixture, **kwargs) -> AgentTrigger:
@@ -85,3 +89,49 @@ def test_get_trigger_loads_the_agent_workspace_and_service_in_one_query(
 
     with pytest.raises(AgentTriggerDoesNotExist):
         AgentTriggerHandler().get_trigger(trigger.id + 1)
+
+
+@pytest.mark.django_db
+def test_trashing_a_trigger_hides_its_service_until_it_is_restored(
+    data_fixture, mocker
+):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    trigger = daily_trigger(data_fixture, agent=agent)
+    arm = mocker.patch.object(CorePeriodicTriggerServiceType, "arm")
+
+    AgentTriggerHandler().delete_trigger(user, trigger)
+
+    entry = TrashEntry.objects.get()
+    assert (entry.trash_item_type, entry.application_id, entry.name) == (
+        AgentTriggerTrashableItemType.type,
+        agent.id,
+        "periodic",
+    )
+    assert AgentTrigger.trash.filter(id=trigger.id).exists()
+    assert not CorePeriodicService.objects.filter(id=trigger.service_id).exists()
+    assert Service.trash.filter(id=trigger.service_id).exists()
+    with pytest.raises(AgentTriggerDoesNotExist):
+        AgentTriggerHandler().get_trigger(trigger.id)
+
+    TrashHandler.restore_item(user, AgentTriggerTrashableItemType.type, trigger.id)
+
+    assert AgentTriggerHandler().get_trigger(trigger.id).service.trashed is False
+    assert CorePeriodicService.objects.filter(id=trigger.service_id).exists()
+    arm.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_deleting_a_trigger_or_its_agent_deletes_the_service(data_fixture):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    trashed, kept = [daily_trigger(data_fixture, agent=agent) for _ in range(2)]
+    AgentTriggerHandler().delete_trigger(user, trashed)
+
+    TrashHandler.permanently_delete(trashed)
+    agent.delete()
+
+    assert not AgentTrigger.objects_and_trash.exists()
+    assert not Service.objects_and_trash.filter(
+        id__in=[trashed.service_id, kept.service_id]
+    ).exists()
