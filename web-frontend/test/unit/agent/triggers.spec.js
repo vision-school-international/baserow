@@ -1,0 +1,235 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import { reactive, ref } from 'vue'
+import { TestApp } from '@baserow/test/helpers/testApp'
+import { clone } from '@baserow/modules/core/utils/object'
+import moment from '@baserow/modules/core/moment'
+import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
+import AgentWhenItRunsSection from '@baserow/modules/agent/components/configuration/AgentWhenItRunsSection'
+import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
+import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
+import {
+  agentData,
+  choose,
+  completeConfiguration,
+  useFakeTimers,
+  workspace,
+} from './helpers'
+
+const schema = {
+  type: 'object',
+  properties: {
+    triggered_at: { type: 'string', title: 'Previous scheduled run' },
+    next_run_at: { type: 'string', title: 'Next scheduled run' },
+  },
+}
+
+const periodicTrigger = (extra = {}) => ({
+  id: 1,
+  type: 'periodic',
+  enabled: true,
+  message: "'Periodic trigger'",
+  service: {
+    id: 5,
+    type: 'periodic',
+    interval: 'HOUR',
+    minute: 0,
+    hour: 0,
+    day_of_week: 0,
+    day_of_month: 1,
+    timezone: 'UTC',
+    schema,
+  },
+  schema,
+  ...extra,
+})
+
+const patches = (testApp) =>
+  testApp.mock.history.patch.map(({ url, data }) => [url, JSON.parse(data)])
+
+describe('Agent triggers', () => {
+  let testApp, agent
+
+  beforeEach(async () => {
+    testApp = new TestApp()
+    await testApp.store.dispatch('workspace/forceCreate', clone(workspace))
+    agent = await testApp.store.dispatch(
+      'application/forceCreate',
+      clone(agentData)
+    )
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+    vi.useRealTimers()
+  })
+
+  const mountSection = (triggers, availableTypes = ['periodic']) => {
+    testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
+    return testApp.mount(AgentWhenItRunsSection, {
+      props: {
+        configuration: completeConfiguration({
+          available_trigger_types: availableTypes,
+        }),
+        editable: true,
+      },
+      global: { provide: { agentApplication: ref(agent) } },
+    })
+  }
+
+  test('hosts the trigger type form on the card and saves service values after the debounce', async () => {
+    useFakeTimers()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply((config) => {
+      const saved = periodicTrigger()
+      const body = JSON.parse(config.data)
+      return [200, { ...saved, service: { ...saved.service, ...body.service } }]
+    })
+    const wrapper = await mountSection([periodicTrigger()])
+    const card = wrapper.get('.agent-trigger-card')
+
+    expect(card.get('.agent-trigger-card__name').text()).toBe(
+      'serviceType.corePeriodic'
+    )
+    expect(
+      card.findComponent({ name: 'CorePeriodicTriggerServiceForm' }).exists()
+    ).toBe(true)
+    expect(patches(testApp)).toEqual([])
+
+    await choose(card.get('.dropdown'), 'periodicForm.everyDay')
+    await vi.advanceTimersByTimeAsync(400)
+    expect(patches(testApp)).toEqual([])
+
+    await vi.advanceTimersByTimeAsync(100)
+    await flushPromises()
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'periodic', interval: 'DAY' } },
+      ],
+    ])
+  })
+
+  test('saves the last service value chosen within the debounce', async () => {
+    useFakeTimers()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
+    const wrapper = await mountSection([periodicTrigger()])
+    const dropdown = wrapper.get('.agent-trigger-card .dropdown')
+
+    await choose(dropdown, 'periodicForm.everyDay')
+    await choose(dropdown, 'periodicForm.everyHour')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'periodic', interval: 'HOUR' } },
+      ],
+    ])
+  })
+
+  test('shows why the service settings were rejected on the card', async () => {
+    useFakeTimers()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(400, {
+      error: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
+      detail: 'The schedule is invalid.',
+    })
+    const wrapper = await mountSection([periodicTrigger()])
+    const card = wrapper.get('.agent-trigger-card')
+    expect(card.find('[role="alert"]').exists()).toBe(false)
+
+    await choose(card.get('.dropdown'), 'periodicForm.everyDay')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(card.get('[role="alert"]').text()).toBe('The schedule is invalid.')
+    expect(card.find('.agent-trigger-card__warning').exists()).toBe(false)
+  })
+
+  test('switches a trigger off at once and deletes it', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, periodicTrigger({ enabled: false }))
+    testApp.mock.onDelete('/agent/10/triggers/1/').reply(204)
+    const wrapper = await mountSection([periodicTrigger()])
+
+    await wrapper.get('.agent-trigger-card__switch').trigger('click')
+    await flushPromises()
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { enabled: false }],
+    ])
+    expect(
+      wrapper.get('.agent-trigger-card__switch').attributes('aria-checked')
+    ).toBe('false')
+
+    await wrapper.get('.agent-trigger-card__delete').trigger('click')
+    await flushPromises()
+    expect(testApp.mock.history.delete.map(({ url }) => url)).toEqual([
+      '/agent/10/triggers/1/',
+    ])
+    expect(wrapper.find('.agent-trigger-card').exists()).toBe(false)
+    expect(wrapper.text()).toContain('agent.noTriggers')
+  })
+
+  test('offers only the available trigger types that are enabled and creates the picked one', async () => {
+    const service = periodicTrigger().service
+    // The form defaults an unscheduled trigger's timezone to the browser's.
+    const created = periodicTrigger({
+      id: 2,
+      service: {
+        ...service,
+        id: 6,
+        interval: null,
+        timezone: moment.tz.guess(),
+      },
+    })
+    testApp.mock.onPost('/agent/10/triggers/').reply(200, created)
+    const wrapper = await mountSection([], ['periodic', 'http_trigger'])
+    expect(wrapper.text()).toContain('agent.noTriggers')
+
+    await wrapper.get('.agent-triggers__add').trigger('click')
+    await flushPromises()
+    const items = wrapper
+      .findComponent(AgentTriggerPicker)
+      .findAll('.grouped-menu__actions .menu-list__item-button')
+    expect(
+      items.map((item) => item.get('.menu-list__item-label').text())
+    ).toEqual(['serviceType.corePeriodic'])
+
+    await items[0].trigger('click')
+    await flushPromises()
+    expect(
+      testApp.mock.history.post.map(({ url, data }) => [url, JSON.parse(data)])
+    ).toEqual([
+      [
+        '/agent/10/triggers/',
+        { type: 'periodic', message: "'serviceType.corePeriodic'" },
+      ],
+    ])
+    expect(wrapper.findAll('.agent-trigger-card')).toHaveLength(1)
+    expect(wrapper.get('.agent-trigger-card__warning').text()).toBe(
+      'serviceType.corePeriodicErrorIntervalMissing'
+    )
+  })
+
+  test('offers the trigger payload as formula variables in the opening message', async () => {
+    const trigger = periodicTrigger()
+    const wrapper = await testApp.mount(AgentTriggerMessageInput, {
+      props: { modelValue: trigger.message },
+      global: {
+        provide: { applicationContext: reactive({ agent, trigger }) },
+      },
+    })
+    const [dataGroup] = wrapper
+      .findComponent(FormulaInputField)
+      .props('nodesHierarchy')
+
+    expect(dataGroup.type).toBe('data')
+    expect(dataGroup.nodes.map((node) => node.identifier)).toEqual(['trigger'])
+    expect(dataGroup.nodes[0].name).toBe('agent.triggerData')
+    expect(dataGroup.nodes[0].nodes.map((node) => node.name)).toEqual([
+      'Previous scheduled run',
+      'Next scheduled run',
+    ])
+  })
+})

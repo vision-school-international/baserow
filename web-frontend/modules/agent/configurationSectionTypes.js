@@ -3,6 +3,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import AgentInstructionsSection from '@baserow/modules/agent/components/configuration/AgentInstructionsSection'
 import AgentSettingsSection from '@baserow/modules/agent/components/configuration/AgentSettingsSection'
 import AgentWorkspaceAccessSection from '@baserow/modules/agent/components/configuration/AgentWorkspaceAccessSection'
+import AgentWhenItRunsSection from '@baserow/modules/agent/components/configuration/AgentWhenItRunsSection'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 import {
   CONFIGURATION_ERROR,
@@ -12,6 +13,7 @@ import {
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)
 const WorkspaceAccessSection = markRaw(AgentWorkspaceAccessSection)
+const WhenItRunsSection = markRaw(AgentWhenItRunsSection)
 
 /**
  * A section in the Agent configuration sidebar. Plugins can register additional
@@ -95,6 +97,32 @@ export class InstructionsAgentConfigurationSectionType extends AgentConfiguratio
 
   getOrder() {
     return 10
+  }
+}
+
+export class WhenItRunsAgentConfigurationSectionType extends AgentConfigurationSectionType {
+  static getType() {
+    return 'when_it_runs'
+  }
+
+  get name() {
+    return this.$t('agent.whenItRuns')
+  }
+
+  get description() {
+    return this.$t('agent.whenItRunsDescription')
+  }
+
+  get icon() {
+    return 'iconoir-timer'
+  }
+
+  get component() {
+    return WhenItRunsSection
+  }
+
+  getOrder() {
+    return 20
   }
 }
 
