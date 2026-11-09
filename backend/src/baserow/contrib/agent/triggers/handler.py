@@ -1,10 +1,15 @@
+from zipfile import ZipFile
+
 from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.agent.models import AgentApplication, AgentTrigger
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import TriggerServiceTypeMixin
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 
 from .exceptions import AgentTriggerDoesNotExist
@@ -135,3 +140,89 @@ class AgentTriggerHandler:
 
         service = trigger.service.specific
         service.get_type().arm(service)
+
+    def export_triggers(
+        self,
+        agent: AgentApplication,
+        import_export_config: ImportExportConfig | None = None,
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict | None = None,
+    ) -> list[dict]:
+        """
+        Serialize the agent's triggers with their services.
+
+        :param agent: The agent whose triggers are exported.
+        :param import_export_config: How the agent is exported; it decides whether
+            sensitive service values are redacted.
+        :param files_zip: The zip file service files are written to.
+        :param storage: The storage service files are read from.
+        :param cache: A cache shared across the export.
+        :return: The triggers, oldest first, each with its exported service.
+        """
+
+        service_handler = ServiceHandler()
+        return [
+            {
+                "id": trigger.id,
+                "enabled": trigger.enabled,
+                "message": trigger.message,
+                "service": service_handler.export_service(
+                    trigger.service.specific,
+                    import_export_config=import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                    cache=cache,
+                ),
+            }
+            for trigger in self.list_triggers(agent)
+        ]
+
+    def import_triggers(
+        self,
+        agent: AgentApplication,
+        serialized_triggers: list[dict],
+        id_mapping: dict,
+        import_export_config: ImportExportConfig | None = None,
+        files_zip: ZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict | None = None,
+    ) -> list[AgentTrigger]:
+        """
+        Copy triggers into the agent, each switched off: a copy that fired on its
+        own would run and bill without anyone asking for it, and a snapshot
+        restore can't be told apart from a duplicate.
+
+        :param agent: The agent the triggers are copied into.
+        :param serialized_triggers: The triggers from ``export_triggers``.
+        :param id_mapping: The export-to-import id map; ``agent_triggers`` and
+            ``services`` are filled in.
+        :param import_export_config: How the agent is imported.
+        :param files_zip: The zip file service files are read from.
+        :param storage: The storage service files are written to.
+        :param cache: A cache shared across the import.
+        :return: The created triggers, in the exported order.
+        """
+
+        trigger_ids = id_mapping.setdefault("agent_triggers", {})
+        service_handler = ServiceHandler()
+        triggers = []
+        for serialized in serialized_triggers:
+            service = service_handler.import_service(
+                None,
+                serialized["service"],
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+                import_export_config=import_export_config,
+            )
+            trigger = AgentTrigger.objects.create(
+                agent=agent,
+                service=service,
+                enabled=False,
+                message=serialized.get("message") or "",
+            )
+            trigger_ids[serialized["id"]] = trigger.id
+            triggers.append(trigger)
+        return triggers

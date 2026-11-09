@@ -12,12 +12,16 @@ from baserow.contrib.agent.models import (
     AgentMessage,
     AgentReplyTranscript,
 )
+from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_DAY
+from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.utils import Progress
 
@@ -488,3 +492,65 @@ def test_reasoning_effort_is_exported(configured_agent):
     agent = configured_agent(reasoning_effort="medium")
 
     assert export_internal(agent)["reasoning_effort"] == "medium"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values",
+    [INTERNAL_COPY, {**INTERNAL_COPY, "is_template": True}, {}],
+    ids=["internal", "template", "portable"],
+)
+def test_triggers_are_copied_switched_off_and_unarmed(
+    data_fixture, configured_agent, config_values
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = AgentTriggerHandler().create_trigger(
+        agent,
+        service_type_registry.get("periodic"),
+        {"interval": PERIODIC_INTERVAL_DAY, "hour": 9},
+        message="'Digest'",
+    )
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+
+    serialized = json.loads(
+        json.dumps(AgentApplicationType().export_serialized(agent, config))
+    )
+    imported = AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user), serialized, config, {}
+    )
+
+    copy = imported.triggers.get()
+    service = CorePeriodicService.objects.get(id=copy.service_id)
+    assert copy.service_id != trigger.service_id
+    assert (copy.enabled, copy.message["formula"]) == (False, "'Digest'")
+    assert (service.interval, service.hour, service.next_run_at) == (
+        PERIODIC_INTERVAL_DAY,
+        9,
+        None,
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_keeps_shared_conversations_on_the_copied_trigger(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    shared = data_fixture.create_agent_conversation(
+        agent=agent, owner_user=None, trigger=trigger, title="Started by a trigger"
+    )
+    data_fixture.create_agent_message(
+        conversation=shared, role=AgentMessage.Role.TRIGGER, content="Daily digest"
+    )
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    conversation = copied.conversations.get()
+    assert (conversation.owner_user_id, conversation.title) == (
+        None,
+        "Started by a trigger",
+    )
+    assert conversation.trigger == copied.triggers.get()
+    assert conversation.messages.get().role == AgentMessage.Role.TRIGGER

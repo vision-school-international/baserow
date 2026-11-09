@@ -12,6 +12,7 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
+from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
@@ -149,6 +150,9 @@ class AgentApplicationType(ApplicationType):
             reasoning_effort=application.reasoning_effort,
             **AgentHandler().get_tool_configuration(application),
             web_search_enabled=application.web_search_enabled,
+            triggers=AgentTriggerHandler().export_triggers(
+                application, import_export_config, files_zip, storage
+            ),
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -176,7 +180,8 @@ class AgentApplicationType(ApplicationType):
         storage: Storage | None = None,
         progress_builder: ChildProgressBuilder | None = None,
     ) -> AgentApplication:
-        """Import the configuration and any copied conversations as one new Agent."""
+        """Import the configuration, its triggers switched off, and any copied
+        conversations as one new Agent."""
 
         application = super().import_serialized(
             workspace,
@@ -223,8 +228,16 @@ class AgentApplicationType(ApplicationType):
                 if name in allowed_tools
             ],
         )
+        AgentTriggerHandler().import_triggers(
+            application,
+            serialized_values.get("triggers", []),
+            id_mapping,
+            import_export_config,
+            files_zip,
+            storage,
+        )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
-                application, serialized_values.get("conversations", [])
+                application, serialized_values.get("conversations", []), id_mapping
             )
         return application

@@ -1454,6 +1454,7 @@ class AgentHandler:
             {
                 "title": conversation.title,
                 "owner_user_id": conversation.owner_user_id,
+                "trigger_id": conversation.trigger_id,
                 "created_on": conversation.created_on.isoformat(),
                 "updated_on": conversation.updated_on.isoformat(),
                 "messages": [
@@ -1479,35 +1480,49 @@ class AgentHandler:
         ]
 
     def import_conversations(
-        self, agent: AgentApplication, serialized_conversations: list[dict]
+        self,
+        agent: AgentApplication,
+        serialized_conversations: list[dict],
+        id_mapping: dict,
     ) -> None:
         """
         Copy conversations with their messages into the agent with new uuids.
-        Conversations of deleted owners are skipped, and a reply still being
-        written or waiting for approvals is ended as interrupted.
+        Conversations of deleted owners are skipped, shared ones are always kept,
+        and a reply still being written or waiting for approvals is ended as
+        interrupted. A conversation whose trigger wasn't copied loses the link,
+        as it does when the trigger is deleted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
+        :param id_mapping: The export-to-import id map, with the ``agent_triggers``
+            the agent's triggers were imported under.
         """
 
         existing_owner_ids = set(
             get_user_model()
             .objects.filter(
-                id__in=[data["owner_user_id"] for data in serialized_conversations]
+                id__in=[
+                    data["owner_user_id"]
+                    for data in serialized_conversations
+                    if data["owner_user_id"] is not None
+                ]
             )
             .values_list("id", flat=True)
         )
         retained_data = [
             data
             for data in serialized_conversations
-            if data["owner_user_id"] in existing_owner_ids
+            if data["owner_user_id"] is None
+            or data["owner_user_id"] in existing_owner_ids
         ]
+        trigger_ids = id_mapping.get("agent_triggers", {})
         conversations = [
             AgentConversation(
                 agent=agent,
                 uuid=uuid4(),
                 title=data["title"],
                 owner_user_id=data["owner_user_id"],
+                trigger_id=trigger_ids.get(data.get("trigger_id")),
             )
             for data in retained_data
         ]
