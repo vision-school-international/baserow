@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 class AgentChatRunType(ChatRunType):
-    """An Agent's reply to one message in a private conversation."""
+    """An Agent's reply to one message in a conversation."""
 
     type = AGENT_RUN_TYPE
 
@@ -47,12 +47,14 @@ class AgentChatRunType(ChatRunType):
         return settings.BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE
 
     def can_read(self, user: AbstractUser, run: ChatRun) -> bool:
-        """Only the owner, while they may still read the Agent's conversations."""
+        """The owner, or any reader of the Agent's conversations for a shared one."""
 
         return AgentService().can_read_conversation(user, run.chat_id)
 
     def can_cancel(self, user: AbstractUser, run: ChatRun) -> bool:
-        return self.can_read(user, run)
+        """The owner; for a shared conversation, whoever may also update the Agent."""
+
+        return AgentService().can_cancel_conversation_run(user, run.chat_id)
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
         """One query, as it runs on the websocket's shared thread."""
@@ -139,7 +141,10 @@ class AgentChatRunType(ChatRunType):
             return None
         conversation = reply.conversation
         agent_conversation_activity.send(self, conversation=conversation, user=None)
-        if reply.status == AgentReplyStatus.WAITING:
+        if (
+            reply.status == AgentReplyStatus.WAITING
+            and conversation.owner_user_id is not None
+        ):
             application_pending_count_updated.send(
                 self,
                 application=conversation.agent,

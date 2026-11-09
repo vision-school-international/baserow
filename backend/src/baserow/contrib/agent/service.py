@@ -190,22 +190,47 @@ class AgentService:
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
         return conversation, conversation.messages.prefetch_related("approvals")
 
+    def _check_shared_change(
+        self,
+        user: AbstractUser,
+        agent: AgentApplication,
+        conversation: AgentConversation,
+    ) -> None:
+        """
+        A shared conversation is the agent's own record, so changing it needs the
+        access of a configuration update on top of the conversation operation.
+
+        :param user: The user changing the conversation.
+        :param agent: The agent, with its workspace.
+        :param conversation: The conversation being changed.
+        :raises PermissionException: When the conversation is shared and the user
+            may not update the agent.
+        """
+
+        if conversation.owner_user_id is None:
+            CoreHandler().check_permissions(
+                user,
+                UpdateApplicationOperationType.type,
+                workspace=agent.workspace,
+                context=agent,
+            )
+
     @transaction.atomic
     def update_conversation(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID, **values: str
     ) -> AgentConversationUpdated:
         """
-        Update one of the user's conversations and tell their other sessions what
-        changed.
+        Update one of the user's own or shared conversations and tell its other
+        readers' sessions what changed.
 
         :param user: The user updating the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param values: The values to set, by field name, such as the title.
         :raises PermissionException: When the user may not update conversations of
-            the agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+            the agent, or may not update the agent for a shared conversation.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :return: The conversation with the original and new values that changed.
         """
 
@@ -216,6 +241,7 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        self._check_shared_change(user, agent, conversation)
         updated = self.handler.update_conversation(conversation, **values)
         if updated.new_values:
             agent_conversation_updated.send(
@@ -228,15 +254,15 @@ class AgentService:
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> AgentConversation:
         """
-        Move one of the user's conversations to the trash, where only they see it.
+        Move one of the user's own or shared conversations to the trash.
 
         :param user: The user deleting the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :raises PermissionException: When the user may not delete conversations of
-            the agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+            the agent, or may not update the agent for a shared conversation.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :return: The trashed conversation.
         """
 
@@ -247,11 +273,13 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        self._check_shared_change(user, agent, conversation)
         self.handler.delete_conversation(user, conversation)
         agent_conversation_deleted.send(self, conversation=conversation, user=user)
-        application_pending_count_updated.send(
-            self, application=agent, user_ids=[conversation.owner_user_id]
-        )
+        if conversation.owner_user_id is not None:
+            application_pending_count_updated.send(
+                self, application=agent, user_ids=[conversation.owner_user_id]
+            )
         return conversation
 
     def _require_ready(self, agent: AgentApplication) -> None:
@@ -261,22 +289,29 @@ class AgentService:
         if readiness != AgentReadinessState.READY:
             raise AgentNotReady
 
+    def _get_accessible_conversation(
+        self, user: AbstractUser, conversation_id: int
+    ) -> AgentConversation | None:
+        """Fetch the conversation with its agent if the user sees it at all."""
+
+        return (
+            self.handler.get_accessible_conversations(user)
+            .select_related("agent__workspace")
+            .filter(id=conversation_id)
+            .first()
+        )
+
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
         """
-        Check that the user owns the conversation in an untrashed Agent and may
-        still read the agent's conversations.
+        Check that the user sees the conversation, their own or a shared one, in an
+        untrashed Agent whose conversations they may still read.
 
         :param user: The user asking.
         :param conversation_id: The id of the conversation.
         :return: Whether the user may read the conversation.
         """
 
-        conversation = (
-            self.handler.get_accessible_conversations(user)
-            .select_related("agent__workspace")
-            .filter(id=conversation_id)
-            .first()
-        )
+        conversation = self._get_accessible_conversation(user, conversation_id)
         if conversation is None:
             return False
         return CoreHandler().check_permissions(
@@ -286,6 +321,32 @@ class AgentService:
             context=conversation.agent,
             raise_permission_exceptions=False,
         )
+
+    def can_cancel_conversation_run(
+        self, user: AbstractUser, conversation_id: int
+    ) -> bool:
+        """
+        Check that the user may stop the reply running in the conversation: reading
+        is enough for their own, a shared one also needs the access of a
+        configuration update.
+
+        :param user: The user asking.
+        :param conversation_id: The id of the conversation.
+        :return: Whether the user may stop the run.
+        """
+
+        conversation = self._get_accessible_conversation(user, conversation_id)
+        if conversation is None:
+            return False
+        operations = [ReadAgentConversationsOperationType.type]
+        if conversation.owner_user_id is None:
+            operations.append(UpdateApplicationOperationType.type)
+        agent = conversation.agent
+        allowed = CoreHandler().check_multiple_permissions(
+            [PermissionCheck(user, operation, agent) for operation in operations],
+            workspace=agent.workspace,
+        )
+        return all(allowed.values())
 
     def prepare_reply(self, reply_id: int) -> AgentReplyRequest:
         """

@@ -10,7 +10,10 @@ from .signals import agent_conversation_activity
 
 
 class AgentConversationTrashableItemType(TrashableItemType):
-    """A conversation only its owner sees and restores in the trash."""
+    """
+    A conversation only its owner sees and restores in the trash; a shared one has
+    no owner, so every reader who may restore conversations sees it there.
+    """
 
     type = "agent_conversation"
     model_class = AgentConversation
@@ -21,7 +24,7 @@ class AgentConversationTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: AgentConversation) -> str:
         return trashed_item.title
 
-    def get_owner(self, trashed_item: AgentConversation) -> AbstractUser:
+    def get_owner(self, trashed_item: AgentConversation) -> AbstractUser | None:
         return trashed_item.owner_user
 
     def permanently_delete_item(
@@ -34,11 +37,12 @@ class AgentConversationTrashableItemType(TrashableItemType):
     def restore(self, trashed_item: AgentConversation, trash_entry: TrashEntry) -> None:
         super().restore(trashed_item, trash_entry)
         agent_conversation_activity.send(self, conversation=trashed_item, user=None)
-        application_pending_count_updated.send(
-            self,
-            application=trashed_item.agent,
-            user_ids=[trashed_item.owner_user_id],
-        )
+        if trashed_item.owner_user_id is not None:
+            application_pending_count_updated.send(
+                self,
+                application=trashed_item.agent,
+                user_ids=[trashed_item.owner_user_id],
+            )
 
     def get_restore_operation_type(self) -> str:
         return RestoreAgentConversationOperationType.type

@@ -76,6 +76,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
@@ -874,11 +875,12 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
     elif change == "deny_reading":
         mocker.patch.object(
             CoreHandler,
-            "check_permissions",
+            "check_multiple_permissions",
             autospec=True,
-            side_effect=lambda handler, actor, operation, **kwargs: (
-                operation != ReadAgentConversationsOperationType.type
-            ),
+            side_effect=lambda handler, checks, *args, **kwargs: {
+                check: check.operation_name != ReadAgentConversationsOperationType.type
+                for check in checks
+            },
         )
     else:
         TrashHandler.trash(owner, agent.workspace, agent, agent)
@@ -886,6 +888,35 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
     assert not run_type.can_read(user, reply_run)
     assert not run_type.can_cancel(user, reply_run)
     assert run_type.can_follow_chat(user, reply_run.chat_id) is can_follow
+
+
+@pytest.mark.django_db
+def test_a_shared_reply_is_followed_by_members_and_stopped_with_agent_update_access(
+    data_fixture, configured_agent, mocker
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    agent = configured_agent(
+        workspace=data_fixture.create_workspace(user=admin, members=[member])
+    )
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    run = run_of(conversation)
+    run_type = AgentChatRunType()
+    check = mocker.spy(CoreHandler, "check_multiple_permissions")
+
+    assert run.created_by is None
+    assert run_type.can_read(member, run)
+    assert run_type.can_follow_chat(member, conversation.id)
+    assert run_type.can_cancel(member, run)
+    assert [permission.operation_name for permission in check.call_args.args[1]] == [
+        ReadAgentConversationsOperationType.type,
+        UpdateApplicationOperationType.type,
+    ]
+    assert not run_type.can_read(outsider, run)
+    assert not run_type.can_cancel(outsider, run)
+    assert not run_type.can_follow_chat(outsider, conversation.id)
 
 
 @pytest.mark.django_db

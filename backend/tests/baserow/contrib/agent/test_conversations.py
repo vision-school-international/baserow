@@ -33,6 +33,7 @@ from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import FeatureDisabledException, PermissionException
 from baserow.core.models import TrashEntry
+from baserow.core.signals import application_pending_count_changed
 from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
 from baserow.core.trash.handler import TrashHandler
 
@@ -804,3 +805,25 @@ def test_shared_conversations_accept_no_messages_or_decisions(
     assert approval.status == "pending"
     assert not AgentMessage.objects.filter(role="user").exists()
     assert not ChatRun.objects.exists()
+
+
+@pytest.mark.django_db
+def test_a_trashed_shared_conversation_has_no_owner_and_counts_no_approvals(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_shared_agent_conversation(agent=agent)
+    pending_count_changed = mocker.patch.object(
+        application_pending_count_changed, "send"
+    )
+
+    action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+        user, agent.id, conversation.uuid
+    )
+    entry = TrashEntry.objects.get()
+    TrashHandler.restore_item(user, "agent_conversation", entry.trash_item_id)
+
+    assert entry.trash_item_owner is None
+    pending_count_changed.assert_not_called()
+    assert AgentConversation.objects.filter(id=conversation.id).exists()
