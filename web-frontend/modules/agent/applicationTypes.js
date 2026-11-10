@@ -66,6 +66,28 @@ export class AgentApplicationType extends ApplicationType {
     )
   }
 
+  /**
+   * A shared conversation, which has no owner, and a trigger need builders, as
+   * trashing them did.
+   *
+   * @param {object} application The agent, as the trash structure lists it.
+   * @param {object} trashEntry The trash entry.
+   * @param {number} workspaceId The id of the workspace of the agent.
+   * @returns {boolean} Whether the entry can be restored.
+   */
+  canRestoreTrashEntry(application, trashEntry, workspaceId) {
+    const operations = {
+      agent_conversation:
+        trashEntry.trash_item_owner === null
+          ? ['agent_application.restore_conversation', 'application.update']
+          : ['agent_application.restore_conversation'],
+      agent_trigger: ['application.update'],
+    }[trashEntry.trash_item_type]
+    return (operations || []).every((operation) =>
+      this.app.$hasPermission(operation, application, workspaceId)
+    )
+  }
+
   async select(application) {
     // Workspace permissions load in the route; they aren't loaded yet from All workspaces.
     await this.app.$router.push({

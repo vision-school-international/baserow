@@ -59,4 +59,40 @@ describe('AgentApplicationType', () => {
       )
     }
   )
+
+  test.each([
+    ['a private conversation', 'agent_conversation', 7, ['restore']],
+    [
+      'a shared conversation',
+      'agent_conversation',
+      null,
+      ['restore', 'update'],
+    ],
+    ['a trigger', 'agent_trigger', null, ['update']],
+  ])('restoring %s needs only its operations', (_, itemType, owner, needed) => {
+    const operations = {
+      restore: 'agent_application.restore_conversation',
+      update: 'application.update',
+    }
+    const entry = { trash_item_type: itemType, trash_item_owner: owner }
+    const { type, app } = makeType()
+    const allows = (granted) => {
+      app.$hasPermission = vi.fn((operation, context, workspaceId) =>
+        Boolean(
+          context === agent && workspaceId === 1 && granted.has(operation)
+        )
+      )
+      return type.canRestoreTrashEntry(agent, entry, 1)
+    }
+
+    expect(allows(new Set(needed.map((key) => operations[key])))).toBe(true)
+    for (const key of needed) {
+      const granted = new Set(
+        needed
+          .filter((other) => other !== key)
+          .map((other) => operations[other])
+      )
+      expect(allows(granted)).toBe(false)
+    }
+  })
 })

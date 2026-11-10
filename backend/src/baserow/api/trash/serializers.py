@@ -64,6 +64,7 @@ class TrashContentsSerializer(serializers.ModelSerializer):
             "user_who_trashed",
             "trash_item_type",
             "trash_item_id",
+            "trash_item_owner",
             "parent_trash_item_id",
             "trashed_at",
             "application",
