@@ -38,6 +38,7 @@ AGENT_RUN_LIMIT_REACHED = "chat_run_limit_reached"
 AGENT_TRIGGER_MESSAGE_FAILED = "trigger_message_failed"
 # The picker allowlist, widened as each trigger form is verified in the agent host.
 AGENT_TRIGGER_TYPES_ENABLED = ("periodic",)
+QUEUED_TRIGGER_REPLY_SWEEP_SECONDS = 60
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
 INTERRUPTED_CHANGES_NOTE = (
     "[Changes started before the interruption: {changes}. A stopped change may "

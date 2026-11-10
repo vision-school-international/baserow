@@ -1,18 +1,13 @@
-from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from time import monotonic, sleep
-from typing import TypeVar
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
-from django.db import connection, connections, transaction
+from django.db import connection, transaction
 from django.test import override_settings
 
 import pytest
 from freezegun import freeze_time
 
-from baserow.contrib.agent.constants import AGENT_RUN_TYPE
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentConversation,
@@ -25,7 +20,12 @@ from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.trash.handler import TrashHandler
 
-T = TypeVar("T")
+from ..utils import (
+    hold_a_workspace_run,
+    in_another_connection,
+    queued_reply,
+    wait_for_a_lock_waiter,
+)
 
 
 def trigger_reply(
@@ -42,52 +42,6 @@ def trigger_reply(
         content="",
         status=status,
     )
-
-
-def queued_reply(
-    trigger: AgentTrigger, content: str = "Check the inbox"
-) -> AgentMessage:
-    """A trigger conversation started without a run, as a waiting firing queues it."""
-
-    return (
-        AgentHandler()
-        .start_trigger_conversation(trigger, content, start_run=False)
-        .reply
-    )
-
-
-def in_another_connection(work: Callable[[], T]) -> Future[T]:
-    """Run ``work`` in a transaction of its own connection, as a concurrent caller."""
-
-    def run() -> T:
-        try:
-            with transaction.atomic():
-                return work()
-        finally:
-            connections.close_all()
-
-    executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(run)
-    executor.shutdown(wait=False)
-    return future
-
-
-def wait_for_a_lock_waiter() -> None:
-    """Return once another connection waits for a lock this transaction holds."""
-
-    deadline = monotonic() + 10
-    with connection.cursor() as cursor:
-        while monotonic() < deadline:
-            # Statistics views keep their first snapshot for the whole transaction.
-            cursor.execute("SELECT pg_stat_clear_snapshot()")
-            cursor.execute(
-                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
-                "WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid)))"
-            )
-            if cursor.fetchone()[0]:
-                return
-            sleep(0.01)
-    raise AssertionError("Nothing waited for a lock")
 
 
 @pytest.mark.django_db
@@ -236,16 +190,9 @@ def test_the_oldest_queued_reply_starts_once_nothing_is_going(
 def test_a_queued_reply_stays_queued_while_the_workspace_is_at_its_run_limit(
     data_fixture, configured_agent
 ):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(user=data_fixture.create_user())
     trigger = data_fixture.create_agent_trigger(agent=agent)
-    private = data_fixture.create_agent_conversation(user=user, agent=agent)
-    ChatRun.objects.create(
-        run_type=AGENT_RUN_TYPE,
-        chat_id=private.id,
-        workspace=agent.workspace,
-        created_by=user,
-    )
+    hold_a_workspace_run(data_fixture, agent)
     reply = queued_reply(trigger)
 
     assert AgentHandler().start_next_queued_reply(trigger) is None
