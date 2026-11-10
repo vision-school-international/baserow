@@ -873,6 +873,17 @@ class TriggerServiceTypeMixin(ABC):
 
         return False
 
+    def get_timezone_name(self, service: Service) -> Optional[str]:
+        """
+        The timezone the service is configured in, for consumers that show the
+        moment it fired in the user's local time.
+
+        :param service: The specific trigger service.
+        :return: The IANA timezone name, or `None` when the type has none.
+        """
+
+        return None
+
     def dispatch_data(
         self,
         service: Service,
