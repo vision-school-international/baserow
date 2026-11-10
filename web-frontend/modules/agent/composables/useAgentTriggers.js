@@ -56,7 +56,10 @@ export function useAgentTriggers(agent) {
     try {
       const { data } = await service.create(agentId(), {
         type,
-        message: toFormulaStringLiteral(serviceType.name),
+        message: {
+          formula: toFormulaStringLiteral(serviceType.name),
+          mode: 'simple',
+        },
       })
       if (scopeIsCurrent(currentScope)) triggers.value.push(data)
       return data

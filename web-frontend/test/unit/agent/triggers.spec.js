@@ -28,7 +28,7 @@ const periodicTrigger = (extra = {}) => ({
   id: 1,
   type: 'periodic',
   enabled: true,
-  message: "'Periodic trigger'",
+  message: { formula: "'Periodic trigger'", mode: 'simple', version: '0.1' },
   service: {
     id: 5,
     type: 'periodic',
@@ -287,13 +287,38 @@ describe('Agent triggers', () => {
     ).toEqual([
       [
         '/agent/10/triggers/',
-        { type: 'periodic', message: "'serviceType.corePeriodic'" },
+        {
+          type: 'periodic',
+          message: { formula: "'serviceType.corePeriodic'", mode: 'simple' },
+        },
       ],
     ])
     expect(wrapper.findAll('.agent-trigger-card')).toHaveLength(1)
     expect(wrapper.get('.agent-trigger-card__warning').text()).toBe(
       'serviceType.corePeriodicErrorIntervalMissing'
     )
+  })
+
+  test('edits the formula of the opening message object and keeps its mode', async () => {
+    const trigger = periodicTrigger({
+      message: { formula: "'Check'", mode: 'advanced', version: '0.1' },
+    })
+    const wrapper = await testApp.mount(AgentTriggerMessageInput, {
+      props: { modelValue: trigger.message },
+      global: {
+        provide: { applicationContext: reactive({ agent, trigger }) },
+      },
+    })
+    const field = wrapper.findComponent(FormulaInputField)
+    expect([field.props('value'), field.props('mode')]).toEqual([
+      "'Check'",
+      'advanced',
+    ])
+
+    field.vm.$emit('input', "'Daily check'")
+    expect(wrapper.emitted('update:modelValue')).toEqual([
+      [{ formula: "'Daily check'", mode: 'advanced', version: '0.1' }],
+    ])
   })
 
   test('offers the trigger payload as formula variables in the opening message', async () => {
