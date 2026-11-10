@@ -1,3 +1,4 @@
+import moment from '@baserow/modules/core/moment'
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
 import CoreInboundEmailTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreInboundEmailTriggerServiceForm'
 import CoreManualTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreManualTriggerServiceForm'
@@ -713,6 +714,23 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   getDataSchema(service) {
     return service.schema
+  }
+
+  /**
+   * Schedules a new periodic service every day at 09:00 in the browser's
+   * timezone.
+   * @param {object|null} service The service being edited, if any.
+   * @param {object} values The current default values for the service form.
+   * @returns {object} The values with the daily schedule.
+   */
+  getDefaultValues(service, values) {
+    return {
+      ...values,
+      interval: 'DAY',
+      hour: 9,
+      minute: 0,
+      timezone: moment.tz.guess(),
+    }
   }
 
   getErrorMessage({ service }) {

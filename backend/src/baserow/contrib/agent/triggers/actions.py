@@ -42,7 +42,7 @@ class CreateAgentTriggerActionType(ActionType):
         service_type_name: str,
         message: BaserowFormulaObject | str = "",
         enabled: bool = True,
-        **service_values: object,
+        service: dict | None = None,
     ) -> AgentTrigger:
         """
         Add a trigger to an Agent and audit its type.
@@ -52,7 +52,7 @@ class CreateAgentTriggerActionType(ActionType):
         :param service_type_name: The service type of the trigger.
         :param message: The formula whose text opens each conversation it starts.
         :param enabled: Whether the trigger starts conversations right away.
-        :param service_values: Initial values of the service, by field name.
+        :param service: Initial values of the service, by field name, or None.
         :return: The created trigger.
         """
 
@@ -62,7 +62,7 @@ class CreateAgentTriggerActionType(ActionType):
             service_type_name,
             message=message,
             enabled=enabled,
-            **service_values,
+            service_values=service,
         )
         cls.register_action(
             user,

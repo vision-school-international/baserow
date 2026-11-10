@@ -14,6 +14,7 @@ from baserow.contrib.agent.triggers.data_providers import (
 )
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BaserowFormulaObject
 
 PAYLOAD = {
     "triggered_at": "2026-11-09T09:00:00+00:00",
@@ -27,7 +28,7 @@ class MessageSerializer(serializers.Serializer):
 
 @pytest.fixture
 def periodic_trigger(data_fixture):
-    def create(message: str = "") -> AgentTrigger:
+    def create(message: str | BaserowFormulaObject = "") -> AgentTrigger:
         return data_fixture.create_agent_trigger(message=message)
 
     return create
@@ -93,15 +94,17 @@ def test_resolve_trigger_message_resolves_the_formula(periodic_trigger):
 @pytest.mark.django_db
 def test_resolve_trigger_message_resolves_the_default_message(periodic_trigger):
     trigger = periodic_trigger(
-        "concat('Periodic trigger fired at ', "
-        "datetime_format(now(), 'YYYY-MM-DD HH:mm', 'Europe/Rome'), "
-        "' (Europe/Rome).')"
+        {
+            "formula": "concat('Periodic trigger fired at ',now())",
+            "mode": "advanced",
+            "version": "0.1",
+        }
     )
 
     with freeze_time("2026-11-10 08:00:00"):
         message = resolve_trigger_message(trigger, PAYLOAD)
 
-    assert message == "Periodic trigger fired at 2026-11-10 09:00 (Europe/Rome)."
+    assert message == "Periodic trigger fired at 2026-11-10 08:00:00+00:00"
 
 
 @pytest.mark.django_db

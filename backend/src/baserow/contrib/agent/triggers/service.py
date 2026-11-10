@@ -125,7 +125,7 @@ class AgentTriggerService:
         service_type_name: str,
         message: BaserowFormulaObject | str = "",
         enabled: bool = True,
-        **service_values: object,
+        service_values: dict | None = None,
     ) -> AgentTrigger:
         """
         Add a trigger of an available type to the Agent, for a user who may update
@@ -136,7 +136,8 @@ class AgentTriggerService:
         :param service_type_name: The service type of the trigger.
         :param message: The formula whose text opens each conversation it starts.
         :param enabled: Whether the trigger starts conversations right away.
-        :param service_values: Initial values of the service, by field name.
+        :param service_values: Initial values of the service, by field name, or
+            None to leave it unconfigured.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -153,7 +154,9 @@ class AgentTriggerService:
         if service_type_name not in self.available_trigger_types(agent):
             raise AgentTriggerTypeNotAvailable(service_type_name)
         service_type = service_type_registry.get(service_type_name)
-        prepared_service_values = service_type.prepare_values(service_values, user)
+        prepared_service_values = service_type.prepare_values(
+            service_values or {}, user
+        )
         return self.handler.create_trigger(
             agent,
             service_type,

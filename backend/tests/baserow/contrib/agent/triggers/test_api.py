@@ -1,6 +1,9 @@
+from datetime import timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 import pytest
 
@@ -215,12 +218,66 @@ def test_create_trigger_returns_it_and_registers_the_action(
 
 
 @pytest.mark.django_db
-def test_create_rejects_a_type_the_agent_can_not_use(
+def test_create_trigger_with_service_values_schedules_it(
     data_fixture, api_client, api_user
 ):
     agent = data_fixture.create_agent_application(user=api_user)
+    service_values = {
+        "interval": "DAY",
+        "hour": 9,
+        "minute": 0,
+        "timezone": "Europe/Rome",
+    }
 
-    response = api_client.post(agent_url(agent, "triggers:list"), {"type": "manual"})
+    response = api_client.post(
+        agent_url(agent, "triggers:list"),
+        {"type": "periodic", "message": MESSAGE, "service": service_values},
+    )
+
+    assert response.status_code == 200, response.json()
+    service = CorePeriodicService.objects.get(agent_trigger__id=response.json()["id"])
+    assert {key: getattr(service, key) for key in service_values} == service_values
+    next_run_at = service.next_run_at.astimezone(ZoneInfo("Europe/Rome"))
+    assert (next_run_at.hour, next_run_at.minute) == (9, 0)
+    assert timezone.now() < next_run_at <= timezone.now() + timedelta(days=1)
+    body = response.json()["service"]
+    assert {key: body[key] for key in service_values} == service_values
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "service,error",
+    [
+        ({"timezone": "Mars/Olympus"}, "ERROR_TRIGGER_SERVICE_MISCONFIGURED"),
+        ({"type": "http_trigger"}, "ERROR_REQUEST_BODY_VALIDATION"),
+    ],
+)
+def test_create_rejects_invalid_service_values(
+    data_fixture, api_client, api_user, service, error
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = api_client.post(
+        agent_url(agent, "triggers:list"),
+        {"type": "periodic", "message": MESSAGE, "service": service},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == error
+    assert not AgentTrigger.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload",
+    [{"type": "manual"}, {"type": "unknown", "service": {"interval": "DAY"}}],
+)
+def test_create_rejects_a_type_the_agent_can_not_use(
+    data_fixture, api_client, api_user, payload
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = api_client.post(agent_url(agent, "triggers:list"), payload)
 
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"

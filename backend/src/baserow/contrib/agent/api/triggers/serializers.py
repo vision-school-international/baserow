@@ -76,8 +76,28 @@ class AgentTriggerServiceRequestSerializer(PolymorphicServiceRequestSerializer):
         return super().run_validation(data)
 
 
+class TriggerServiceFieldMixin:
+    def get_fields(self) -> dict[str, serializers.Field]:
+        """
+        Add the service field pinned to the service type named in the context, so
+        the payload may leave `type` out and may not name another.
+
+        :return: The declared fields plus `service`.
+        """
+
+        fields = super().get_fields()
+        fields["service"] = AgentTriggerServiceRequestSerializer(
+            default_type_name=self.context.get("service_type_name"),
+            required=False,
+            help_text=SERVICE_HELP_TEXT,
+        )
+        return fields
+
+
 class CreateAgentTriggerSerializer(
-    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+    TriggerServiceFieldMixin,
+    UnknownFieldRaisesExceptionSerializerMixin,
+    serializers.Serializer,
 ):
     type = serializers.CharField(
         max_length=255,
@@ -93,26 +113,12 @@ class CreateAgentTriggerSerializer(
 
 
 class UpdateAgentTriggerSerializer(
-    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
+    TriggerServiceFieldMixin,
+    UnknownFieldRaisesExceptionSerializerMixin,
+    serializers.Serializer,
 ):
     enabled = serializers.BooleanField(
         required=False,
         help_text="Whether the trigger starts conversations when its event happens.",
     )
     message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
-
-    def get_fields(self) -> dict[str, serializers.Field]:
-        """
-        Add the service field pinned to the trigger's own service type, named in
-        the context, so the payload may leave `type` out and may not name another.
-
-        :return: The declared fields plus `service`.
-        """
-
-        fields = super().get_fields()
-        fields["service"] = AgentTriggerServiceRequestSerializer(
-            default_type_name=self.context.get("service_type_name"),
-            required=False,
-            help_text=SERVICE_HELP_TEXT,
-        )
-        return fields

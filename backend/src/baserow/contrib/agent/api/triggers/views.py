@@ -26,7 +26,10 @@ from baserow.contrib.agent.triggers.exceptions import (
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import ApplicationDoesNotExist
-from baserow.core.services.exceptions import TriggerServiceMisconfigured
+from baserow.core.services.exceptions import (
+    ServiceTypeDoesNotExist,
+    TriggerServiceMisconfigured,
+)
 
 from .errors import (
     ERROR_AGENT_TRIGGER_DOES_NOT_EXIST,
@@ -49,6 +52,7 @@ TRIGGER_EXCEPTIONS = {
     ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
     AgentTriggerDoesNotExist: ERROR_AGENT_TRIGGER_DOES_NOT_EXIST,
     AgentTriggerTypeNotAvailable: ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE,
+    ServiceTypeDoesNotExist: ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE,
     TriggerServiceMisconfigured: ERROR_TRIGGER_SERVICE_MISCONFIGURED,
 }
 AGENT_ERRORS = {
@@ -91,9 +95,9 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="create_agent_trigger",
         description=(
             "Adds a trigger of one of the configuration's available_trigger_types "
-            "to the agent. Its service starts unconfigured; set the service values "
-            "with a PATCH. Requires permission to update the agent and read its "
-            "configuration."
+            "to the agent, with the given values of its service, of that type, "
+            "which is scheduled right away when they configure it. Requires "
+            "permission to update the agent and read its configuration."
         ),
         request=CreateAgentTriggerSerializer,
         responses={
@@ -102,6 +106,7 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE",
+                    "ERROR_TRIGGER_SERVICE_MISCONFIGURED",
                 ]
             ),
             **FEATURE_ERRORS,
@@ -110,21 +115,30 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
     )
     @transaction.atomic
     @map_exceptions(TRIGGER_EXCEPTIONS)
+    @require_request_data_type(dict)
     def post(self, request: Request, agent_id: int) -> Response:
-        """Adds a trigger if the user can update the agent and read its config."""
+        """Validates the service values against the type the payload names."""
 
         data = validate_data(
             CreateAgentTriggerSerializer,
             request.data,
             return_validated=True,
-            context=SERIALIZER_CONTEXT,
+            context={
+                **SERIALIZER_CONTEXT,
+                "service_type_name": request.data.get("type"),
+            },
         )
+        service_values = data.get("service")
+        if service_values is not None:
+            # Pinned to `type` already, and no service model has a `type` field.
+            service_values.pop("type")
         trigger = action_type_registry.get_by_type(CreateAgentTriggerActionType).do(
             request.user,
             agent_id,
             data["type"],
             message=data["message"],
             enabled=data["enabled"],
+            service=service_values,
         )
         return Response(AgentTriggerSerializer(trigger).data)
 

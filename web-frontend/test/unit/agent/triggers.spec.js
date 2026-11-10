@@ -8,6 +8,9 @@ import FormulaInputField from '@baserow/modules/core/components/formula/FormulaI
 import AgentWhenItRunsSection from '@baserow/modules/agent/components/configuration/AgentWhenItRunsSection'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
+import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
+import agentLocale from '@baserow/modules/agent/locales/en.json'
+import integrationsLocale from '@baserow/modules/integrations/locales/en.json'
 import {
   agentData,
   choose,
@@ -257,15 +260,15 @@ describe('Agent triggers', () => {
 
   test('offers only the available trigger types that are enabled and creates the picked one', async () => {
     const service = periodicTrigger().service
-    // The form defaults an unscheduled trigger's timezone to the browser's.
+    const defaults = {
+      interval: 'DAY',
+      hour: 9,
+      minute: 0,
+      timezone: moment.tz.guess(),
+    }
     const created = periodicTrigger({
       id: 2,
-      service: {
-        ...service,
-        id: 6,
-        interval: null,
-        timezone: moment.tz.guess(),
-      },
+      service: { ...service, ...defaults, id: 6 },
     })
     testApp.mock.onPost('/agent/10/triggers/').reply(200, created)
     const wrapper = await mountSection([], ['periodic', 'http_trigger'])
@@ -290,14 +293,31 @@ describe('Agent triggers', () => {
         {
           type: 'periodic',
           message: {
-            formula: `concat('agent.triggerDefaultMessage',datetime_format(now(),'YYYY-MM-DD HH:mm','${moment.tz.guess()}'))`,
+            formula: "concat('agent.triggerDefaultMessage ',now())",
             mode: 'advanced',
             version: '0.1',
           },
+          service: defaults,
         },
       ],
     ])
-    expect(wrapper.findAll('.agent-trigger-card')).toHaveLength(1)
+    const card = wrapper.get('.agent-trigger-card')
+    expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
+  })
+
+  test('opens a new trigger with the translated name and the time it fired', async () => {
+    const { createI18n } = await vi.importActual('vue-i18n')
+    const { t } = createI18n({
+      legacy: false,
+      locale: 'en',
+      messages: { en: { ...agentLocale, ...integrationsLocale } },
+    }).global
+
+    expect(defaultTriggerMessage(t, t('serviceType.corePeriodic'))).toEqual({
+      formula: "concat('Periodic trigger fired at ',now())",
+      mode: 'advanced',
+      version: '0.1',
+    })
   })
 
   test('marks an incomplete trigger on its header until it is configured', async () => {

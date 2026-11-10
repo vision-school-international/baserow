@@ -4,13 +4,11 @@ import { useI18n } from 'vue-i18n'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import moment from '@baserow/modules/core/moment'
-import { toFormulaStringLiteral } from '@baserow/modules/core/formula'
 import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
+import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
 
 const TYPED_SAVE_DELAY = 500
-const TIME_PLACEHOLDER = '\u0000'
 
 /** Page-local trigger list of one Agent, saved through the triggers API. */
 export function useAgentTriggers(agent) {
@@ -52,37 +50,14 @@ export function useAgentTriggers(agent) {
     }
   }
 
-  /**
-   * The opening message of a new trigger: its name and the time it fired, in
-   * the builder's timezone, which works for every trigger type. Only advanced
-   * mode shows a function call; it is built as that editor re-emits it, unspaced.
-   *
-   * :param serviceType: The service type of the new trigger.
-   * :return: The message formula object.
-   */
-  function defaultMessage(serviceType) {
-    const timezone = moment.tz.guess()
-    const firedAt = `datetime_format(now(),'YYYY-MM-DD HH:mm',${toFormulaStringLiteral(timezone)})`
-    const parts = t('agent.triggerDefaultMessage', {
-      trigger: serviceType.name,
-      time: TIME_PLACEHOLDER,
-      timezone,
-    }).split(TIME_PLACEHOLDER)
-    const args = [toFormulaStringLiteral(parts[0]), firedAt]
-    if (parts[1]) args.push(toFormulaStringLiteral(parts[1]))
-    return {
-      formula: `concat(${args.join(',')})`,
-      mode: 'advanced',
-      version: '0.1',
-    }
-  }
-
   async function createTrigger(type) {
     const currentScope = scope
+    const serviceType = $registry.get('service', type)
     try {
       const { data } = await service.create(agentId(), {
         type,
-        message: defaultMessage($registry.get('service', type)),
+        message: defaultTriggerMessage(t, serviceType.name),
+        service: serviceType.getDefaultValues(null, {}),
       })
       if (scopeIsCurrent(currentScope)) triggers.value.push(data)
       return data
@@ -133,8 +108,8 @@ export function useAgentTriggers(agent) {
   /**
    * Keeps the rejected service values the form still shows, to send them again.
    *
-   * :param trigger: The trigger whose save was rejected.
-   * :param serviceValues: The service values of the rejected save.
+   * @param {object} trigger The trigger whose save was rejected.
+   * @param {object} serviceValues The service values of the rejected save.
    */
   function rememberRejectedServiceValues(trigger, serviceValues) {
     const stillShown = Object.fromEntries(
@@ -152,8 +127,8 @@ export function useAgentTriggers(agent) {
   /**
    * Drops the rejected service values that a successful save has now replaced.
    *
-   * :param triggerId: The id of the saved trigger.
-   * :param savedServiceValues: The service values the server accepted.
+   * @param {number} triggerId The id of the saved trigger.
+   * @param {object} savedServiceValues The service values the server accepted.
    */
   function forgetSavedServiceValues(triggerId, savedServiceValues) {
     const remaining = Object.fromEntries(
