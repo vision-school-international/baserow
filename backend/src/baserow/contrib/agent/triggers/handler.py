@@ -16,6 +16,7 @@ from baserow.contrib.agent.models import (
     AgentReplyStatus,
     AgentTrigger,
 )
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.formula import resolve_formula
@@ -151,6 +152,7 @@ class AgentTriggerHandler:
         trigger is switched on: arming also replaces any schedule a concurrent run
         wrote meanwhile. Values that change nothing aren't written, as saving the
         service could put back a run time a concurrent run already moved on.
+        Switching it off cancels its queued replies.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.
@@ -191,6 +193,8 @@ class AgentTriggerHandler:
             changed_fields.append("on_overlap")
         if changed_fields:
             trigger.save(update_fields=[*changed_fields, "updated_on"])
+        if "enabled" in changed_fields and not trigger.enabled:
+            self.cancel_queued_replies(trigger)
         if rearm:
             self.arm(trigger)
         if service_changed:
@@ -274,6 +278,40 @@ class AgentTriggerHandler:
             return self.payload_as_message(event_payload)
         return content[:AGENT_TEXT_MAX_LENGTH]
 
+    def get_startable_triggers(self) -> QuerySet[AgentTrigger]:
+        """
+        Return the triggers whose queued replies may start: switched on and not
+        trashed, in an agent and a workspace that aren't trashed. The others keep
+        their queued replies, which resume after a restore.
+
+        :return: The triggers.
+        """
+
+        return AgentTrigger.objects.filter(
+            enabled=True, agent__trashed=False, agent__workspace__trashed=False
+        )
+
+    def cancel_queued_replies(self, trigger: AgentTrigger) -> None:
+        """
+        Cancel the trigger's queued replies, deleted conversations included, once
+        nothing will start them: the trigger is switched off or deleted for good.
+        The readers of the other conversations are told.
+
+        :param trigger: The trigger whose queued replies are cancelled.
+        """
+
+        replies = AgentMessage.objects.filter(
+            conversation__trigger=trigger, status=AgentReplyStatus.QUEUED
+        )
+        conversations = list(
+            AgentConversation.objects.filter(
+                id__in=replies.values("conversation_id")
+            ).select_related("agent")
+        )
+        replies.update(status=AgentReplyStatus.CANCELLED)
+        for conversation in conversations:
+            agent_conversation_activity.send(self, conversation=conversation, user=None)
+
     def has_going_reply(self, trigger: AgentTrigger) -> bool:
         """
         Whether a reply of the trigger still holds a run or waits for approvals. A
@@ -317,11 +355,11 @@ class AgentTriggerHandler:
         replies is queued and none is going. One query, read from the index of
         replies still queued or going, however long the triggers' history is.
 
-        :return: The untrashed triggers, by id.
+        :return: The startable triggers, by id.
         """
 
         replies = AgentMessage.objects.filter(conversation__trigger=OuterRef("pk"))
-        return AgentTrigger.objects.filter(
+        return self.get_startable_triggers().filter(
             Exists(
                 replies.filter(
                     status=AgentReplyStatus.QUEUED, conversation__trashed=False

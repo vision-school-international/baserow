@@ -1,11 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 
-from baserow.contrib.agent.models import (
-    AgentApplication,
-    AgentMessage,
-    AgentReplyStatus,
-    AgentTrigger,
-)
+from baserow.contrib.agent.models import AgentApplication, AgentTrigger
 from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.trash.registries import TrashableItemType
@@ -76,9 +71,7 @@ class AgentTriggerTrashableItemType(TrashableItemType):
         :param trash_item_lookup_cache: Unused, a trigger has no trashed children.
         """
 
-        AgentMessage.objects.filter(
-            conversation__trigger=trashed_item, status=AgentReplyStatus.QUEUED
-        ).update(status=AgentReplyStatus.CANCELLED)
+        AgentTriggerHandler().cancel_queued_replies(trashed_item)
         trashed_item.delete()
 
     def get_restore_operation_type(self) -> str:

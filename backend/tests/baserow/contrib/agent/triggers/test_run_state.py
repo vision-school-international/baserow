@@ -1,8 +1,12 @@
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from threading import Event
+from time import monotonic, sleep
+from typing import TypeVar
+from uuid import uuid4
 
-from django.db import connections, transaction
+from django.contrib.auth.models import AbstractUser
+from django.db import connection, connections, transaction
 from django.test import override_settings
 
 import pytest
@@ -15,10 +19,13 @@ from baserow.contrib.agent.models import (
     AgentMessage,
     AgentTrigger,
 )
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.trash.handler import TrashHandler
+
+T = TypeVar("T")
 
 
 def trigger_reply(
@@ -47,6 +54,40 @@ def queued_reply(
         .start_trigger_conversation(trigger, content, start_run=False)
         .reply
     )
+
+
+def in_another_connection(work: Callable[[], T]) -> Future[T]:
+    """Run ``work`` in a transaction of its own connection, as a concurrent caller."""
+
+    def run() -> T:
+        try:
+            with transaction.atomic():
+                return work()
+        finally:
+            connections.close_all()
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(run)
+    executor.shutdown(wait=False)
+    return future
+
+
+def wait_for_a_lock_waiter() -> None:
+    """Return once another connection waits for a lock this transaction holds."""
+
+    deadline = monotonic() + 10
+    with connection.cursor() as cursor:
+        while monotonic() < deadline:
+            # Statistics views keep their first snapshot for the whole transaction.
+            cursor.execute("SELECT pg_stat_clear_snapshot()")
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                "WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid)))"
+            )
+            if cursor.fetchone()[0]:
+                return
+            sleep(0.01)
+    raise AssertionError("Nothing waited for a lock")
 
 
 @pytest.mark.django_db
@@ -190,9 +231,9 @@ def test_the_oldest_queued_reply_starts_once_nothing_is_going(
     assert handler.start_next_queued_reply(trigger) is None
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=1)
-def test_a_queued_reply_fails_on_the_run_limit_like_a_direct_start(
+def test_a_queued_reply_stays_queued_while_the_workspace_is_at_its_run_limit(
     data_fixture, configured_agent
 ):
     user = data_fixture.create_user()
@@ -207,58 +248,144 @@ def test_a_queued_reply_fails_on_the_run_limit_like_a_direct_start(
     )
     reply = queued_reply(trigger)
 
-    assert AgentHandler().start_queued_reply(reply) is None
+    assert AgentHandler().start_next_queued_reply(trigger) is None
 
-    reply.refresh_from_db()
-    assert (reply.status, reply.error_code) == ("failed", "chat_run_limit_reached")
+    queued = AgentMessage.objects.get(id=reply.id)
+    assert (queued.status, queued.error_code, queued.updated_on) == (
+        "queued",
+        "",
+        reply.updated_on,
+    )
     assert ChatRun.objects.count() == 1
+    lock = in_another_connection(
+        lambda: AgentTrigger.objects.select_for_update(nowait=True).get(id=trigger.id)
+    )
+    assert lock.result(timeout=10) == trigger
+
+
+def switch_off(user: AbstractUser, trigger: AgentTrigger) -> None:
+    AgentTriggerHandler().update_trigger(trigger, enabled=False)
+
+
+def delete_for_good(user: AbstractUser, trigger: AgentTrigger) -> None:
+    AgentTriggerHandler().delete_trigger(user, trigger)
+    TrashHandler.permanently_delete(trigger)
 
 
 @pytest.mark.django_db
-def test_permanently_deleting_a_trigger_cancels_its_queued_replies(data_fixture):
+@pytest.mark.parametrize("stop", [switch_off, delete_for_good])
+def test_switching_a_trigger_off_or_deleting_it_for_good_cancels_its_queued_replies(
+    data_fixture, mocker, stop
+):
     user = data_fixture.create_user()
     agent = data_fixture.create_agent_application(user=user)
     trigger = data_fixture.create_agent_trigger(agent=agent)
-    queued = trigger_reply(data_fixture, trigger, "queued")
-    AgentTriggerHandler().delete_trigger(user, trigger)
+    replies = [
+        trigger_reply(data_fixture, trigger, status, trashed=trashed)
+        for status, trashed in [("running", False), ("queued", False), ("queued", True)]
+    ]
+    activity = mocker.spy(agent_conversation_activity, "send")
 
-    queued.refresh_from_db()
-    assert queued.status == "queued"
+    stop(user, trigger)
 
-    TrashHandler.permanently_delete(trigger)
+    assert [AgentMessage.objects.get(id=reply.id).status for reply in replies] == [
+        "running",
+        "cancelled",
+        "cancelled",
+    ]
+    activity.assert_called_once_with(
+        mocker.ANY, conversation=replies[1].conversation, user=None
+    )
 
-    queued.refresh_from_db()
-    conversation = AgentConversation.objects.get(id=queued.conversation_id)
-    assert (queued.status, conversation.trigger_id) == ("cancelled", None)
+
+def disable(user: AbstractUser, trigger: AgentTrigger) -> None:
+    # A firing can queue a reply while the switch-off commits.
+    AgentTrigger.objects.filter(id=trigger.id).update(enabled=False)
+
+
+def trash_trigger(user: AbstractUser, trigger: AgentTrigger) -> None:
+    TrashHandler.trash(user, trigger.agent.workspace, trigger.agent, trigger)
+
+
+def trash_agent(user: AbstractUser, trigger: AgentTrigger) -> None:
+    TrashHandler.trash(user, trigger.agent.workspace, trigger.agent, trigger.agent)
+
+
+def trash_workspace(user: AbstractUser, trigger: AgentTrigger) -> None:
+    workspace = trigger.agent.workspace
+    TrashHandler.trash(user, workspace, None, workspace)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stop", [disable, trash_trigger, trash_agent, trash_workspace])
+def test_a_stopped_trigger_keeps_its_queued_replies_waiting(
+    data_fixture, configured_agent, stop
+):
+    user = data_fixture.create_user()
+    trigger = data_fixture.create_agent_trigger(agent=configured_agent(user=user))
+    reply = queued_reply(trigger)
+
+    stop(user, trigger)
+
+    assert list(AgentTriggerHandler().list_idle_triggers_with_queued_replies()) == []
+    assert AgentHandler().start_next_queued_reply(trigger) is None
+    assert AgentMessage.objects.get(id=reply.id).status == "queued"
+
+
+def lock_the_trigger(trigger: AgentTrigger) -> None:
+    AgentTrigger.objects.select_for_update().get(id=trigger.id)
+
+
+def insert_a_conversation(trigger: AgentTrigger) -> None:
+    AgentConversation.objects.create(
+        uuid=uuid4(), agent=trigger.agent, trigger=trigger, title="Firing"
+    )
+    # The deferred foreign key check, run at commit, locks the trigger for key share.
+    connection.check_constraints()
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_trigger_locked_by_another_caller_starts_nothing_without_waiting(
+@pytest.mark.parametrize(
+    "hold,blocks", [(lock_the_trigger, True), (insert_a_conversation, False)]
+)
+def test_only_a_trigger_locked_by_another_caller_holds_its_queue_back(
+    data_fixture, configured_agent, mocker, hold, blocks
+):
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    reply = queued_reply(trigger)
+
+    def start_next() -> AgentMessage | None:
+        return AgentHandler().start_next_queued_reply(trigger)
+
+    with transaction.atomic():
+        hold(trigger)
+        started_while_held = in_another_connection(start_next).result(timeout=10)
+    started_after = start_next()
+
+    assert (started_while_held, started_after) == (
+        (None, reply) if blocks else (reply, None)
+    )
+    assert ChatRun.objects.get().context == {"reply_id": reply.id}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_conversation_trashed_while_its_reply_starts_isnt_started(
     data_fixture, configured_agent, mocker
 ):
     mocker.patch.object(ChatRunHandler, "_enqueue")
     agent = configured_agent(user=data_fixture.create_user())
     trigger = data_fixture.create_agent_trigger(agent=agent)
     reply = queued_reply(trigger)
-    locked, release = Event(), Event()
 
-    def hold_the_trigger_lock():
-        try:
-            with transaction.atomic():
-                AgentTrigger.objects.select_for_update().get(id=trigger.id)
-                locked.set()
-                assert release.wait(10), "The lock was never released"
-        finally:
-            connections.close_all()
+    with transaction.atomic():
+        AgentConversation.objects.filter(id=reply.conversation_id).update(trashed=True)
+        starting = in_another_connection(
+            lambda: AgentHandler().start_next_queued_reply(trigger)
+        )
+        wait_for_a_lock_waiter()
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        holder = executor.submit(hold_the_trigger_lock)
-        try:
-            assert locked.wait(10)
-            assert AgentHandler().start_next_queued_reply(trigger) is None
-        finally:
-            release.set()
-        holder.result(timeout=10)
-
-    assert AgentHandler().start_next_queued_reply(trigger) == reply
-    assert ChatRun.objects.get().context == {"reply_id": reply.id}
+    assert starting.result(timeout=10) is None
+    assert AgentMessage.objects.get(id=reply.id).status == "queued"
+    assert not ChatRun.objects.exists()

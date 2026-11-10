@@ -932,65 +932,64 @@ class AgentHandler:
             created_event_data={},
         )
 
-    def _fail_on_run_limit(self, reply: AgentMessage) -> None:
+    def _start_existing_reply(self, reply: AgentMessage) -> ChatRun:
         """
-        Fail a reply whose run the workspace's limit of replies running refused.
+        Mark a saved reply running and start the run writing it, as its
+        conversation's latest activity.
 
-        :param reply: The reply, read again with its failed status.
-        """
-
-        self.finish_reply(reply.id, ChatRunStatus.FAILED, AGENT_RUN_LIMIT_REACHED, None)
-        reply.refresh_from_db()
-
-    def start_queued_reply(self, reply: AgentMessage) -> ChatRun | None:
-        """
-        Start the system run writing a queued reply of a trigger conversation. A
-        workspace at its maximum of replies running fails the reply with
-        ``chat_run_limit_reached``, as a trigger's direct start does.
-
-        :param reply: The queued reply, with its conversation, agent and workspace.
-        :return: The run writing the reply, or None when it failed on the limit.
+        :param reply: The reply, with its conversation, agent and workspace.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
+        :return: The run writing the reply.
         """
 
         conversation = reply.conversation
         conversation.save(update_fields=["updated_on"])
         reply.status = AgentReplyStatus.RUNNING
         reply.save(update_fields=["status", "updated_on"])
-        try:
-            return self._start_reply_run(conversation, reply)
-        except ChatRunLimitReached:
-            self._fail_on_run_limit(reply)
-            return None
+        return self._start_reply_run(conversation, reply)
 
     def start_next_queued_reply(self, trigger: AgentTrigger) -> AgentMessage | None:
         """
         Start the trigger's oldest queued reply unless another of its replies is
-        going. The trigger's row is locked without waiting, so two callers never
+        going, the trigger is switched off, or it, its agent or its workspace is
+        trashed. The trigger's row is locked without waiting, so two callers never
         start two replies; one that finds it locked starts nothing, and the next
-        hand-off or the sweep moves the queue on.
+        hand-off or the sweep moves the queue on. They also retry a reply left
+        queued because the workspace has its maximum of replies running.
 
         :param trigger: The trigger whose queue moves on.
-        :return: The reply now running, or failed on the run limit, with its
-            conversation; None when nothing started.
+        :return: The reply now running, with its conversation; None when nothing
+            started.
         """
 
         trigger_handler = AgentTriggerHandler()
         with transaction.atomic():
+            # No key: a firing's foreign key check takes key share on the trigger.
             locked = (
-                AgentTrigger.objects.select_for_update(skip_locked=True)
+                trigger_handler.get_startable_triggers()
+                .select_for_update(of=("self",), skip_locked=True, no_key=True)
                 .filter(id=trigger.id)
-                .exists()
+                .only("id")
+                .first()
             )
-            if not locked or trigger_handler.has_going_reply(trigger):
+            if locked is None or trigger_handler.has_going_reply(trigger):
                 return None
+            # The lock re-checks the filter against a conversation trashed meanwhile.
             reply = (
                 trigger_handler.get_queued_replies(trigger)
                 .select_related("conversation__agent__workspace")
+                .select_for_update(of=("self", "conversation"), no_key=True)
                 .first()
             )
-            if reply is not None:
-                self.start_queued_reply(reply)
-            return reply
+            if reply is None:
+                return None
+            try:
+                with transaction.atomic():
+                    self._start_existing_reply(reply)
+            except ChatRunLimitReached:
+                return None
+        return reply
 
     def get_waiting_reply(self, conversation: AgentConversation) -> AgentMessage | None:
         """
@@ -1126,11 +1125,7 @@ class AgentHandler:
         :return: The run continuing the reply.
         """
 
-        conversation = reply.conversation
-        conversation.save(update_fields=["updated_on"])
-        reply.status = AgentReplyStatus.RUNNING
-        reply.save(update_fields=["status", "updated_on"])
-        return self._start_reply_run(conversation, reply)
+        return self._start_existing_reply(reply)
 
     def get_active_reply_runs(self, conversation: AgentConversation) -> dict[int, UUID]:
         """
