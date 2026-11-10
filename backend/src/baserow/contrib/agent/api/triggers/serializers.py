@@ -95,7 +95,10 @@ class CreateAgentTriggerSerializer(
 class UpdateAgentTriggerSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
 ):
-    enabled = serializers.BooleanField(required=False)
+    enabled = serializers.BooleanField(
+        required=False,
+        help_text="Whether the trigger starts conversations when its event happens.",
+    )
     message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
 
     def get_fields(self) -> dict[str, serializers.Field]:

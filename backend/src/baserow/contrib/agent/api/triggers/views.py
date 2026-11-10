@@ -57,7 +57,9 @@ AGENT_ERRORS = {
 }
 TRIGGER_ERRORS = {
     **AGENT_ERRORS,
-    404: get_error_schema(["ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"]),
+    404: get_error_schema(
+        ["ERROR_APPLICATION_DOES_NOT_EXIST", "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"]
+    ),
 }
 FEATURE_ERRORS = {403: get_error_schema(["ERROR_FEATURE_DISABLED"])}
 # The message formula is validated against the agent's data provider registry.
