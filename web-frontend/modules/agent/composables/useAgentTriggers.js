@@ -64,7 +64,7 @@ export function useAgentTriggers(agent) {
       if (scopeIsCurrent(currentScope)) triggers.value.push(data)
       return data
     } catch (error) {
-      notifyIf(error, 'agentTrigger')
+      notifyIf(error, 'trigger')
       return null
     }
   }
@@ -100,7 +100,7 @@ export function useAgentTriggers(agent) {
           typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
         return
       }
-      notifyIf(error, 'agentTrigger')
+      notifyIf(error, 'trigger')
       fetchTriggers()
     } finally {
       if (scopeIsCurrent(currentScope)) savingIds.delete(trigger.id)
@@ -235,7 +235,7 @@ export function useAgentTriggers(agent) {
     } catch (error) {
       if (scopeIsCurrent(currentScope)) {
         triggers.value.splice(index, 0, trigger)
-        notifyIf(error, 'agentTrigger')
+        notifyIf(error, 'trigger')
       }
     }
   }
