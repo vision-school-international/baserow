@@ -1,6 +1,11 @@
 from django.contrib.auth.models import AbstractUser
 
-from baserow.contrib.agent.models import AgentApplication, AgentTrigger
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentMessage,
+    AgentReplyStatus,
+    AgentTrigger,
+)
 from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.trash.registries import TrashableItemType
@@ -63,12 +68,17 @@ class AgentTriggerTrashableItemType(TrashableItemType):
         self, trashed_item: AgentTrigger, trash_item_lookup_cache: dict | None = None
     ) -> None:
         """
-        Delete the trigger; its ``post_delete`` receiver deletes the service.
+        Delete the trigger, cancelling its queued replies: their conversations
+        lose the trigger, so nothing would start them. Its ``post_delete``
+        receiver deletes the service.
 
         :param trashed_item: The trashed trigger.
         :param trash_item_lookup_cache: Unused, a trigger has no trashed children.
         """
 
+        AgentMessage.objects.filter(
+            conversation__trigger=trashed_item, status=AgentReplyStatus.QUEUED
+        ).update(status=AgentReplyStatus.CANCELLED)
         trashed_item.delete()
 
     def get_restore_operation_type(self) -> str:

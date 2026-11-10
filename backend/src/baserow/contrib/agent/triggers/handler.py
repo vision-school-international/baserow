@@ -5,10 +5,17 @@ from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, QuerySet
 
 from baserow.contrib.agent.constants import AGENT_TRIGGER_TYPES_ENABLED
-from baserow.contrib.agent.models import AgentApplication, AgentTrigger
+from baserow.contrib.agent.models import (
+    GOING_REPLY_STATUSES,
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+    AgentReplyStatus,
+    AgentTrigger,
+)
 from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.formula import resolve_formula
@@ -266,6 +273,132 @@ class AgentTriggerHandler:
         if not content.strip():
             return self.payload_as_message(event_payload)
         return content[:AGENT_TEXT_MAX_LENGTH]
+
+    def has_going_reply(self, trigger: AgentTrigger) -> bool:
+        """
+        Whether a reply of the trigger still holds a run or waits for approvals. A
+        reply is ``running`` exactly while its run is active, so the status alone
+        answers, without joining runs.
+
+        :param trigger: The trigger whose conversations are looked at.
+        :return: True while one of its replies is going.
+        """
+
+        return AgentMessage.objects.filter(
+            conversation__trigger=trigger, status__in=GOING_REPLY_STATUSES
+        ).exists()
+
+    def get_queued_replies(self, trigger: AgentTrigger) -> QuerySet[AgentMessage]:
+        """
+        Return the trigger's replies waiting, without a run, for its previous reply
+        to end. Deleted conversations are left out: deleting one cancels its run.
+
+        :param trigger: The trigger whose conversations are looked at.
+        :return: The queued replies, oldest first.
+        """
+
+        return AgentMessage.objects.filter(
+            conversation__trigger=trigger,
+            conversation__trashed=False,
+            status=AgentReplyStatus.QUEUED,
+        ).order_by("id")
+
+    def count_queued_replies(self, trigger: AgentTrigger) -> int:
+        """
+        :param trigger: The trigger whose conversations are looked at.
+        :return: How many of its replies are queued.
+        """
+
+        return self.get_queued_replies(trigger).count()
+
+    def list_idle_triggers_with_queued_replies(self) -> QuerySet[AgentTrigger]:
+        """
+        Find the triggers whose oldest queued reply can start now: one of their
+        replies is queued and none is going. One query, read from the index of
+        replies still queued or going, however long the triggers' history is.
+
+        :return: The untrashed triggers, by id.
+        """
+
+        replies = AgentMessage.objects.filter(conversation__trigger=OuterRef("pk"))
+        return AgentTrigger.objects.filter(
+            Exists(
+                replies.filter(
+                    status=AgentReplyStatus.QUEUED, conversation__trashed=False
+                )
+            ),
+            ~Exists(replies.filter(status__in=GOING_REPLY_STATUSES)),
+        )
+
+    def recent_conversation_times(
+        self, trigger: AgentTrigger, since: datetime
+    ) -> list[datetime]:
+        """
+        When the trigger started each of its conversations since a moment, deleted
+        ones included, so deleting conversations never lifts a limit.
+
+        :param trigger: The trigger.
+        :param since: The oldest creation time counted.
+        :return: The creation times, unordered.
+        """
+
+        return list(
+            AgentConversation.objects_and_trash.filter(
+                trigger=trigger, created_on__gte=since
+            )
+            .order_by()
+            .values_list("created_on", flat=True)
+        )
+
+    def recent_agent_conversation_times(
+        self, agent: AgentApplication, since: datetime
+    ) -> list[datetime]:
+        """
+        When any trigger of the agent started a conversation since a moment,
+        deleted conversations and trashed triggers included. Joining through the
+        triggers reads the trigger and creation time index.
+
+        :param agent: The agent.
+        :param since: The oldest creation time counted.
+        :return: The creation times, unordered.
+        """
+
+        return list(
+            AgentConversation.objects_and_trash.filter(
+                trigger__agent=agent, created_on__gte=since
+            )
+            .order_by()
+            .values_list("created_on", flat=True)
+        )
+
+    def record_skip(
+        self, trigger: AgentTrigger, reason: AgentTrigger.SkipReason, at: datetime
+    ) -> None:
+        """
+        Save when and why a firing of the trigger started nothing, without signals
+        or a new ``updated_on``.
+
+        :param trigger: The trigger whose firing was skipped.
+        :param reason: Why it was skipped.
+        :param at: When it fired.
+        """
+
+        AgentTrigger.objects.filter(id=trigger.id).update(
+            last_skipped_on=at, last_skipped_reason=reason
+        )
+        trigger.last_skipped_on, trigger.last_skipped_reason = at, reason
+
+    def record_fired(self, trigger: AgentTrigger, at: datetime) -> None:
+        """
+        Save when a firing of the trigger last started or queued a conversation,
+        which hides an older skip on its card.
+
+        :param trigger: The trigger that fired.
+        :param at: When it fired.
+        """
+
+        AgentTrigger.objects.filter(id=trigger.id).update(last_fired_on=at)
+        trigger.last_fired_on = at
 
     def export_triggers(
         self,
