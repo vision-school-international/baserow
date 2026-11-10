@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+from django.db import connection
 from django.test import override_settings
 
 import pytest
@@ -214,3 +215,21 @@ def test_an_event_without_a_message_formula_opens_with_its_payload(
     assert (
         AgentConversation.objects.get().title == " ".join(message.content.split())[:250]
     )
+
+
+@pytest.mark.django_db
+def test_a_database_error_while_matching_leaves_the_transaction_usable(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent)
+    mocker.patch("baserow.contrib.agent.triggers.dispatcher.exception_capturer")
+
+    def failing_payload(service):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM agent_trigger_missing_table")
+
+    histories = agent_trigger_dispatcher.on_event([trigger.service], failing_payload)
+
+    assert histories == []
+    assert AgentTrigger.objects.filter(id=trigger.id).exists()

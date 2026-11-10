@@ -42,7 +42,8 @@ class AgentTriggerDispatcher:
         """
 
         try:
-            triggers, payloads = self._match(services, event_payload)
+            with transaction.atomic():
+                triggers, payloads = self._match(services, event_payload)
         except SoftTimeLimitExceeded:
             raise
         except Exception as e:
