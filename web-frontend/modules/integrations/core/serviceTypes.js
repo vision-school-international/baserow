@@ -727,13 +727,16 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
   }
 
   /**
-   * Schedules a new periodic service every day at 09:00 in the browser's
-   * timezone.
+   * Schedules a never-scheduled periodic service every day at 09:00 in the
+   * browser's timezone.
    * @param {object|null} service The service being edited, if any.
    * @param {object} values The current default values for the service form.
-   * @returns {object} The values with the daily schedule.
+   * @returns {object} The values, with the daily schedule if none was set.
    */
   getDefaultValues(service, values) {
+    if (values.interval) {
+      return values
+    }
     return {
       ...values,
       interval: 'DAY',
@@ -746,10 +749,13 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
   /**
    * Describe the schedule, with the timezone of every time of day.
    * @param {object|null} service The periodic service.
-   * @returns {string} The schedule sentence, or '' without an interval.
+   * @returns {string} The schedule sentence, or '' while the values it needs
+   *   are missing.
    */
   getSummary(service) {
     const { t } = this.app.$i18n
+    const hasTime = service?.hour != null && service?.minute != null
+    const hasTimezone = Boolean(service?.timezone)
     const values = {
       minute: service?.minute,
       time: moment({ hour: service?.hour, minute: service?.minute }).format(
@@ -760,19 +766,24 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
     }
     switch (service?.interval) {
       case 'MINUTE':
+        if (service.minute == null) return ''
         return t('serviceType.corePeriodicSummaryMinute', {
           count: service.minute,
         })
       case 'HOUR':
+        if (service.minute == null) return ''
         return t('serviceType.corePeriodicSummaryHour', values)
       case 'DAY':
+        if (!hasTime || !hasTimezone) return ''
         return t('serviceType.corePeriodicSummaryDay', values)
       case 'WEEK':
+        if (!hasTime || !hasTimezone || service.day_of_week == null) return ''
         return t('serviceType.corePeriodicSummaryWeek', {
           ...values,
           day: t(`common.${WEEKDAYS[service.day_of_week]}`),
         })
       case 'MONTH':
+        if (!hasTime || !hasTimezone || service.day_of_month == null) return ''
         return t('serviceType.corePeriodicSummaryMonth', values)
       default:
         return ''

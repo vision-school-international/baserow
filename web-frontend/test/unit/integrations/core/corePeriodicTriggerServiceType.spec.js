@@ -53,6 +53,41 @@ describe('CorePeriodicTriggerServiceType', () => {
     expect(serviceType.getSummary(null)).toBe('')
   })
 
+  test('has no summary while the values the sentence needs are missing', async () => {
+    const serviceType = await makeServiceType()
+    const incomplete = [
+      { interval: 'MINUTE', minute: null },
+      { interval: 'HOUR', minute: null },
+      { interval: 'DAY', hour: null },
+      { interval: 'DAY', timezone: '' },
+      { interval: 'WEEK', minute: undefined },
+      { interval: 'WEEK', day_of_week: null },
+      { interval: 'MONTH', timezone: null },
+      { interval: 'MONTH', day_of_month: null },
+    ]
+
+    incomplete.forEach((values) => {
+      expect(serviceType.getSummary(schedule(values))).toBe('')
+    })
+  })
+
+  test('schedules a never-scheduled service daily at 09:00', async () => {
+    const serviceType = await makeServiceType()
+
+    expect(serviceType.getDefaultValues(null, {})).toMatchObject({
+      interval: 'DAY',
+      hour: 9,
+      minute: 0,
+    })
+  })
+
+  test('keeps the schedule of a service that already has one', async () => {
+    const serviceType = await makeServiceType()
+    const values = schedule({ interval: 'HOUR', minute: 15 })
+
+    expect(serviceType.getDefaultValues(values, values)).toBe(values)
+  })
+
   test('a service type has no summary unless it describes one', () => {
     expect(new ServiceType({ app: {} }).getSummary({})).toBe('')
   })
