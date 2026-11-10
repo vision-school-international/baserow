@@ -57,6 +57,7 @@ describe('CorePeriodicTriggerServiceType', () => {
     const serviceType = await makeServiceType()
     const incomplete = [
       { interval: 'MINUTE', minute: null },
+      { interval: 'MINUTE', minute: 0 },
       { interval: 'HOUR', minute: null },
       { interval: 'DAY', hour: null },
       { interval: 'DAY', timezone: '' },
