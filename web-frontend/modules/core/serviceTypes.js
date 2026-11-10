@@ -91,6 +91,15 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * Return a sentence describing how the service is configured.
+   * @param {object|null} service The service to describe.
+   * @returns {string} The sentence, or an empty string when there is none.
+   */
+  getSummary(service) {
+    return ''
+  }
+
+  /**
    * Whether the service is valid.
    * @param service - The service object.
    * @returns {String} - The error message

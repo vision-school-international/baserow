@@ -23,6 +23,16 @@ import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/com
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm.vue'
 
+const WEEKDAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]
+
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
 ) {
@@ -730,6 +740,42 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
       hour: 9,
       minute: 0,
       timezone: moment.tz.guess(),
+    }
+  }
+
+  /**
+   * Describe the schedule, with the timezone of every time of day.
+   * @param {object|null} service The periodic service.
+   * @returns {string} The schedule sentence, or '' without an interval.
+   */
+  getSummary(service) {
+    const { t } = this.app.$i18n
+    const values = {
+      minute: service?.minute,
+      time: moment({ hour: service?.hour, minute: service?.minute }).format(
+        'HH:mm'
+      ),
+      timezone: service?.timezone,
+      day: service?.day_of_month,
+    }
+    switch (service?.interval) {
+      case 'MINUTE':
+        return t('serviceType.corePeriodicSummaryMinute', {
+          count: service.minute,
+        })
+      case 'HOUR':
+        return t('serviceType.corePeriodicSummaryHour', values)
+      case 'DAY':
+        return t('serviceType.corePeriodicSummaryDay', values)
+      case 'WEEK':
+        return t('serviceType.corePeriodicSummaryWeek', {
+          ...values,
+          day: t(`common.${WEEKDAYS[service.day_of_week]}`),
+        })
+      case 'MONTH':
+        return t('serviceType.corePeriodicSummaryMonth', values)
+      default:
+        return ''
     }
   }
 
