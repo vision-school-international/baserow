@@ -28,7 +28,7 @@ const FAILED_REPLY_NOTICES = {
     'agent.replyTriggerMessageFailed',
 }
 
-/** A stopped reply's note or an unfinished one's error, as translation keys. */
+/** A stopped or queued reply's note, or an unfinished one's error, as keys. */
 export function replyOutcome({ status, error_code: errorCode, replying }) {
   if (
     replying ||
@@ -37,6 +37,9 @@ export function replyOutcome({ status, error_code: errorCode, replying }) {
     status === AGENT_REPLY_STATUS.WAITING
   ) {
     return {}
+  }
+  if (status === AGENT_REPLY_STATUS.QUEUED) {
+    return { note: 'agent.replyWaitingForPreviousRun' }
   }
   if (status === AGENT_REPLY_STATUS.CANCELLED) {
     return { note: 'agent.replyStopped' }

@@ -106,6 +106,7 @@
     "conversationReadOnly": "This conversation was started by a trigger and can’t be continued.",
     "replyRunLimitReached": "Agents in this workspace were busy, so this run didn’t start.",
     "replyTriggerMessageFailed": "The trigger’s opening message couldn’t be built, so this run didn’t start. Check the message in When it runs.",
+    "replyWaitingForPreviousRun": "Waiting for the previous run to finish.",
     "loadMore": "Load more",
     "olderMessages": "Load older messages",
     "talkTo": "Talk to {name}",
@@ -245,7 +246,14 @@
     "triggerFiredAt": "Fired at",
     "triggerDataProvides": "Data it provides",
     "triggerDataValues": "{count} value | {count} values",
-    "deleteTrigger": "Delete trigger"
+    "deleteTrigger": "Delete trigger",
+    "triggerOnOverlap": "If it fires while the previous run is still going",
+    "triggerOnOverlapSkip": "Skip this run",
+    "triggerOnOverlapWait": "Wait for the previous run",
+    "triggerSkippedRateLimited": "Skipped at {time}: it fired too often.",
+    "triggerSkippedAgentRateLimited": "Skipped at {time}: the agent’s triggers fired too often.",
+    "triggerSkippedPreviousRunning": "Skipped at {time}: the previous run was still going.",
+    "triggerSkippedQueueFull": "Skipped at {time}: too many runs were waiting."
   },
   "trashType": {
     "agent_conversation": "conversation",

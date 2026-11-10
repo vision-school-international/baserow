@@ -759,4 +759,29 @@ describe('Agent conversations', () => {
     expect(wrapper.find('.agent-conversations__options').exists()).toBe(false)
     expect(warning(wrapper).exists()).toBe(false)
   })
+
+  test('shows a queued reply of a shared conversation as waiting for the previous run', async () => {
+    allowed.value = withoutConfiguration
+    mockConversations(
+      testApp,
+      conversationsPage([sharedConversation('digest', 'Daily digest')])
+    )
+    mockMessages(
+      testApp,
+      'digest',
+      page([
+        message('t1', 'Trigger data', { id: 1, role: 'trigger' }),
+        message('r1', '', { id: 2, role: 'assistant', status: 'queued' }),
+      ])
+    )
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Daily digest')
+
+    expect(wrapper.get('.chat-message__note').text()).toBe(
+      'agent.replyWaitingForPreviousRun'
+    )
+    expect(wrapper.find('.chat-message__bubble--error').exists()).toBe(false)
+    expect(messages(wrapper)).toEqual([])
+  })
 })

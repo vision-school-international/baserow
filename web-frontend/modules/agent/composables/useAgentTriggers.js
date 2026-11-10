@@ -19,6 +19,7 @@ const savedValuesOf = (trigger) =>
   cloneDeep({
     enabled: trigger.enabled,
     message: trigger.message,
+    on_overlap: trigger.on_overlap,
     service: trigger.service,
   })
 
@@ -130,6 +131,9 @@ export function useAgentTriggers(agent) {
     if (!isEqual(trigger.message, values.message)) {
       unsaved.message = trigger.message
     }
+    if (trigger.on_overlap !== values.on_overlap) {
+      unsaved.on_overlap = trigger.on_overlap
+    }
     const serviceValues = Object.fromEntries(
       Object.entries(trigger.service).filter(
         ([field, value]) => !isEqual(value, values.service[field])
@@ -199,6 +203,9 @@ export function useAgentTriggers(agent) {
     if (shows(trigger.message, 'message', previous.message)) {
       trigger.message = latest.message
     }
+    if (shows(trigger.on_overlap, 'on_overlap', previous.on_overlap)) {
+      trigger.on_overlap = latest.on_overlap
+    }
     const sentService = sent.service || {}
     trigger.service = Object.fromEntries(
       Object.entries({ ...trigger.service, ...latest.service }).map(
@@ -243,6 +250,9 @@ export function useAgentTriggers(agent) {
     if ('message' in sent && isEqual(trigger.message, sent.message)) {
       trigger.message = values.message
     }
+    if ('on_overlap' in sent && trigger.on_overlap === sent.on_overlap) {
+      trigger.on_overlap = values.on_overlap
+    }
     if (sent.service) {
       const reverted = { ...trigger.service }
       for (const [field, value] of Object.entries(sent.service)) {
@@ -265,22 +275,25 @@ export function useAgentTriggers(agent) {
   }
 
   /**
-   * Shows a card's edit at once and saves it: a switch right away and alone, so
-   * rejected settings can't block it, typed values with everything unsaved once
-   * typing pauses.
+   * Shows a card's edit at once and saves it: a switch or an overlap rule right
+   * away and alone, so rejected settings can't block it, typed values with
+   * everything unsaved once typing pauses.
    *
    * @param {object} trigger The trigger the card shows.
-   * @param {object} values The edited `enabled`, `message` or service values.
+   * @param {object} values The edited `enabled`, `on_overlap`, `message` or
+   *   service values.
    */
   function updateTrigger(trigger, values) {
     if (!saved.has(trigger.id)) return
     if ('enabled' in values) trigger.enabled = values.enabled
+    if ('on_overlap' in values) trigger.on_overlap = values.on_overlap
     if ('message' in values) trigger.message = values.message
     if (values.service) {
       trigger.service = { ...trigger.service, ...values.service }
     }
-    if ('enabled' in values) {
-      flush(trigger, ['enabled'])
+    const picked = ['enabled', 'on_overlap'].filter((field) => field in values)
+    if (picked.length) {
+      flush(trigger, picked)
     } else {
       scheduleSave(trigger)
     }

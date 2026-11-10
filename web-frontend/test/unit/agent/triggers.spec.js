@@ -44,6 +44,10 @@ const periodicTrigger = (extra = {}) => ({
     schema,
   },
   schema,
+  on_overlap: 'skip',
+  last_fired_on: null,
+  last_skipped_on: null,
+  last_skipped_reason: '',
   ...extra,
 })
 
@@ -536,4 +540,52 @@ describe('Agent triggers', () => {
       'agent.triggerFiredAt',
     ])
   })
+
+  test('saves the overlap rule at once', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, periodicTrigger({ on_overlap: 'wait' }))
+    const wrapper = await mountSection([periodicTrigger()])
+    const dropdown = wrapper.get('.agent-trigger-card__overlap .dropdown')
+    expect(dropdown.get('.dropdown__selected-text').text()).toBe(
+      'agent.triggerOnOverlapSkip'
+    )
+
+    await choose(dropdown, 'agent.triggerOnOverlapWait')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { on_overlap: 'wait' }],
+    ])
+    expect(dropdown.get('.dropdown__selected-text').text()).toBe(
+      'agent.triggerOnOverlapWait'
+    )
+  })
+
+  test.each([
+    ['rate_limited', 'agent.triggerSkippedRateLimited'],
+    ['agent_rate_limited', 'agent.triggerSkippedAgentRateLimited'],
+    ['previous_running', 'agent.triggerSkippedPreviousRunning'],
+    ['queue_full', 'agent.triggerSkippedQueueFull'],
+  ])(
+    'says why a firing was skipped until a later one is accepted: %s',
+    async (reason, text) => {
+      const skipped = {
+        last_skipped_on: '2026-11-10T10:42:00Z',
+        last_skipped_reason: reason,
+      }
+      const wrapper = await mountSection([
+        periodicTrigger(skipped),
+        periodicTrigger({
+          ...skipped,
+          id: 2,
+          last_fired_on: '2026-11-10T10:43:00Z',
+        }),
+      ])
+      const [shown, hidden] = wrapper.findAll('.agent-trigger-card')
+
+      expect(shown.get('.agent-trigger-card__skipped').text()).toBe(text)
+      expect(hidden.find('.agent-trigger-card__skipped').exists()).toBe(false)
+    }
+  )
 })

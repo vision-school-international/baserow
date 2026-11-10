@@ -63,7 +63,33 @@
       <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
         {{ serviceError }}
       </p>
-      <p :id="summaryId" class="agent-trigger-card__summary">{{ summary }}</p>
+      <div class="agent-trigger-card__summary">
+        <p :id="summaryId" class="agent-trigger-card__summary-text">
+          {{ summary }}
+        </p>
+        <p v-if="skippedText" class="agent-trigger-card__skipped" role="status">
+          {{ skippedText }}
+        </p>
+      </div>
+      <div class="agent-trigger-card__overlap">
+        <FormGroup :label="$t('agent.triggerOnOverlap')" small-label>
+          <Dropdown
+            :model-value="trigger.on_overlap"
+            :disabled="!editable"
+            :show-search="false"
+            fixed-items
+            size="large"
+            @update:model-value="$emit('update', { on_overlap: $event })"
+          >
+            <DropdownItem
+              v-for="option in TRIGGER_OVERLAP_OPTIONS"
+              :key="option.value"
+              :value="option.value"
+              :name="$t(option.label)"
+            />
+          </Dropdown>
+        </FormGroup>
+      </div>
       <FormGroup
         class="agent-trigger-card__message"
         :label="$t('agent.triggerMessage')"
@@ -142,6 +168,11 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
+import moment from '@baserow/modules/core/moment'
+import {
+  TRIGGER_OVERLAP_OPTIONS,
+  TRIGGER_SKIP_REASON_TEXT,
+} from '@baserow/modules/agent/constants'
 
 const props = defineProps({
   /** The trigger as the card shows it, edits included. */
@@ -192,6 +223,25 @@ const summary = computed(() =>
     .filter(Boolean)
     .join(' ')
 )
+/** Why the last firing started nothing, until a later firing is accepted. */
+const skippedText = computed(() => {
+  const {
+    last_skipped_on: skippedOn,
+    last_fired_on: firedOn,
+    last_skipped_reason: reason,
+  } = props.trigger
+  const reasonText = TRIGGER_SKIP_REASON_TEXT[reason]
+  if (
+    !skippedOn ||
+    !reasonText ||
+    (firedOn && !moment(skippedOn).isAfter(firedOn))
+  ) {
+    return ''
+  }
+  const skipped = moment(skippedOn)
+  const format = skipped.isSame(moment(), 'day') ? 'LT' : 'L LT'
+  return t(reasonText, { time: skipped.format(format) })
+})
 const schemaProperties = computed(() => {
   const schema = $registry
     .get('agentDataProvider', 'trigger')

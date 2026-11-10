@@ -35,6 +35,18 @@ export const REASONING_EFFORTS = Object.freeze([
   { value: 'high', label: 'agent.reasoningEffortHigh' },
 ])
 
+export const TRIGGER_OVERLAP_OPTIONS = Object.freeze([
+  { value: 'skip', label: 'agent.triggerOnOverlapSkip' },
+  { value: 'wait', label: 'agent.triggerOnOverlapWait' },
+])
+
+export const TRIGGER_SKIP_REASON_TEXT = Object.freeze({
+  rate_limited: 'agent.triggerSkippedRateLimited',
+  agent_rate_limited: 'agent.triggerSkippedAgentRateLimited',
+  previous_running: 'agent.triggerSkippedPreviousRunning',
+  queue_full: 'agent.triggerSkippedQueueFull',
+})
+
 export const CONFIGURATION_SAVE_RESULT = Object.freeze({
   REJECTED_IDENTITY: 'rejected_identity',
 })

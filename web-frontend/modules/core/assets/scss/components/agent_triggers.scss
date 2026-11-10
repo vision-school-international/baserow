@@ -100,7 +100,8 @@
   }
 }
 
-.agent-trigger-card__service {
+.agent-trigger-card__service,
+.agent-trigger-card__overlap {
   .control {
     flex-direction: row;
     align-items: flex-start;
@@ -144,6 +145,10 @@
   }
 }
 
+.agent-trigger-card__overlap {
+  margin-bottom: 16px;
+}
+
 .agent-trigger-card__error {
   margin: 0 0 8px;
   font-size: 12px;
@@ -152,10 +157,22 @@
 }
 
 .agent-trigger-card__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0 0 16px;
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;
+}
+
+.agent-trigger-card__summary-text,
+.agent-trigger-card__skipped {
+  margin: 0;
+}
+
+.agent-trigger-card__skipped {
+  color: $palette-yellow-800;
 }
 
 .agent-trigger-card__schema {
