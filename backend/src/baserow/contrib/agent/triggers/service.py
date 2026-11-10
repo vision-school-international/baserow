@@ -47,12 +47,11 @@ class AgentTriggerService:
         """Fetch the trigger of a live Agent and check each operation on it."""
 
         agent = self.agent_handler.get_agent(agent_id, for_update=for_update)
+        self._check_permissions(user, agent, *operations)
         queryset = AgentTrigger.objects.filter(agent=agent)
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
-        trigger = self.handler.get_trigger(trigger_id, base_queryset=queryset)
-        self._check_permissions(user, agent, *operations)
-        return trigger
+        return self.handler.get_trigger(trigger_id, base_queryset=queryset)
 
     def available_trigger_types(self, agent: AgentApplication) -> list[str]:
         """
