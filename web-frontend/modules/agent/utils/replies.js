@@ -28,8 +28,24 @@ const FAILED_REPLY_NOTICES = {
     'agent.replyTriggerMessageFailed',
 }
 
-/** A stopped or queued reply's note, or an unfinished one's error, as keys. */
-export function replyOutcome({ status, error_code: errorCode, replying }) {
+/**
+ * A stopped or queued reply's note, or an unfinished one's error, as keys.
+ * Only a reply without a run waits its turn; a run's own queued status is
+ * transient, so one that ended on it was interrupted.
+ *
+ * @param {object} reply A saved reply, or a followed run's status and error.
+ * @param {string} [reply.status] The reply's or the run's status.
+ * @param {string} [reply.error_code] Why a failed reply failed.
+ * @param {string|null} [reply.run_id] The run the reply belongs to, if any.
+ * @param {boolean} [reply.replying] Whether its run is still being followed.
+ * @returns {{note?: string, error?: string}} Translation keys to show.
+ */
+export function replyOutcome({
+  status,
+  error_code: errorCode,
+  run_id: runId,
+  replying,
+}) {
   if (
     replying ||
     !status ||
@@ -38,7 +54,7 @@ export function replyOutcome({ status, error_code: errorCode, replying }) {
   ) {
     return {}
   }
-  if (status === AGENT_REPLY_STATUS.QUEUED) {
+  if (status === AGENT_REPLY_STATUS.QUEUED && !runId) {
     return { note: 'agent.replyWaitingForPreviousRun' }
   }
   if (status === AGENT_REPLY_STATUS.CANCELLED) {

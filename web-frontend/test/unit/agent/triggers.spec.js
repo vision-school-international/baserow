@@ -588,4 +588,18 @@ describe('Agent triggers', () => {
       expect(hidden.find('.agent-trigger-card__skipped').exists()).toBe(false)
     }
   )
+
+  test('keeps the skip line when the last accepted firing was before it', async () => {
+    const wrapper = await mountSection([
+      periodicTrigger({
+        last_fired_on: '2026-11-10T10:41:00Z',
+        last_skipped_on: '2026-11-10T10:42:00Z',
+        last_skipped_reason: 'rate_limited',
+      }),
+    ])
+
+    expect(wrapper.get('.agent-trigger-card__skipped').text()).toBe(
+      'agent.triggerSkippedRateLimited'
+    )
+  })
 })
