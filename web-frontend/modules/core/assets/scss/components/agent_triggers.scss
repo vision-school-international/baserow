@@ -89,12 +89,26 @@
 
 .agent-trigger-card__schema {
   margin-top: 12px;
+}
 
-  .expandable__header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
+.agent-trigger-card__schema-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
   }
 }
 

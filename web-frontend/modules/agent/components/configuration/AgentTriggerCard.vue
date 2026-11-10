@@ -61,23 +61,29 @@
       <Expandable
         v-if="schemaProperties.length"
         class="agent-trigger-card__schema"
-        toggle-on-click
       >
-        <template #header="{ expanded }">
-          <span class="agent-trigger-card__schema-title">
-            {{
-              $t('agent.triggerDataProvides', {
-                count: schemaProperties.length,
-              })
-            }}
-          </span>
-          <i
-            class="agent-trigger-card__schema-chevron"
-            :class="
-              expanded ? 'iconoir-nav-arrow-up' : 'iconoir-nav-arrow-down'
-            "
-            aria-hidden="true"
-          ></i>
+        <template #header="{ expanded, toggle }">
+          <button
+            type="button"
+            class="agent-trigger-card__schema-toggle"
+            :aria-expanded="expanded"
+            @click="toggle"
+          >
+            <span class="agent-trigger-card__schema-title">
+              {{
+                $t('agent.triggerDataProvides', {
+                  count: schemaProperties.length,
+                })
+              }}
+            </span>
+            <i
+              class="agent-trigger-card__schema-chevron"
+              :class="
+                expanded ? 'iconoir-nav-arrow-up' : 'iconoir-nav-arrow-down'
+              "
+              aria-hidden="true"
+            ></i>
+          </button>
         </template>
         <ul class="agent-trigger-card__schema-list">
           <li v-for="property in schemaProperties" :key="property.key">
