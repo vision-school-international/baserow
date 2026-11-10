@@ -349,6 +349,11 @@ class AgentConversationSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.BooleanField())
     def get_shared(self, conversation: AgentConversation) -> bool:
+        """
+        :param conversation: The serialized conversation.
+        :return: Whether a trigger started it, so it has no owner.
+        """
+
         return conversation.owner_user_id is None
 
     @extend_schema_field(serializers.CharField(allow_null=True))

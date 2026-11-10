@@ -292,7 +292,13 @@ class AgentService:
     def _get_accessible_conversation(
         self, user: AbstractUser, conversation_id: int
     ) -> AgentConversation | None:
-        """Fetch the conversation with its agent if the user sees it at all."""
+        """
+        Fetch the conversation with its agent if the user sees it at all.
+
+        :param user: The user asking.
+        :param conversation_id: The id of the conversation.
+        :return: The conversation, or None when the user doesn't see it.
+        """
 
         return (
             self.handler.get_accessible_conversations(user)

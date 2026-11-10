@@ -74,6 +74,13 @@ class CreateAgentTriggerActionType(ActionType):
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
+        """
+        Scope the action to the Agent whose triggers it changes.
+
+        :param agent_id: The id of the Agent.
+        :return: The application scope of the Agent.
+        """
+
         return ApplicationActionScopeType.value(agent_id)
 
 
@@ -140,6 +147,13 @@ class UpdateAgentTriggerActionType(ActionType):
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
+        """
+        Scope the action to the Agent whose triggers it changes.
+
+        :param agent_id: The id of the Agent.
+        :return: The application scope of the Agent.
+        """
+
         return ApplicationActionScopeType.value(agent_id)
 
 
@@ -178,4 +192,11 @@ class DeleteAgentTriggerActionType(ActionType):
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
+        """
+        Scope the action to the Agent whose triggers it changes.
+
+        :param agent_id: The id of the Agent.
+        :return: The application scope of the Agent.
+        """
+
         return ApplicationActionScopeType.value(agent_id)

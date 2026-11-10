@@ -28,7 +28,14 @@ class AgentTriggerService:
     def _check_permissions(
         self, user: AbstractUser, agent: AgentApplication, *operations: str
     ) -> None:
-        """Check each operation on the Agent, as the configuration calls do."""
+        """
+        Check each operation on the Agent, as the configuration calls do.
+
+        :param user: The user to check.
+        :param agent: The Agent the operations apply to.
+        :param operations: The operation type names the user needs.
+        :raises PermissionException: When the user lacks any of the operations.
+        """
 
         CoreHandler().check_multiple_permissions(
             [PermissionCheck(user, operation, agent) for operation in operations],
@@ -44,7 +51,19 @@ class AgentTriggerService:
         *operations: str,
         for_update: bool = False,
     ) -> AgentTrigger:
-        """Fetch the trigger of a live Agent and check each operation on it."""
+        """
+        Check each operation on a live Agent, then fetch one of its triggers.
+
+        :param user: The user asking for the trigger.
+        :param agent_id: The id of the Agent.
+        :param trigger_id: The id of the trigger.
+        :param operations: The operation type names the user needs on the Agent.
+        :param for_update: Whether to lock the Agent and the trigger.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises PermissionException: When the user lacks any of the operations.
+        :raises AgentTriggerDoesNotExist: When the Agent has no such trigger.
+        :return: The trigger with its Agent and service.
+        """
 
         agent = self.agent_handler.get_agent(agent_id, for_update=for_update)
         self._check_permissions(user, agent, *operations)

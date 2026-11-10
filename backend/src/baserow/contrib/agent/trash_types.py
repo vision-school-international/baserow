@@ -50,6 +50,13 @@ class AgentConversationTrashableItemType(TrashableItemType):
         return RestoreAgentConversationOperationType.type
 
     def get_restore_operation_types(self, trashed_item: AgentConversation) -> list[str]:
+        """
+        A shared conversation also needs builders, as trashing it did.
+
+        :param trashed_item: The trashed conversation.
+        :return: The operations a user needs on the Agent to restore it.
+        """
+
         operations = [self.get_restore_operation_type()]
         if trashed_item.owner_user_id is None:
             operations.append(UpdateApplicationOperationType.type)

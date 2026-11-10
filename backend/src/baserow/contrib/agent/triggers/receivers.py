@@ -17,6 +17,9 @@ def delete_trigger_service(
     """
     Delete the service with its trigger, also when the agent's deletion cascades
     to the trigger: nothing else holds the service.
+
+    :param sender: The trigger model.
+    :param instance: The deleted trigger.
     """
 
     if is_service_deletion_deferred():
