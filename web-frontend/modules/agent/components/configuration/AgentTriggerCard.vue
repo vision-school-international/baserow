@@ -18,6 +18,10 @@
           role="img"
           :aria-label="configurationError"
         />
+        <i
+          class="agent-trigger-card__chevron iconoir-nav-arrow-down"
+          aria-hidden="true"
+        />
       </div>
       <span
         v-if="saving"

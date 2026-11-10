@@ -75,6 +75,13 @@
   flex-shrink: 0;
 }
 
+.agent-trigger-card__chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 16px;
+  color: $palette-neutral-700;
+}
+
 .agent-trigger-card__saving {
   display: flex;
 
