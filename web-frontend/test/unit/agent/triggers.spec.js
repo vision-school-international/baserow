@@ -293,8 +293,9 @@ describe('Agent triggers', () => {
         {
           type: 'periodic',
           message: {
-            formula: "concat('agent.triggerDefaultMessage ',now())",
-            mode: 'advanced',
+            formula:
+              "concat('agent.triggerDefaultMessage ', get('trigger.fired_at'))",
+            mode: 'simple',
             version: '0.1',
           },
           service: defaults,
@@ -314,10 +315,32 @@ describe('Agent triggers', () => {
     }).global
 
     expect(defaultTriggerMessage(t, t('serviceType.corePeriodic'))).toEqual({
-      formula: "concat('Periodic trigger fired at ',now())",
-      mode: 'advanced',
+      formula: "concat('Periodic trigger fired at ', get('trigger.fired_at'))",
+      mode: 'simple',
       version: '0.1',
     })
+  })
+
+  test('shows the default message as text followed by a Fired at chip', async () => {
+    const trigger = periodicTrigger({
+      message: defaultTriggerMessage(
+        (key, values) => `${values.trigger} fired at`,
+        'Periodic trigger'
+      ),
+    })
+    const wrapper = await testApp.mount(AgentTriggerMessageInput, {
+      props: { modelValue: trigger.message },
+      global: {
+        provide: { applicationContext: reactive({ agent, trigger }) },
+      },
+    })
+    await flushPromises()
+    const chips = wrapper.findAll('.get-formula-component')
+
+    expect(wrapper.text()).toContain('Periodic trigger fired at')
+    expect(chips.map((chip) => chip.text())).toEqual([
+      'agent.triggerData agent.triggerFiredAt',
+    ])
   })
 
   test('marks an incomplete trigger on its header until it is configured', async () => {
@@ -354,7 +377,7 @@ describe('Agent triggers', () => {
       'agent.triggerDataProvides'
     )
     expect(toggle.get('.agent-trigger-card__schema-count').text()).toBe(
-      'agent.triggerDataValues - 2'
+      'agent.triggerDataValues - 3'
     )
     expect(toggle.attributes('aria-expanded')).toBe('false')
 
@@ -365,7 +388,11 @@ describe('Agent triggers', () => {
       wrapper.findAll('.agent-trigger-card__schema-list li').map((item) => {
         return item.text()
       })
-    ).toEqual(['Previous scheduled runstring', 'Next scheduled runstring'])
+    ).toEqual([
+      'Previous scheduled runstring',
+      'Next scheduled runstring',
+      'agent.triggerFiredAtstring',
+    ])
   })
 
   test('edits the formula of the opening message object and keeps its mode', async () => {
@@ -408,6 +435,7 @@ describe('Agent triggers', () => {
     expect(dataGroup.nodes[0].nodes.map((node) => node.name)).toEqual([
       'Previous scheduled run',
       'Next scheduled run',
+      'agent.triggerFiredAt',
     ])
   })
 })

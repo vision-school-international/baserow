@@ -183,7 +183,9 @@ const summary = computed(() =>
     .join(' ')
 )
 const schemaProperties = computed(() => {
-  const schema = serviceType.value.getDataSchema(props.trigger.service)
+  const schema = $registry
+    .get('agentDataProvider', 'trigger')
+    .getDataSchema({ trigger: props.trigger })
   return Object.entries(schema?.properties || {}).map(([key, property]) => ({
     key,
     title: property.title || key,
