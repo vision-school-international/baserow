@@ -514,3 +514,48 @@ def test_trigger_of_a_trashed_agent_is_not_found(
     assert response.status_code == 404
     assert response.json()["error"] == "ERROR_APPLICATION_DOES_NOT_EXIST"
     assert AgentTrigger.objects.filter(id=trigger.id, enabled=True).exists()
+
+
+@pytest.mark.django_db
+def test_a_trigger_saves_its_overlap_rule_and_shows_its_last_firing(
+    data_fixture, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    list_url = agent_url(agent, "triggers:list")
+
+    created = api_client.post(list_url, {"type": "periodic", "message": MESSAGE})
+    waiting = api_client.post(
+        list_url, {"type": "periodic", "message": MESSAGE, "on_overlap": "wait"}
+    )
+
+    assert created.status_code == waiting.status_code == 200, created.json()
+    body = created.json()
+    assert {
+        key: body[key]
+        for key in (
+            "on_overlap",
+            "last_fired_on",
+            "last_skipped_on",
+            "last_skipped_reason",
+        )
+    } == {
+        "on_overlap": "skip",
+        "last_fired_on": None,
+        "last_skipped_on": None,
+        "last_skipped_reason": "",
+    }
+    assert waiting.json()["on_overlap"] == "wait"
+
+    url = agent_url(agent, "triggers:item", trigger_id=body["id"])
+    response = api_client.patch(url, {"on_overlap": "wait"})
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["on_overlap"] == "wait"
+    assert AgentTrigger.objects.get(id=body["id"]).on_overlap == "wait"
+    assert registered.call_args.args[1]["changed_fields"] == ["on_overlap"]
+
+    rejected = api_client.patch(url, {"on_overlap": "queue"})
+
+    assert rejected.status_code == 400
+    assert rejected.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

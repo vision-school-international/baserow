@@ -155,6 +155,7 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
             message=data["message"],
             enabled=data["enabled"],
             service=pop_service_values(data),
+            on_overlap=data["on_overlap"],
         )
         return Response(AgentTriggerSerializer(trigger).data)
 

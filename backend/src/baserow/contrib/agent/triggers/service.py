@@ -100,6 +100,7 @@ class AgentTriggerService:
         message: BaserowFormulaObject | str = "",
         enabled: bool = True,
         service_values: dict | None = None,
+        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
     ) -> AgentTrigger:
         """
         Add a trigger of an available type to the Agent, for a user who may update
@@ -112,6 +113,8 @@ class AgentTriggerService:
         :param enabled: Whether the trigger starts conversations right away.
         :param service_values: Initial values of the service, by field name, or
             None to leave it unconfigured.
+        :param on_overlap: What a firing does while a reply of the trigger is still
+            going.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -137,6 +140,7 @@ class AgentTriggerService:
             prepared_service_values,
             message=message,
             enabled=enabled,
+            on_overlap=on_overlap,
         )
 
     @transaction.atomic
@@ -148,6 +152,7 @@ class AgentTriggerService:
         enabled: bool | None = None,
         message: BaserowFormulaObject | str | None = None,
         service_values: dict | None = None,
+        on_overlap: str | None = None,
     ) -> AgentTriggerUpdated:
         """
         Change a trigger's switch, message or service values, for a user who may
@@ -159,6 +164,7 @@ class AgentTriggerService:
         :param enabled: The new switch state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param service_values: The service values to set, by field name, or None.
+        :param on_overlap: The new overlap rule, or None to keep it.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
@@ -187,6 +193,7 @@ class AgentTriggerService:
             enabled=enabled,
             message=message,
             prepared_service_values=prepared_service_values,
+            on_overlap=on_overlap,
         )
 
     @transaction.atomic

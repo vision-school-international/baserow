@@ -45,6 +45,7 @@ class CreateAgentTriggerActionType(ActionType):
         message: BaserowFormulaObject | str = "",
         enabled: bool = True,
         service: dict | None = None,
+        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
     ) -> AgentTrigger:
         """
         Add a trigger to an Agent and audit its type.
@@ -55,6 +56,8 @@ class CreateAgentTriggerActionType(ActionType):
         :param message: The formula whose text opens each conversation it starts.
         :param enabled: Whether the trigger starts conversations right away.
         :param service: Initial values of the service, by field name, or None.
+        :param on_overlap: What a firing does while a reply of the trigger is still
+            going.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -71,6 +74,7 @@ class CreateAgentTriggerActionType(ActionType):
             message=message,
             enabled=enabled,
             service_values=service,
+            on_overlap=on_overlap,
         )
         cls.register_action(
             user,
@@ -93,7 +97,7 @@ class CreateAgentTriggerActionType(ActionType):
 
 
 class UpdateAgentTriggerActionType(ActionType):
-    """Changes a trigger's switch, message or service values; not undoable."""
+    """Changes a trigger's switch, message, overlap rule or service; not undoable."""
 
     type = "update_agent_trigger"
     description = ActionTypeDescription(
@@ -119,6 +123,7 @@ class UpdateAgentTriggerActionType(ActionType):
         enabled: bool | None = None,
         message: BaserowFormulaObject | str | None = None,
         service: dict | None = None,
+        on_overlap: str | None = None,
     ) -> AgentTrigger:
         """
         Change a trigger and audit which of its parts changed, never their values:
@@ -131,6 +136,7 @@ class UpdateAgentTriggerActionType(ActionType):
         :param enabled: The new switch state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param service: The service values to set, by field name, or None.
+        :param on_overlap: The new overlap rule, or None to keep it.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -149,6 +155,7 @@ class UpdateAgentTriggerActionType(ActionType):
             enabled=enabled,
             message=message,
             service_values=service,
+            on_overlap=on_overlap,
         )
         trigger = updated.trigger
         if updated.changed_fields:

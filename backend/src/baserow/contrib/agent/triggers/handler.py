@@ -101,6 +101,7 @@ class AgentTriggerHandler:
         prepared_service_values: dict,
         message: str | BaserowFormulaObject = "",
         enabled: bool = True,
+        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
     ) -> AgentTrigger:
         """
         Create a trigger with a new service of the given type and arm it.
@@ -111,6 +112,8 @@ class AgentTriggerHandler:
             ``service_type.prepare_values``.
         :param message: The message formula resolved against the trigger payload.
         :param enabled: Whether firing starts a conversation.
+        :param on_overlap: What a firing does while a reply of the trigger is still
+            going, one of ``AgentTrigger.OnOverlap``.
         :raises AgentTriggerTypeNotAvailable: When the type isn't available.
         :return: The created trigger, with its specific service.
         """
@@ -119,7 +122,11 @@ class AgentTriggerHandler:
             service_type, **prepared_service_values
         )
         trigger = AgentTrigger.objects.create(
-            agent=agent, service=service, message=message, enabled=enabled
+            agent=agent,
+            service=service,
+            message=message,
+            enabled=enabled,
+            on_overlap=on_overlap,
         )
         self.arm(trigger)
         return trigger
@@ -130,6 +137,7 @@ class AgentTriggerHandler:
         enabled: bool | None = None,
         message: str | BaserowFormulaObject | None = None,
         prepared_service_values: dict | None = None,
+        on_overlap: str | None = None,
     ) -> AgentTriggerUpdated:
         """
         Update a trigger, re-arming its service when its values change or the
@@ -142,10 +150,11 @@ class AgentTriggerHandler:
         :param message: The new message formula, or None to keep it.
         :param prepared_service_values: The service values to set, already passed
             through ``prepare_values``, or None to leave the service as it is.
+        :param on_overlap: The new overlap rule, or None to keep it.
         :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
             type that isn't available.
         :return: The updated trigger and the names of the parts that changed:
-            ``enabled``, ``message`` and ``service``.
+            ``enabled``, ``message``, ``on_overlap`` and ``service``.
         """
 
         service_changed = False
@@ -170,6 +179,9 @@ class AgentTriggerHandler:
         if message is not None:
             trigger.message = message
             changed_fields.append("message")
+        if on_overlap is not None and on_overlap != trigger.on_overlap:
+            trigger.on_overlap = on_overlap
+            changed_fields.append("on_overlap")
         if changed_fields:
             trigger.save(update_fields=[*changed_fields, "updated_on"])
         if rearm:
@@ -281,6 +293,7 @@ class AgentTriggerHandler:
                 "id": trigger.id,
                 "enabled": trigger.enabled,
                 "message": trigger.message,
+                "on_overlap": trigger.on_overlap,
                 "service": service_handler.export_service(
                     trigger.service.specific,
                     import_export_config=import_export_config,
@@ -336,6 +349,7 @@ class AgentTriggerHandler:
                 service=service,
                 enabled=False,
                 message=serialized.get("message") or "",
+                on_overlap=serialized.get("on_overlap", AgentTrigger.OnOverlap.SKIP),
             )
             trigger_ids[serialized["id"]] = trigger.id
             triggers.append(trigger)
