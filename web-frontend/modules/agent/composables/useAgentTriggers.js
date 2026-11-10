@@ -4,11 +4,13 @@ import { useI18n } from 'vue-i18n'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import moment from '@baserow/modules/core/moment'
 import { toFormulaStringLiteral } from '@baserow/modules/core/formula'
 import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 
 const TYPED_SAVE_DELAY = 500
+const TIME_PLACEHOLDER = '\u0000'
 
 /** Page-local trigger list of one Agent, saved through the triggers API. */
 export function useAgentTriggers(agent) {
@@ -50,16 +52,37 @@ export function useAgentTriggers(agent) {
     }
   }
 
+  /**
+   * The opening message of a new trigger: its name and the time it fired, in
+   * the builder's timezone, which works for every trigger type. Only advanced
+   * mode shows a function call; it is built as that editor re-emits it, unspaced.
+   *
+   * :param serviceType: The service type of the new trigger.
+   * :return: The message formula object.
+   */
+  function defaultMessage(serviceType) {
+    const timezone = moment.tz.guess()
+    const firedAt = `datetime_format(now(),'YYYY-MM-DD HH:mm',${toFormulaStringLiteral(timezone)})`
+    const parts = t('agent.triggerDefaultMessage', {
+      trigger: serviceType.name,
+      time: TIME_PLACEHOLDER,
+      timezone,
+    }).split(TIME_PLACEHOLDER)
+    const args = [toFormulaStringLiteral(parts[0]), firedAt]
+    if (parts[1]) args.push(toFormulaStringLiteral(parts[1]))
+    return {
+      formula: `concat(${args.join(',')})`,
+      mode: 'advanced',
+      version: '0.1',
+    }
+  }
+
   async function createTrigger(type) {
     const currentScope = scope
-    const serviceType = $registry.get('service', type)
     try {
       const { data } = await service.create(agentId(), {
         type,
-        message: {
-          formula: toFormulaStringLiteral(serviceType.name),
-          mode: 'simple',
-        },
+        message: defaultMessage($registry.get('service', type)),
       })
       if (scopeIsCurrent(currentScope)) triggers.value.push(data)
       return data

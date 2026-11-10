@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from freezegun import freeze_time
 from rest_framework import serializers
 
 from baserow.contrib.agent.application_types import AgentApplicationType
@@ -87,6 +88,20 @@ def test_resolve_trigger_message_resolves_the_formula(periodic_trigger):
         resolve_trigger_message(trigger, PAYLOAD)
         == "Digest for 2026-11-09T09:00:00+00:00"
     )
+
+
+@pytest.mark.django_db
+def test_resolve_trigger_message_resolves_the_default_message(periodic_trigger):
+    trigger = periodic_trigger(
+        "concat('Periodic trigger fired at ', "
+        "datetime_format(now(), 'YYYY-MM-DD HH:mm', 'Europe/Rome'), "
+        "' (Europe/Rome).')"
+    )
+
+    with freeze_time("2026-11-10 08:00:00"):
+        message = resolve_trigger_message(trigger, PAYLOAD)
+
+    assert message == "Periodic trigger fired at 2026-11-10 09:00 (Europe/Rome)."
 
 
 @pytest.mark.django_db

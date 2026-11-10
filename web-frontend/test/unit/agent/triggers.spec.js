@@ -289,7 +289,11 @@ describe('Agent triggers', () => {
         '/agent/10/triggers/',
         {
           type: 'periodic',
-          message: { formula: "'serviceType.corePeriodic'", mode: 'simple' },
+          message: {
+            formula: `concat('agent.triggerDefaultMessage',datetime_format(now(),'YYYY-MM-DD HH:mm','${moment.tz.guess()}'))`,
+            mode: 'advanced',
+            version: '0.1',
+          },
         },
       ],
     ])
