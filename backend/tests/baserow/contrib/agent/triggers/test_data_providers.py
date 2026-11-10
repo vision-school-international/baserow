@@ -1,7 +1,7 @@
 import json
+from datetime import datetime, timezone
 
 import pytest
-from freezegun import freeze_time
 from rest_framework import serializers
 
 from baserow.contrib.agent.application_types import AgentApplicationType
@@ -20,6 +20,7 @@ PAYLOAD = {
     "triggered_at": "2026-11-09T09:00:00+00:00",
     "next_run_at": "2026-11-09T10:00:00+00:00",
 }
+FIRED_AT = datetime(2026, 11, 10, 9, 7, 42, tzinfo=timezone.utc)
 
 
 class MessageSerializer(serializers.Serializer):
@@ -55,12 +56,15 @@ def test_message_formulas_are_validated_against_the_trigger_provider(formula, va
 @pytest.mark.django_db
 def test_dispatch_context_exposes_the_payload_as_trigger(periodic_trigger):
     trigger = periodic_trigger()
-    context = AgentTriggerDispatchContext(trigger, PAYLOAD)
+    payload = {**PAYLOAD, "fired_at": "from the service"}
+    context = AgentTriggerDispatchContext(trigger, payload, FIRED_AT)
 
     assert context["trigger.triggered_at"] == PAYLOAD["triggered_at"]
+    assert context["trigger.fired_at"] == "2026-11-10 09:07 (UTC)"
     assert context["trigger.missing"] is None
     assert context.workspace == trigger.agent.workspace
-    assert context.clone().trigger is trigger
+    assert (context.clone().trigger, context.clone().fired_at) == (trigger, FIRED_AT)
+    assert payload == {**PAYLOAD, "fired_at": "from the service"}
 
 
 @pytest.mark.django_db
@@ -74,11 +78,12 @@ def test_get_data_chunk_maps_list_payload_rows_through_the_service_type(
     service = data_fixture.create_local_baserow_rows_created_service(table=table)
     trigger = data_fixture.create_agent_trigger(agent=agent, service=service)
     payload = {"results": [{"Name": "Horse"}], "has_next_page": False}
-    context = AgentTriggerDispatchContext(trigger, payload)
+    context = AgentTriggerDispatchContext(trigger, payload, FIRED_AT)
     provider = TriggerDataProviderType()
 
     assert provider.get_data_chunk(context, ["0", field.db_column]) == "Horse"
     assert provider.get_data_chunk(context, ["0"]) == {"Name": "Horse"}
+    assert provider.get_data_chunk(context, ["fired_at"]) == "2026-11-10 09:07 (UTC)"
 
 
 @pytest.mark.django_db
@@ -86,25 +91,28 @@ def test_resolve_trigger_message_resolves_the_formula(periodic_trigger):
     trigger = periodic_trigger("concat('Digest for ', get('trigger.triggered_at'))")
 
     assert (
-        resolve_trigger_message(trigger, PAYLOAD)
+        resolve_trigger_message(trigger, PAYLOAD, FIRED_AT)
         == "Digest for 2026-11-09T09:00:00+00:00"
     )
 
 
 @pytest.mark.django_db
-def test_resolve_trigger_message_resolves_the_default_message(periodic_trigger):
-    trigger = periodic_trigger(
-        {
-            "formula": "concat('Periodic trigger fired at ',now())",
-            "mode": "advanced",
+def test_resolve_trigger_message_resolves_the_default_message_in_the_service_timezone(
+    data_fixture,
+):
+    trigger = data_fixture.create_agent_trigger(
+        service=data_fixture.create_core_periodic_service(timezone="Europe/Rome"),
+        message={
+            "formula": "concat('Periodic trigger fired at ', get('trigger.fired_at'))",
+            "mode": "simple",
             "version": "0.1",
-        }
+        },
     )
 
-    with freeze_time("2026-11-10 08:00:00"):
-        message = resolve_trigger_message(trigger, PAYLOAD)
-
-    assert message == "Periodic trigger fired at 2026-11-10 08:00:00+00:00"
+    assert (
+        resolve_trigger_message(trigger, PAYLOAD, FIRED_AT)
+        == "Periodic trigger fired at 2026-11-10 10:07 (Europe/Rome)"
+    )
 
 
 @pytest.mark.django_db
@@ -113,7 +121,7 @@ def test_resolve_trigger_message_falls_back_to_the_payload(periodic_trigger, mes
     trigger = periodic_trigger(message)
     expected = "Trigger data:\n```json\n" + json.dumps(PAYLOAD, indent=2) + "\n```"
 
-    assert resolve_trigger_message(trigger, PAYLOAD) == expected
+    assert resolve_trigger_message(trigger, PAYLOAD, FIRED_AT) == expected
 
 
 @pytest.mark.django_db
@@ -121,4 +129,7 @@ def test_resolve_trigger_message_cuts_to_the_message_limit(periodic_trigger):
     trigger = periodic_trigger("get('trigger.triggered_at')")
     payload = {"triggered_at": "x" * (AGENT_TEXT_MAX_LENGTH + 1)}
 
-    assert len(resolve_trigger_message(trigger, payload)) == AGENT_TEXT_MAX_LENGTH
+    assert (
+        len(resolve_trigger_message(trigger, payload, FIRED_AT))
+        == AGENT_TEXT_MAX_LENGTH
+    )

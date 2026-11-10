@@ -19,6 +19,9 @@ from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.triggers.dispatcher import agent_trigger_dispatcher
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_MINUTE
 from baserow.contrib.integrations.core.models import CorePeriodicService
+from baserow.contrib.integrations.core.service_types import (
+    CorePeriodicTriggerServiceType,
+)
 from baserow.contrib.integrations.tasks import call_periodic_services_that_are_due
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.models import ChatRun
@@ -135,6 +138,83 @@ def test_a_due_trigger_starts_its_conversation_and_tells_the_readers(
         agent_trigger_dispatcher, conversation=conversation, user=None, run_id=run.id
     )
     assert next_run_at(trigger) == DUE_AT + timedelta(minutes=1)
+
+
+@pytest.mark.django_db
+def test_a_due_trigger_opens_with_the_time_it_fired_in_the_service_timezone(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(
+        data_fixture,
+        agent,
+        message="concat('Periodic trigger fired at ', get('trigger.fired_at'))",
+    )
+    CorePeriodicService.objects.filter(id=trigger.service_id).update(
+        timezone="Europe/Rome"
+    )
+
+    tick()
+
+    assert (
+        AgentMessage.objects.get(role="trigger").content
+        == "Periodic trigger fired at 2026-11-09 11:00 (Europe/Rome)"
+    )
+
+
+@pytest.mark.django_db
+def test_every_trigger_of_an_event_gets_the_time_the_dispatcher_handled_it(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    twice = periodic_trigger(
+        data_fixture,
+        agent,
+        message="concat(get('trigger.fired_at'), ' | ', get('trigger.fired_at'))",
+    )
+    once = periodic_trigger(data_fixture, agent, message="get('trigger.fired_at')")
+    services = [twice.service, once.service]
+
+    # Every clock read moves a minute on, so a second read would show up.
+    with freeze_time(TICK_AT, auto_tick_seconds=60):
+        agent_trigger_dispatcher.on_event(services, {})
+
+    fired_at = "2026-11-09 10:00 (UTC)"
+    assert list(
+        AgentMessage.objects.filter(role="trigger")
+        .order_by("conversation__trigger_id")
+        .values_list("content", flat=True)
+    ) == [f"{fired_at} | {fired_at}", fired_at]
+
+
+@pytest.mark.django_db
+def test_an_agent_trigger_leaves_the_periodic_payload_and_schema_unchanged(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent, message="get('trigger.fired_at')")
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
+    received = []
+
+    def other_listener(services, event_payload, **kwargs):
+        received.extend(event_payload(service) for service in services)
+
+    service_type.start_listening(other_listener)
+    try:
+        tick()
+    finally:
+        service_type.stop_listening(other_listener)
+
+    assert AgentMessage.objects.filter(role="trigger").exists()
+    assert [set(payload) for payload in received] == [{"triggered_at", "next_run_at"}]
+    assert service_type.generate_schema(trigger.service.specific) == {
+        "title": f"Periodic{trigger.service_id}Schema",
+        "type": "object",
+        "properties": {
+            "triggered_at": {"type": "string", "title": "Previous scheduled run"},
+            "next_run_at": {"type": "string", "title": "Next scheduled run"},
+        },
+    }
 
 
 @pytest.mark.django_db

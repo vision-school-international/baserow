@@ -1,7 +1,9 @@
 from collections.abc import Callable, Iterable
+from datetime import datetime
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
+from django.utils import timezone
 
 from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
@@ -41,6 +43,7 @@ class AgentTriggerDispatcher:
         :return: An empty list, so listeners that return histories stay first.
         """
 
+        fired_at = timezone.now()
         try:
             with transaction.atomic():
                 triggers, payloads = self._match(services, event_payload)
@@ -54,7 +57,7 @@ class AgentTriggerDispatcher:
             logger.debug("Agent triggers skipped: the agent builder is off.")
             return []
         for trigger in triggers:
-            self._start(trigger, payloads[trigger.id] or {})
+            self._start(trigger, payloads[trigger.id] or {}, fired_at)
         return []
 
     def _match(
@@ -109,20 +112,21 @@ class AgentTriggerDispatcher:
         logger.debug("Agent trigger {} skipped: {}.", trigger.id, reason)
         return False
 
-    def _start(self, trigger: AgentTrigger, payload: dict) -> None:
+    def _start(self, trigger: AgentTrigger, payload: dict, fired_at: datetime) -> None:
         """
         Start the trigger's conversation in a savepoint if it is runnable, telling
         the readers. A failure rolls back only this trigger and is logged.
 
         :param trigger: The trigger that fired, with its agent.
         :param payload: The event payload the message formula reads.
+        :param fired_at: When the event was handled, shared by all its triggers.
         """
 
         try:
             with transaction.atomic():
                 if not self._is_runnable(trigger):
                     return
-                content = resolve_trigger_message(trigger, payload)
+                content = resolve_trigger_message(trigger, payload, fired_at)
                 handler = AgentHandler()
                 conversation = handler.start_trigger_conversation(trigger, content)
                 run_id = next(
