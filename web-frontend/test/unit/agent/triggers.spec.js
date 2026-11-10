@@ -93,6 +93,7 @@ describe('Agent triggers', () => {
     expect(
       card.findComponent({ name: 'CorePeriodicTriggerServiceForm' }).exists()
     ).toBe(true)
+    expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
     expect(patches(testApp)).toEqual([])
 
     await choose(card.get('.dropdown'), 'periodicForm.everyDay')
@@ -143,7 +144,6 @@ describe('Agent triggers', () => {
     await flushPromises()
 
     expect(card.get('[role="alert"]').text()).toBe('The schedule is invalid.')
-    expect(card.find('.agent-trigger-card__warning').exists()).toBe(false)
   })
 
   test('sends a rejected service value again with the next service edit', async () => {
@@ -294,9 +294,24 @@ describe('Agent triggers', () => {
       ],
     ])
     expect(wrapper.findAll('.agent-trigger-card')).toHaveLength(1)
-    expect(wrapper.get('.agent-trigger-card__warning').text()).toBe(
+  })
+
+  test('marks an incomplete trigger on its header until it is configured', async () => {
+    const service = { ...periodicTrigger().service, interval: null }
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
+    const wrapper = await mountSection([periodicTrigger({ service })])
+    const card = wrapper.get('.agent-trigger-card')
+
+    expect(card.text()).not.toContain(
       'serviceType.corePeriodicErrorIntervalMissing'
     )
+    expect(
+      card.get('.agent-trigger-card__status').attributes('aria-label')
+    ).toBe('serviceType.corePeriodicErrorIntervalMissing')
+
+    await choose(card.get('.dropdown'), 'periodicForm.everyHour')
+
+    expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
   })
 
   test('edits the formula of the opening message object and keeps its mode', async () => {

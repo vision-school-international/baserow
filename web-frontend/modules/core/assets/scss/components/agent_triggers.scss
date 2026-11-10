@@ -47,15 +47,26 @@
   color: $palette-neutral-900;
 }
 
+.agent-trigger-card__title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
 .agent-trigger-card__name {
   @extend %ellipsis;
 
-  flex: 1;
   min-width: 0;
   font-size: 13px;
   line-height: 20px;
   font-weight: 500;
   color: $palette-neutral-1200;
+}
+
+.agent-trigger-card__status {
+  flex-shrink: 0;
 }
 
 .agent-trigger-card__saving {
@@ -72,19 +83,11 @@
   padding: 12px;
 }
 
-.agent-trigger-card__error,
-.agent-trigger-card__warning {
+.agent-trigger-card__error {
   margin: 8px 0 0;
   font-size: 12px;
   line-height: 18px;
-}
-
-.agent-trigger-card__error {
   color: $palette-red-800;
-}
-
-.agent-trigger-card__warning {
-  color: $palette-yellow-800;
 }
 
 .agent-trigger-card__schema {

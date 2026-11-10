@@ -6,7 +6,19 @@
         class="agent-trigger-card__icon"
         aria-hidden="true"
       />
-      <span class="agent-trigger-card__name">{{ serviceType.name }}</span>
+      <span class="agent-trigger-card__title">
+        <span class="agent-trigger-card__name">{{ serviceType.name }}</span>
+        <Icon
+          v-if="configurationError"
+          v-tooltip="configurationError"
+          class="agent-trigger-card__status"
+          icon="iconoir-warning-circle"
+          type="error"
+          size="small"
+          role="img"
+          :aria-label="configurationError"
+        />
+      </span>
       <span
         v-if="saving"
         class="agent-trigger-card__saving"
@@ -41,9 +53,6 @@
       />
       <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
         {{ serviceError }}
-      </p>
-      <p v-else-if="configurationWarning" class="agent-trigger-card__warning">
-        {{ configurationWarning }}
       </p>
       <FormGroup
         class="margin-top-2"
@@ -145,7 +154,8 @@ provide(
     },
   })
 )
-const configurationWarning = computed(
+// Like an automation node: the header flags it, the form shows field errors once touched.
+const configurationError = computed(
   () =>
     serviceType.value.getErrorMessage({
       service: props.trigger.service,
