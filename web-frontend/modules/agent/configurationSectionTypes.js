@@ -114,7 +114,7 @@ export class WhenItRunsAgentConfigurationSectionType extends AgentConfigurationS
   }
 
   get icon() {
-    return 'iconoir-timer'
+    return 'iconoir-play'
   }
 
   get component() {
