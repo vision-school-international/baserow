@@ -28,8 +28,7 @@
 }
 
 .agent-trigger-card {
-  border: 1px solid $palette-neutral-200;
-  background: $palette-neutral-0;
+  background: $palette-neutral-25;
 
   @include rounded($rounded-md);
 }
@@ -37,22 +36,30 @@
 .agent-trigger-card__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid $palette-neutral-200;
+}
+
+.agent-trigger-card__type {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid $palette-neutral-400;
+  box-sizing: border-box;
+  background: $palette-neutral-0;
+
+  @include elevation($elevation-low);
+  @include rounded($rounded-md);
 }
 
 .agent-trigger-card__icon {
   flex-shrink: 0;
-  color: $palette-neutral-900;
-}
-
-.agent-trigger-card__title {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
+  color: $palette-neutral-600;
 }
 
 .agent-trigger-card__name {
@@ -61,7 +68,6 @@
   min-width: 0;
   font-size: 13px;
   line-height: 20px;
-  font-weight: 500;
   color: $palette-neutral-1200;
 }
 
@@ -81,17 +87,75 @@
 
 .agent-trigger-card__body {
   padding: 12px;
+
+  .control__label {
+    font-weight: 400;
+    color: $palette-neutral-900;
+  }
+}
+
+.agent-trigger-card__service {
+  .control {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .control__label {
+    flex: 0 0 30%;
+    min-width: 0;
+    min-height: 36px;
+    margin: 0;
+  }
+
+  .control__wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .control__messages {
+    padding-top: 6px;
+  }
+
+  // Hosted forms pair fields on one `.flex` line; the narrow card gives each its own row.
+  .flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+
+    > .control {
+      margin-right: 0 !important;
+    }
+  }
+
+  .form-input.form-input--large {
+    height: 36px;
+  }
+
+  .dropdown--large .dropdown__selected {
+    @include fixed-height(36px, 13px);
+
+    padding: 12px;
+  }
 }
 
 .agent-trigger-card__error {
-  margin: 8px 0 0;
+  margin: 0 0 8px;
   font-size: 12px;
   line-height: 18px;
   color: $palette-red-800;
 }
 
+.agent-trigger-card__summary {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
 .agent-trigger-card__schema {
-  margin-top: 12px;
+  margin-top: 16px;
+  border-top: 1px solid $palette-neutral-200;
 }
 
 .agent-trigger-card__schema-toggle {
@@ -99,6 +163,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: none;
@@ -117,10 +182,15 @@
 
 .agent-trigger-card__schema-title {
   flex: 1;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+}
+
+.agent-trigger-card__schema-count {
   font-size: 12px;
   line-height: 18px;
-  font-weight: 500;
-  color: $palette-neutral-900;
+  color: $palette-neutral-700;
 }
 
 .agent-trigger-card__schema-chevron {
@@ -130,7 +200,7 @@
 
 .agent-trigger-card__schema-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0 0 4px;
   padding: 0;
 
   li {
@@ -149,7 +219,6 @@
 
 .agent-trigger-card__footer {
   display: flex;
-  justify-content: flex-end;
   padding: 8px 12px;
   border-top: 1px solid $palette-neutral-200;
 }

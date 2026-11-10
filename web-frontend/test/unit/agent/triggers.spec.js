@@ -338,6 +338,36 @@ describe('Agent triggers', () => {
     expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
   })
 
+  test('summarises the schedule under the trigger form', async () => {
+    const wrapper = await mountSection([periodicTrigger()])
+    const summary = wrapper.get('.agent-trigger-card__summary')
+
+    expect(summary.text()).toContain('serviceType.corePeriodicSummaryHour')
+    expect(summary.text()).toContain('agent.triggerRunStartsConversation')
+  })
+
+  test('counts the data the trigger provides and lists it once expanded', async () => {
+    const wrapper = await mountSection([periodicTrigger()])
+    const toggle = wrapper.get('.agent-trigger-card__schema-toggle')
+
+    expect(toggle.get('.agent-trigger-card__schema-title').text()).toBe(
+      'agent.triggerDataProvides'
+    )
+    expect(toggle.get('.agent-trigger-card__schema-count').text()).toBe(
+      'agent.triggerDataValues - 2'
+    )
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+
+    await toggle.trigger('click')
+
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(
+      wrapper.findAll('.agent-trigger-card__schema-list li').map((item) => {
+        return item.text()
+      })
+    ).toEqual(['Previous scheduled runstring', 'Next scheduled runstring'])
+  })
+
   test('edits the formula of the opening message object and keeps its mode', async () => {
     const trigger = periodicTrigger({
       message: { formula: "'Check'", mode: 'advanced', version: '0.1' },

@@ -236,11 +236,13 @@
     "triggerEnabled": "Trigger enabled",
     "triggerMessage": "Opening message",
     "triggerDefaultMessage": "{trigger} fired at",
-    "triggerMessageHelper": "What the agent receives when this trigger fires. Use the trigger’s data or write fixed text. Each run starts a new conversation.",
+    "triggerMessageHelper": "What the agent receives when this trigger fires. Use the trigger’s data or write fixed text.",
+    "triggerRunStartsConversation": "Each run starts a new conversation.",
     "triggerMessagePlaceholder": "Describe what the agent should do when this trigger fires…",
     "triggerMisconfigured": "These settings can’t be saved. Check the values above.",
     "triggerData": "Trigger",
-    "triggerDataProvides": "Data it provides — {count} value | Data it provides — {count} values",
+    "triggerDataProvides": "Data it provides",
+    "triggerDataValues": "{count} value | {count} values",
     "deleteTrigger": "Delete trigger"
   },
   "trashType": {

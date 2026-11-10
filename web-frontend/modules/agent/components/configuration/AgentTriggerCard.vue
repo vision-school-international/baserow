@@ -1,12 +1,12 @@
 <template>
   <article class="agent-trigger-card" :aria-busy="saving">
     <header class="agent-trigger-card__header">
-      <Icon
-        :icon="serviceType.icon"
-        class="agent-trigger-card__icon"
-        aria-hidden="true"
-      />
-      <span class="agent-trigger-card__title">
+      <div class="agent-trigger-card__type">
+        <Icon
+          :icon="serviceType.icon"
+          class="agent-trigger-card__icon"
+          aria-hidden="true"
+        />
         <span class="agent-trigger-card__name">{{ serviceType.name }}</span>
         <Icon
           v-if="configurationError"
@@ -18,7 +18,7 @@
           role="img"
           :aria-label="configurationError"
         />
-      </span>
+      </div>
       <span
         v-if="saving"
         class="agent-trigger-card__saving"
@@ -41,21 +41,24 @@
       />
     </header>
     <div class="agent-trigger-card__body">
-      <component
-        :is="serviceType.formComponent"
-        ref="form"
-        :application="agent"
-        :service="trigger.service"
-        :service-type="serviceType"
-        :default-values="trigger.service"
-        :loading="saving"
-        @values-changed="onServiceValuesChanged"
-      />
+      <div class="agent-trigger-card__service">
+        <component
+          :is="serviceType.formComponent"
+          ref="form"
+          :application="agent"
+          :service="trigger.service"
+          :service-type="serviceType"
+          :default-values="trigger.service"
+          :loading="saving"
+          @values-changed="onServiceValuesChanged"
+        />
+      </div>
       <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
         {{ serviceError }}
       </p>
+      <p class="agent-trigger-card__summary">{{ summary }}</p>
       <FormGroup
-        class="margin-top-2"
+        class="agent-trigger-card__message"
         :label="$t('agent.triggerMessage')"
         :helper-text="$t('agent.triggerMessageHelper')"
         small-label
@@ -79,8 +82,11 @@
             @click="toggle"
           >
             <span class="agent-trigger-card__schema-title">
+              {{ $t('agent.triggerDataProvides') }}
+            </span>
+            <span class="agent-trigger-card__schema-count">
               {{
-                $t('agent.triggerDataProvides', {
+                $t('agent.triggerDataValues', {
                   count: schemaProperties.length,
                 })
               }}
@@ -88,7 +94,7 @@
             <i
               class="agent-trigger-card__schema-chevron"
               :class="
-                expanded ? 'iconoir-nav-arrow-up' : 'iconoir-nav-arrow-down'
+                expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
               "
               aria-hidden="true"
             ></i>
@@ -122,6 +128,7 @@
 <script setup>
 import { computed, inject, provide, reactive, ref, toRef } from 'vue'
 import { useNuxtApp } from '#app'
+import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
@@ -136,6 +143,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update', 'delete'])
 const { $registry } = useNuxtApp()
+const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
 const serviceType = computed(() => $registry.get('service', props.trigger.type))
@@ -161,6 +169,14 @@ const configurationError = computed(
       service: props.trigger.service,
       workspace: props.workspace,
     }) || ''
+)
+const summary = computed(() =>
+  [
+    serviceType.value.getSummary(props.trigger.service),
+    t('agent.triggerRunStartsConversation'),
+  ]
+    .filter(Boolean)
+    .join(' ')
 )
 const schemaProperties = computed(() => {
   const schema = serviceType.value.getDataSchema(props.trigger.service)
