@@ -89,6 +89,9 @@ message or deciding an approval in one is refused in this release; continuation 
 editors is a later change. Realtime updates go to the users permitted to read the
 agent's conversations instead of one owner.
 
+Viewers only read conversations. Renaming, trashing and restoring any conversation,
+a private one included, needs the editor role, the lowest role that may create one.
+
 The opening message, with role `trigger`, holds the resolved trigger message (a runtime
 formula over the event payload, or the payload as JSON when the formula is empty). It
 is the only record of what the model received; the title derives from it, and no raw

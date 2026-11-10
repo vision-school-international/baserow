@@ -96,13 +96,25 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "role_uid,restores_shared",
-    [("VIEWER", False), ("EDITOR", False), ("BUILDER", True)],
-    ids=["viewer", "editor", "builder"],
+    "role_uid,changes_own,restores_shared",
+    [
+        ("VIEWER", False, False),
+        ("COMMENTER", False, False),
+        ("EDITOR", True, False),
+        ("BUILDER", True, True),
+    ],
+    ids=["viewer", "commenter", "editor", "builder"],
 )
-def test_builders_restore_shared_conversations_and_everyone_their_own(
-    enterprise_data_fixture, enable_enterprise, synced_roles, role_uid, restores_shared
+def test_editors_change_their_own_conversations_and_builders_restore_shared_ones(
+    enterprise_data_fixture,
+    enable_enterprise,
+    synced_roles,
+    role_uid,
+    changes_own,
+    restores_shared,
 ):
+    """A viewer only reads, even a private conversation left from an older role."""
+
     admin = enterprise_data_fixture.create_user()
     user = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=admin, members=[user])
@@ -110,11 +122,22 @@ def test_builders_restore_shared_conversations_and_everyone_their_own(
     agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
     shared = enterprise_data_fixture.create_shared_agent_conversation(agent=agent)
     private = enterprise_data_fixture.create_agent_conversation(user=user, agent=agent)
+    trashed = enterprise_data_fixture.create_agent_conversation(user=user, agent=agent)
     service = AgentService()
     service.delete_conversation(admin, agent.id, shared.uuid)
-    service.delete_conversation(user, agent.id, private.uuid)
+    AgentHandler().delete_conversation(user, trashed)
 
-    TrashHandler.restore_item(user, "agent_conversation", private.id)
+    def own_change() -> contextlib.AbstractContextManager:
+        if changes_own:
+            return contextlib.nullcontext()
+        return pytest.raises(PermissionException)
+
+    with own_change():
+        service.update_conversation(user, agent.id, private.uuid, title="Renamed")
+    with own_change():
+        service.delete_conversation(user, agent.id, private.uuid)
+    with own_change():
+        TrashHandler.restore_item(user, "agent_conversation", trashed.id)
     with (
         contextlib.nullcontext()
         if restores_shared
@@ -122,6 +145,7 @@ def test_builders_restore_shared_conversations_and_everyone_their_own(
     ):
         TrashHandler.restore_item(user, "agent_conversation", shared.id)
 
-    assert set(AgentConversation.objects.values_list("id", flat=True)) == (
-        {private.id, shared.id} if restores_shared else {private.id}
-    )
+    assert set(AgentConversation.objects.values_list("id", flat=True)) == {
+        trashed.id if changes_own else private.id,
+        *([shared.id] if restores_shared else []),
+    }
