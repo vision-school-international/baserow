@@ -285,6 +285,24 @@ def test_create_rejects_a_type_the_agent_can_not_use(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("type_name", [5, ["periodic"], {"a": 1}])
+def test_create_rejects_a_type_that_is_not_a_string(
+    data_fixture, api_client, api_user, type_name
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = api_client.post(
+        agent_url(agent, "triggers:list"),
+        {"type": type_name, "message": MESSAGE, "service": {"interval": "DAY"}},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert not AgentTrigger.objects.exists()
+
+
+@pytest.mark.django_db
 def test_update_trigger_saves_the_switch_message_and_service_values(
     data_fixture, periodic_trigger, api_client, api_user, mocker
 ):

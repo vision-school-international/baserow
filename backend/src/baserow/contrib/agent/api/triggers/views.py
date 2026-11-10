@@ -119,13 +119,14 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
     def post(self, request: Request, agent_id: int) -> Response:
         """Validates the service values against the type the payload names."""
 
+        type_name = request.data.get("type")
         data = validate_data(
             CreateAgentTriggerSerializer,
             request.data,
             return_validated=True,
             context={
                 **SERIALIZER_CONTEXT,
-                "service_type_name": request.data.get("type"),
+                "service_type_name": type_name if isinstance(type_name, str) else None,
             },
         )
         service_values = data.get("service")
