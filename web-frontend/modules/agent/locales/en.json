@@ -243,6 +243,7 @@
     "deleteTrigger": "Delete trigger"
   },
   "trashType": {
-    "agent_conversation": "conversation"
+    "agent_conversation": "conversation",
+    "agent_trigger": "trigger"
   }
 }
