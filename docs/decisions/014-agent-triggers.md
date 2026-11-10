@@ -83,10 +83,11 @@ null when the trigger is deleted) records what started it. Shared means exactly
 `owner_user IS NULL`. Shared conversations are visible to everyone with
 `read_conversations` on the agent; private ones stay visible to their owner only.
 
-Renaming, trashing and stopping a shared conversation additionally require
-`application.update`. Sending a message or deciding an approval in one is refused in
-this release; continuation by editors is a later change. Realtime updates go to the
-users permitted to read the agent's conversations instead of one owner.
+Renaming, trashing, restoring and stopping a shared conversation additionally require
+`application.update`. Following its runs live requires `read_conversations`. Sending a
+message or deciding an approval in one is refused in this release; continuation by
+editors is a later change. Realtime updates go to the users permitted to read the
+agent's conversations instead of one owner.
 
 The opening message, with role `trigger`, holds the resolved trigger message (a runtime
 formula over the event payload, or the payload as JSON when the formula is empty). It
