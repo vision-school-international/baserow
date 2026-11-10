@@ -1,3 +1,5 @@
+import contextlib
+
 from django.db import transaction
 
 import pytest
@@ -5,9 +7,11 @@ import pytest
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.exceptions import AgentConversationReadOnly
 from baserow.contrib.agent.handler import AgentHandler
+from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.service import AgentService
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionException
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -20,12 +24,13 @@ CHANGE = READ | {"stop", "rename", "delete"}
     "role_uid,allowed,send_error",
     [
         (None, set(), PermissionException),
+        ("NO_ACCESS", set(), PermissionException),
         ("VIEWER", READ, PermissionException),
         ("EDITOR", READ, AgentConversationReadOnly),
         ("BUILDER", CHANGE, AgentConversationReadOnly),
         ("ADMIN", CHANGE, AgentConversationReadOnly),
     ],
-    ids=["non-member", "viewer", "editor", "builder", "admin"],
+    ids=["non-member", "no-access", "viewer", "editor", "builder", "admin"],
 )
 def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
     enterprise_data_fixture,
@@ -58,11 +63,9 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
         ),
         "read": lambda: (
             service.list_messages(user, agent.id, conversation.uuid)[0] == conversation
-        ),
-        "follow": lambda: (
-            run_type.can_follow_chat(user, conversation.id)
             and run_type.can_read(user, run)
         ),
+        "follow": lambda: run_type.can_follow_chat(user, conversation.id),
         "stop": lambda: run_type.can_cancel(user, run),
         "rename": lambda: (
             service.update_conversation(
@@ -89,3 +92,36 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
     assert {name for name, ok in outcomes.items() if ok} == allowed
     conversation.refresh_from_db()
     assert conversation.trashed is ("delete" in allowed)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "role_uid,restores_shared",
+    [("VIEWER", False), ("EDITOR", False), ("BUILDER", True)],
+    ids=["viewer", "editor", "builder"],
+)
+def test_builders_restore_shared_conversations_and_everyone_their_own(
+    enterprise_data_fixture, enable_enterprise, synced_roles, role_uid, restores_shared
+):
+    admin = enterprise_data_fixture.create_user()
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[user])
+    RoleAssignmentHandler().assign_role(user, workspace, Role.objects.get(uid=role_uid))
+    agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
+    shared = enterprise_data_fixture.create_shared_agent_conversation(agent=agent)
+    private = enterprise_data_fixture.create_agent_conversation(user=user, agent=agent)
+    service = AgentService()
+    service.delete_conversation(admin, agent.id, shared.uuid)
+    service.delete_conversation(user, agent.id, private.uuid)
+
+    TrashHandler.restore_item(user, "agent_conversation", private.id)
+    with (
+        contextlib.nullcontext()
+        if restores_shared
+        else pytest.raises(PermissionException)
+    ):
+        TrashHandler.restore_item(user, "agent_conversation", shared.id)
+
+    assert set(AgentConversation.objects.values_list("id", flat=True)) == (
+        {private.id, shared.id} if restores_shared else {private.id}
+    )

@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.models import TrashEntry
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.registries import TrashableItemType
 
@@ -12,7 +13,8 @@ from .signals import agent_conversation_activity
 class AgentConversationTrashableItemType(TrashableItemType):
     """
     A conversation only its owner sees and restores in the trash; a shared one has
-    no owner, so every reader who may restore conversations sees it there.
+    no owner, so every reader sees it there but, as for trashing it, only a user
+    who may update the Agent restores it.
     """
 
     type = "agent_conversation"
@@ -46,6 +48,12 @@ class AgentConversationTrashableItemType(TrashableItemType):
 
     def get_restore_operation_type(self) -> str:
         return RestoreAgentConversationOperationType.type
+
+    def get_restore_operation_types(self, trashed_item: AgentConversation) -> list[str]:
+        operations = [self.get_restore_operation_type()]
+        if trashed_item.owner_user_id is None:
+            operations.append(UpdateApplicationOperationType.type)
+        return operations
 
     def get_restore_operation_context(
         self, trash_entry: TrashEntry, trashed_item: AgentConversation
