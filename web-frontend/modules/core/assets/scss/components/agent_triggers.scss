@@ -100,8 +100,7 @@
   }
 }
 
-.agent-trigger-card__service,
-.agent-trigger-card__overlap {
+.agent-trigger-card__service {
   .control {
     flex-direction: row;
     align-items: flex-start;
@@ -137,7 +136,10 @@
   .form-input.form-input--large {
     height: 36px;
   }
+}
 
+.agent-trigger-card__service,
+.agent-trigger-card__overlap {
   .dropdown--large .dropdown__selected {
     @include fixed-height(36px, 13px);
 

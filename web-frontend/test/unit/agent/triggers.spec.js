@@ -550,6 +550,10 @@ describe('Agent triggers', () => {
     expect(dropdown.get('.dropdown__selected-text').text()).toBe(
       'agent.triggerOnOverlapSkip'
     )
+    // It always has a value, so it isn't optional.
+    expect(
+      wrapper.find('.agent-trigger-card__overlap .control__required').exists()
+    ).toBe(false)
 
     await choose(dropdown, 'agent.triggerOnOverlapWait')
     await flushPromises()

@@ -72,7 +72,7 @@
         </p>
       </div>
       <div class="agent-trigger-card__overlap">
-        <FormGroup :label="$t('agent.triggerOnOverlap')" small-label>
+        <FormGroup :label="$t('agent.triggerOnOverlap')" small-label required>
           <Dropdown
             :model-value="trigger.on_overlap"
             :disabled="!editable"
