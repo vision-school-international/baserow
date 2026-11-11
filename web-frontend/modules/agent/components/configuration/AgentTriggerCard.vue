@@ -63,33 +63,7 @@
       <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
         {{ serviceError }}
       </p>
-      <div class="agent-trigger-card__summary">
-        <p :id="summaryId" class="agent-trigger-card__summary-text">
-          {{ summary }}
-        </p>
-        <p v-if="skippedText" class="agent-trigger-card__skipped" role="status">
-          {{ skippedText }}
-        </p>
-      </div>
-      <div class="agent-trigger-card__overlap">
-        <FormGroup :label="$t('agent.triggerOnOverlap')" small-label required>
-          <Dropdown
-            :model-value="trigger.on_overlap"
-            :disabled="!editable"
-            :show-search="false"
-            fixed-items
-            size="large"
-            @update:model-value="$emit('update', { on_overlap: $event })"
-          >
-            <DropdownItem
-              v-for="option in TRIGGER_OVERLAP_OPTIONS"
-              :key="option.value"
-              :value="option.value"
-              :name="$t(option.label)"
-            />
-          </Dropdown>
-        </FormGroup>
-      </div>
+      <p :id="summaryId" class="agent-trigger-card__summary">{{ summary }}</p>
       <FormGroup
         class="agent-trigger-card__message"
         :label="$t('agent.triggerMessage')"
@@ -142,6 +116,52 @@
           </li>
         </ul>
       </Expandable>
+      <div class="agent-trigger-card__overlap">
+        <div
+          :id="`${overlapId}-title`"
+          class="agent-trigger-card__overlap-title"
+        >
+          {{ $t('agent.triggerOnOverlap') }}
+        </div>
+        <p
+          :id="`${overlapId}-description`"
+          class="agent-trigger-card__overlap-description"
+        >
+          {{ $t('agent.triggerOnOverlapDescription') }}
+        </p>
+        <div
+          class="agent-trigger-card__overlap-options"
+          role="radiogroup"
+          :aria-labelledby="`${overlapId}-title`"
+          :aria-describedby="`${overlapId}-description`"
+        >
+          <Radio
+            v-for="option in TRIGGER_OVERLAP_OPTIONS"
+            :key="option.value"
+            class="agent-trigger-card__overlap-option"
+            :name="overlapId"
+            :value="option.value"
+            :model-value="trigger.on_overlap"
+            :disabled="!editable"
+            @update:model-value="$emit('update', { on_overlap: $event })"
+          >
+            <div class="agent-trigger-card__overlap-option-text">
+              <div class="agent-trigger-card__overlap-option-label">
+                {{ $t(option.label) }}
+                <Badge v-if="option.recommended" color="green" size="small">
+                  {{ $t('agent.triggerOnOverlapRecommended') }}
+                </Badge>
+              </div>
+              <div class="agent-trigger-card__overlap-option-hint">
+                {{ $t(option.hint) }}
+              </div>
+            </div>
+          </Radio>
+        </div>
+        <p v-if="skippedText" class="agent-trigger-card__skipped" role="status">
+          {{ skippedText }}
+        </p>
+      </div>
     </div>
     <footer v-if="editable" class="agent-trigger-card__footer">
       <ButtonText
@@ -192,6 +212,7 @@ const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
 const summaryId = useId()
+const overlapId = useId()
 const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
 // Hosted service forms inject these like in Automation's node side panel.
 provide('formulaComponent', FormulaInputField)

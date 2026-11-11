@@ -136,19 +136,12 @@
   .form-input.form-input--large {
     height: 36px;
   }
-}
 
-.agent-trigger-card__service,
-.agent-trigger-card__overlap {
   .dropdown--large .dropdown__selected {
     @include fixed-height(36px, 13px);
 
     padding: 12px;
   }
-}
-
-.agent-trigger-card__overlap {
-  margin-bottom: 16px;
 }
 
 .agent-trigger-card__error {
@@ -159,22 +152,10 @@
 }
 
 .agent-trigger-card__summary {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   margin: 0 0 16px;
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;
-}
-
-.agent-trigger-card__summary-text,
-.agent-trigger-card__skipped {
-  margin: 0;
-}
-
-.agent-trigger-card__skipped {
-  color: $palette-yellow-1000;
 }
 
 .agent-trigger-card__schema {
@@ -239,6 +220,67 @@
 
 .agent-trigger-card__schema-type {
   color: $palette-neutral-700;
+}
+
+.agent-trigger-card__overlap {
+  padding: 16px 0 4px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-trigger-card__overlap-title {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-trigger-card__overlap-description {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-trigger-card__overlap-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.agent-trigger-card__overlap-option {
+  display: flex;
+
+  .radio__input {
+    flex-shrink: 0;
+    top: 2px;
+  }
+}
+
+.agent-trigger-card__overlap-option-text {
+  min-width: 0;
+}
+
+.agent-trigger-card__overlap-option-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.agent-trigger-card__overlap-option-hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-trigger-card__skipped {
+  margin: 16px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-yellow-1000;
 }
 
 .agent-trigger-card__footer {

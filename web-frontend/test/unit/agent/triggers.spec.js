@@ -541,29 +541,50 @@ describe('Agent triggers', () => {
     ])
   })
 
-  test('saves the overlap rule at once', async () => {
+  test('offers the overlap rule as radios in its own section and saves a choice at once', async () => {
     testApp.mock
       .onPatch('/agent/10/triggers/1/')
       .reply(200, periodicTrigger({ on_overlap: 'wait' }))
     const wrapper = await mountSection([periodicTrigger()])
-    const dropdown = wrapper.get('.agent-trigger-card__overlap .dropdown')
-    expect(dropdown.get('.dropdown__selected-text').text()).toBe(
-      'agent.triggerOnOverlapSkip'
-    )
-    // It always has a value, so it isn't optional.
-    expect(
-      wrapper.find('.agent-trigger-card__overlap .control__required').exists()
-    ).toBe(false)
+    const section = wrapper.get('.agent-trigger-card__overlap')
+    const group = section.get('[role="radiogroup"]')
+    const radios = group.findAll('input[type="radio"]')
+    const checked = () => radios.map((radio) => radio.element.checked)
 
-    await choose(dropdown, 'agent.triggerOnOverlapWait')
+    expect(
+      section.get(`[id="${group.attributes('aria-labelledby')}"]`).text()
+    ).toBe('agent.triggerOnOverlap')
+    expect(
+      section.get(`[id="${group.attributes('aria-describedby')}"]`).text()
+    ).toBe('agent.triggerOnOverlapDescription')
+    expect(
+      radios.map((radio) =>
+        wrapper
+          .get(`[id="${radio.attributes('aria-labelledby')}"]`)
+          .findAll(
+            '.agent-trigger-card__overlap-option-label, .agent-trigger-card__overlap-option-hint'
+          )
+          .map((part) => part.text())
+      )
+    ).toEqual([
+      [
+        'agent.triggerOnOverlapSkip agent.triggerOnOverlapRecommended',
+        'agent.triggerOnOverlapSkipHint',
+      ],
+      ['agent.triggerOnOverlapWait', 'agent.triggerOnOverlapWaitHint'],
+    ])
+    expect(new Set(radios.map((radio) => radio.attributes('name'))).size).toBe(
+      1
+    )
+    expect(checked()).toEqual([true, false])
+
+    await radios[1].trigger('click')
     await flushPromises()
 
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { on_overlap: 'wait' }],
     ])
-    expect(dropdown.get('.dropdown__selected-text').text()).toBe(
-      'agent.triggerOnOverlapWait'
-    )
+    expect(checked()).toEqual([false, true])
   })
 
   test.each([
@@ -588,7 +609,13 @@ describe('Agent triggers', () => {
       ])
       const [shown, hidden] = wrapper.findAll('.agent-trigger-card')
 
-      expect(shown.get('.agent-trigger-card__skipped').text()).toBe(text)
+      expect(
+        shown
+          .get(
+            '.agent-trigger-card__overlap [role="radiogroup"] + .agent-trigger-card__skipped'
+          )
+          .text()
+      ).toBe(text)
       expect(hidden.find('.agent-trigger-card__skipped').exists()).toBe(false)
     }
   )

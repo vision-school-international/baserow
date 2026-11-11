@@ -36,8 +36,17 @@ export const REASONING_EFFORTS = Object.freeze([
 ])
 
 export const TRIGGER_OVERLAP_OPTIONS = Object.freeze([
-  { value: 'skip', label: 'agent.triggerOnOverlapSkip' },
-  { value: 'wait', label: 'agent.triggerOnOverlapWait' },
+  {
+    value: 'skip',
+    label: 'agent.triggerOnOverlapSkip',
+    hint: 'agent.triggerOnOverlapSkipHint',
+    recommended: true,
+  },
+  {
+    value: 'wait',
+    label: 'agent.triggerOnOverlapWait',
+    hint: 'agent.triggerOnOverlapWaitHint',
+  },
 ])
 
 export const TRIGGER_SKIP_REASON_TEXT = Object.freeze({
