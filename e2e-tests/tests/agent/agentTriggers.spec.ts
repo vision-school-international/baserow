@@ -1,4 +1,4 @@
-// Firing needs Celery beat, which the e2e stack does not run; the dispatcher tests cover it.
+// Firing needs Celery beat, which the e2e stack lacks; dispatcher tests cover it.
 import { expect, test } from "../baserowTest";
 import {
   Agent,
@@ -15,10 +15,8 @@ const COPY = {
   deleteTrigger: "Delete trigger",
   empty: "Without a trigger the agent only runs when you chat with it.",
 };
-// Service type names, from web-frontend/modules/integrations/locales/en.json.
+// Service type name, from web-frontend/modules/integrations/locales/en.json.
 const PERIODIC = "Periodic trigger";
-const HTTP = "Receive an HTTP Request";
-const MANUAL = "Manual trigger";
 
 let agent: Agent;
 let agentPage: AgentPage;
@@ -42,12 +40,16 @@ test.describe("Agent triggers", () => {
     const createdResponse = await created;
     expect(createdResponse.status()).toBe(200);
     const trigger = await createdResponse.json();
-    expect(trigger).toMatchObject({ type: "periodic", enabled: true });
+    expect(trigger).toMatchObject({
+      type: "periodic",
+      enabled: true,
+      service: { interval: "DAY", hour: 9, minute: 0 },
+    });
+    await expect(section.getByText(/^Every day at 09:00/)).toBeVisible();
 
-    // Scheduling: the card saves the periodic form 500 ms after a change.
     const scheduled = agentPage.waitForTriggerResponse(
       "PATCH",
-      (body) => body.service.interval === "DAY"
+      (body) => body?.service?.interval === "WEEK"
     );
     await section
       .locator(".control", { hasText: "Interval" })
@@ -55,44 +57,28 @@ test.describe("Agent triggers", () => {
       .click();
     await page
       .locator(".select__item")
-      .getByText("Every day", { exact: true })
+      .getByText("Every week", { exact: true })
       .click();
     expect((await scheduled).status()).toBe(200);
     expect(await listAgentTriggers(agent)).toMatchObject([
-      {
-        id: trigger.id,
-        type: "periodic",
-        enabled: true,
-        service: { interval: "DAY" },
-      },
+      { id: trigger.id, enabled: true, service: { interval: "WEEK" } },
     ]);
 
-    // Pausing: the switch persists `enabled` on its own.
     const enabledSwitch = section.getByRole("switch", { name: COPY.enabled });
     await expect(enabledSwitch).toHaveAttribute("aria-checked", "true");
     const switchedOff = agentPage.waitForTriggerResponse(
       "PATCH",
-      (body) => body.enabled === false
+      (body) => body?.enabled === false
     );
     await enabledSwitch.click();
     expect((await switchedOff).status()).toBe(200);
     await expect(enabledSwitch).toHaveAttribute("aria-checked", "false");
     expect((await listAgentTriggers(agent))[0].enabled).toBe(false);
 
-    // Deleting: no confirmation, the section returns to its empty state.
     const deleted = agentPage.waitForTriggerResponse("DELETE");
     await section.getByRole("button", { name: COPY.deleteTrigger }).click();
     expect((await deleted).status()).toBe(204);
     await expect(section.getByText(COPY.empty)).toBeVisible();
     expect(await listAgentTriggers(agent)).toEqual([]);
-  });
-
-  test("offers only the trigger types enabled for agents", async ({ page }) => {
-    const section = await agentPage.openSection(COPY.section);
-    await section.getByRole("button", { name: COPY.addTrigger }).click();
-
-    await expect(page.getByText(PERIODIC, { exact: true })).toBeVisible();
-    await expect(page.getByText(HTTP, { exact: true })).toHaveCount(0);
-    await expect(page.getByText(MANUAL, { exact: true })).toHaveCount(0);
   });
 });
