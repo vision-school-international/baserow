@@ -37,6 +37,7 @@
         role="switch"
         :tabindex="editable ? 0 : -1"
         :aria-label="$t('agent.triggerEnabled')"
+        :aria-describedby="serviceType ? summaryId : undefined"
         :aria-checked="trigger.enabled"
         :aria-disabled="!editable"
         :model-value="trigger.enabled"
@@ -62,7 +63,7 @@
       <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
         {{ serviceError }}
       </p>
-      <p class="agent-trigger-card__summary">{{ summary }}</p>
+      <p :id="summaryId" class="agent-trigger-card__summary">{{ summary }}</p>
       <FormGroup
         class="agent-trigger-card__message"
         :label="$t('agent.triggerMessage')"
@@ -123,6 +124,7 @@
         button-type="button"
         icon="iconoir-bin"
         class="agent-trigger-card__delete"
+        :aria-describedby="serviceType ? summaryId : undefined"
         @click="$emit('delete')"
       >
         {{ $t('agent.deleteTrigger') }}
@@ -132,7 +134,7 @@
 </template>
 
 <script setup>
-import { computed, inject, provide, reactive, ref, toRef } from 'vue'
+import { computed, inject, provide, reactive, ref, toRef, useId } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
@@ -142,10 +144,15 @@ import AgentTriggerMessageInput from '@baserow/modules/agent/components/configur
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 const props = defineProps({
+  /** The trigger as the card shows it, edits included. */
   trigger: { type: Object, required: true },
+  /** The Agent's workspace, for the hosted service form. */
   workspace: { type: Object, default: null },
+  /** Whether the user may change the trigger. */
   editable: Boolean,
+  /** Whether a save of the trigger is in flight. */
   saving: Boolean,
+  /** Why the server rejected the service values, or ''. */
   serviceError: { type: String, default: '' },
 })
 const emit = defineEmits(['update', 'delete'])
@@ -153,8 +160,9 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
+const summaryId = useId()
 const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
-// Trigger forms hold no formulas; the plain input satisfies the NodeSidePanel host contract.
+// Hosted service forms inject these like in Automation's node side panel.
 provide('formulaComponent', FormulaInputField)
 provide('dataProvidersAllowed', [])
 provide('workspace', toRef(props, 'workspace'))
@@ -169,7 +177,6 @@ provide(
     },
   })
 )
-// Like an automation node: the header flags it, the form shows field errors once touched.
 const configurationError = computed(
   () =>
     serviceType.value?.getErrorMessage({

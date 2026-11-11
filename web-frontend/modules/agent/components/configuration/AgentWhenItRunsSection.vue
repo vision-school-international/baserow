@@ -9,6 +9,7 @@
         button-type="button"
         icon="iconoir-plus"
         class="agent-triggers__add"
+        aria-haspopup="menu"
         @click="picker.toggle($event.currentTarget)"
       >
         {{ $t('agent.addTrigger') }}
@@ -64,7 +65,9 @@ import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTri
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
+  /** The Agent's configuration, with its available trigger types. */
   configuration: { type: Object, required: true },
+  /** Whether the user may add, change and delete triggers. */
   editable: Boolean,
 })
 const store = useStore()

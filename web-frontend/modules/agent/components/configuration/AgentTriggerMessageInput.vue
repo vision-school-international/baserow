@@ -20,6 +20,7 @@ import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 const props = defineProps({
+  /** The message formula object: `formula`, `mode` and `version`. */
   modelValue: { type: Object, default: null },
   placeholder: { type: String, default: null },
   disabled: Boolean,

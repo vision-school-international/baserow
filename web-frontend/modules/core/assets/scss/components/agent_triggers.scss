@@ -238,30 +238,6 @@
   }
 }
 
-.agent-chat__shared {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid $palette-neutral-200;
-  border-radius: 12px;
-  background: $palette-neutral-50;
-  font-size: 13px;
-  line-height: 20px;
-  color: $palette-neutral-900;
-}
-
-.agent-chat__shared-icon {
-  flex-shrink: 0;
-  font-size: 16px;
-}
-
-.agent-chat__shared-text {
-  flex: 1;
-  min-width: 0;
-}
-
 .agent-trigger-start {
   width: 100%;
   overflow: hidden;

@@ -211,7 +211,6 @@ export function useAgentTriggers(agent) {
         }
       )
     )
-    trigger.schema = data.schema
     entry.values = latest
   }
 

@@ -766,9 +766,9 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
     }
     switch (service?.interval) {
       case 'MINUTE':
-        if (!service.minute) return ''
+        if (!Number(service.minute)) return ''
         return t('serviceType.corePeriodicSummaryMinute', {
-          count: service.minute,
+          count: Number(service.minute),
         })
       case 'HOUR':
         if (service.minute == null) return ''

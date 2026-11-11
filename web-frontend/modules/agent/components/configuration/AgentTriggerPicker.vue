@@ -21,10 +21,11 @@ import { computed, nextTick, ref } from 'vue'
 import { useNuxtApp } from '#app'
 import Context from '@baserow/modules/core/components/Context'
 import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
-import { AGENT_TRIGGER_TYPES_ENABLED } from '@baserow/modules/agent/constants'
 
 const props = defineProps({
+  /** The trigger types the Agent's configuration offers. */
   availableTypes: { type: Array, required: true },
+  /** The Agent's workspace, which decides the deactivated types. */
   workspace: { type: Object, default: null },
 })
 const emit = defineEmits(['select'])
@@ -38,8 +39,7 @@ const triggerTypes = computed(() =>
     .filter(
       (serviceType) =>
         serviceType.isTrigger &&
-        props.availableTypes.includes(serviceType.getType()) &&
-        AGENT_TRIGGER_TYPES_ENABLED.includes(serviceType.getType())
+        props.availableTypes.includes(serviceType.getType())
     )
 )
 const groups = computed(() => {
@@ -74,6 +74,11 @@ function select(item) {
   emit('select', item.value)
 }
 
+/**
+ * Opens or closes the picker next to the element that opened it.
+ *
+ * @param {HTMLElement} target The element the picker is placed against.
+ */
 function toggle(target) {
   context.value.toggle(target, 'bottom', 'right', 4)
 }
