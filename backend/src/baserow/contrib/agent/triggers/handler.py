@@ -509,7 +509,8 @@ class AgentTriggerHandler:
         """
         Copy triggers into the agent, each switched off: a copy that fired on its
         own would run and bill without anyone asking for it, and a snapshot
-        restore can't be told apart from a duplicate.
+        restore can't be told apart from a duplicate. A missing or unknown overlap
+        rule skips.
 
         :param agent: The agent the triggers are copied into.
         :param serialized_triggers: The triggers from ``export_triggers``.
@@ -526,6 +527,7 @@ class AgentTriggerHandler:
         service_handler = ServiceHandler()
         triggers = []
         for serialized in serialized_triggers:
+            on_overlap = serialized.get("on_overlap")
             service = service_handler.import_service(
                 None,
                 serialized["service"],
@@ -540,7 +542,11 @@ class AgentTriggerHandler:
                 service=service,
                 enabled=False,
                 message=serialized.get("message") or "",
-                on_overlap=serialized.get("on_overlap", AgentTrigger.OnOverlap.SKIP),
+                on_overlap=(
+                    on_overlap
+                    if on_overlap in AgentTrigger.OnOverlap.values
+                    else AgentTrigger.OnOverlap.SKIP
+                ),
             )
             trigger_ids[serialized["id"]] = trigger.id
             triggers.append(trigger)

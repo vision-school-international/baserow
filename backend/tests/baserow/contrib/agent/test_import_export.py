@@ -554,6 +554,26 @@ def test_triggers_are_copied_switched_off_and_unarmed(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exported,imported",
+    [("wait", "wait"), (None, "skip"), ("queue_every_firing", "skip")],
+)
+def test_a_trigger_overlap_rule_is_copied_and_unknown_values_skip(
+    data_fixture, configured_agent, exported, imported
+):
+    agent = configured_agent()
+    data_fixture.create_agent_trigger(agent=agent)
+    serialized = export_internal(agent)
+    serialized["triggers"][0]["on_overlap"] = exported
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.triggers.get().on_overlap == imported
+
+
+@pytest.mark.django_db
 def test_duplicate_keeps_shared_conversations_on_the_copied_trigger(
     data_fixture, configured_agent
 ):
