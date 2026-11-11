@@ -8,11 +8,7 @@
       small-label
       class="margin-bottom-2"
     >
-      <Dropdown
-        :model-value="values.interval"
-        size="large"
-        @update:model-value="chooseInterval"
-      >
+      <Dropdown v-model="values.interval" size="large">
         <DropdownItem
           :name="$t('periodicForm.everyMinuteDefault')"
           value="MINUTE"
@@ -279,23 +275,19 @@ export default {
       },
     }
   },
-  methods: {
-    /**
-     * Sets the interval the user picked. Switching to MINUTE turns `minute` into a
-     * frequency, so it starts at the instance minimum; switching away from it
-     * turns `minute` back into the minute past the hour, starting at 0. Loading
-     * the saved values doesn't go through here, so they're kept as they are.
-     *
-     * @param {string} interval The picked interval.
-     */
-    chooseInterval(interval) {
-      if (interval === 'MINUTE' && this.values.interval !== 'MINUTE') {
+  watch: {
+    'values.interval'(newInterval, oldInterval) {
+      if (newInterval === 'MINUTE' && oldInterval !== 'MINUTE') {
+        // When changing the interval *to* MINUTE, set the minute field to the
+        // minimum allowed frequency for this Baserow instance type.
         this.values.minute = this.minimumMinuteFrequency
-      } else if (interval !== 'MINUTE' && this.values.interval === 'MINUTE') {
+      } else if (newInterval !== 'MINUTE' && oldInterval === 'MINUTE') {
+        // Otherwise if we're changing *from* MINUTE, then reset the `minute` to 0.
         this.values.minute = 0
       }
-      this.values.interval = interval
     },
+  },
+  methods: {
     getDefaultValues() {
       const defaultValues = form.methods.getDefaultValues.call(this)
       // A trigger without an interval has never been scheduled, so it has no
