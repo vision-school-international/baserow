@@ -335,13 +335,18 @@ class AgentTriggerDispatcher:
         by a firing; it never raises, so one trigger can't stop the others.
 
         :param trigger: The trigger whose queue moves on.
-        :return: The reply now running, or None when nothing started: nothing is
-            queued, a reply is going, the trigger is locked by another caller or
-            stopped, the workspace is at its run limit, or the start failed.
+        :return: The reply now running, even when its readers couldn't be told, or
+            None when nothing started: nothing is queued, a reply is going, the
+            trigger is locked by another caller or stopped, the workspace is at its
+            run limit, or the start failed.
         """
 
+        reply = None
         try:
             reply = AgentHandler().start_next_queued_reply(trigger)
+            if reply is not None:
+                runs = AgentHandler().get_active_reply_runs(reply.conversation)
+                self._notify(reply.conversation, runs.get(reply.id))
         except SoftTimeLimitExceeded:
             raise
         except Exception as e:
@@ -349,10 +354,6 @@ class AgentTriggerDispatcher:
                 "Could not start a queued reply of agent trigger {}.", trigger.id
             )
             exception_capturer(e)
-            return None
-        if reply is not None:
-            runs = AgentHandler().get_active_reply_runs(reply.conversation)
-            self._notify(reply.conversation, runs.get(reply.id))
         return reply
 
     def _notify(self, conversation: AgentConversation, run_id: UUID | None) -> None:

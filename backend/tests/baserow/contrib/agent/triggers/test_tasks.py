@@ -6,6 +6,7 @@ import pytest
 
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentMessage
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.tasks import (
     setup_periodic_agent_trigger_tasks,
     start_queued_trigger_replies,
@@ -76,3 +77,25 @@ def test_a_reply_handed_off_at_the_run_limit_stays_queued_until_the_sweep_has_ro
     run = ChatRun.objects.get(chat_id=reply.conversation_id)
     assert AgentMessage.objects.get(id=reply.id).status == "running"
     assert run.context == {"reply_id": reply.id}
+
+
+@pytest.mark.django_db
+def test_the_sweep_goes_on_when_the_readers_of_a_started_reply_cant_be_told(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    replies = [
+        queued_reply(data_fixture.create_agent_trigger(agent=agent)) for _ in range(2)
+    ]
+    mocker.patch.object(agent_conversation_activity, "send", side_effect=RuntimeError)
+    captured = mocker.patch(
+        "baserow.contrib.agent.triggers.dispatcher.exception_capturer"
+    )
+
+    start_queued_trigger_replies()
+
+    assert [AgentMessage.objects.get(id=reply.id).status for reply in replies] == [
+        "running",
+        "running",
+    ]
+    assert captured.call_count == 2
