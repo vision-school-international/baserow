@@ -121,8 +121,9 @@ class UpdateAgentTriggerActionType(ActionType):
         service: dict | None = None,
     ) -> AgentTrigger:
         """
-        Change a trigger and audit which of its parts were given, never their
-        values: the message and service values are configuration.
+        Change a trigger and audit which of its parts changed, never their values:
+        the message and service values are configuration. An update that changes
+        nothing isn't audited.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -141,7 +142,7 @@ class UpdateAgentTriggerActionType(ActionType):
         :return: The updated trigger.
         """
 
-        trigger = AgentTriggerService().update_trigger(
+        updated = AgentTriggerService().update_trigger(
             user,
             agent_id,
             trigger_id,
@@ -149,18 +150,19 @@ class UpdateAgentTriggerActionType(ActionType):
             message=message,
             service_values=service,
         )
-        given = (("enabled", enabled), ("message", message), ("service", service))
-        cls.register_action(
-            user,
-            cls.Params(
-                trigger.agent_id,
-                trigger.id,
-                trigger.service.get_type().type,
-                [name for name, value in given if value is not None],
-            ),
-            cls.scope(trigger.agent_id),
-            trigger.agent.workspace,
-        )
+        trigger = updated.trigger
+        if updated.changed_fields:
+            cls.register_action(
+                user,
+                cls.Params(
+                    trigger.agent_id,
+                    trigger.id,
+                    trigger.service.get_type().type,
+                    updated.changed_fields,
+                ),
+                cls.scope(trigger.agent_id),
+                trigger.agent.workspace,
+            )
         return trigger
 
     @classmethod

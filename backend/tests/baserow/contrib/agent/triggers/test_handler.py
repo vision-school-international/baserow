@@ -48,37 +48,41 @@ def test_create_trigger_creates_an_armed_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_trigger_reschedules_when_service_values_are_written_or_it_switches_on(
+def test_update_trigger_reschedules_only_when_its_schedule_changes_or_it_switches_on(
     data_fixture,
 ):
     trigger = daily_trigger(data_fixture, enabled=False)
     handler = AgentTriggerHandler()
-    stale = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
-    tomorrow = datetime(2026, 1, 2, 9, 0, tzinfo=timezone.utc)
+    moved_on = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+    at_eleven = datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
 
     def next_run_at() -> datetime:
         return CorePeriodicService.objects.get(id=trigger.service_id).next_run_at
 
-    def make_stale() -> None:
+    def move_next_run() -> None:
         CorePeriodicService.objects.filter(id=trigger.service_id).update(
-            next_run_at=stale
+            next_run_at=moved_on
         )
 
     with freeze_time("2026-01-01 10:00"):
-        make_stale()
+        move_next_run()
         handler.update_trigger(trigger, message="'Changed'")
         handler.update_trigger(trigger, enabled=False)
-        assert next_run_at() == stale
-
         handler.update_trigger(
             trigger,
             prepared_service_values={"interval": PERIODIC_INTERVAL_DAY, "hour": 9},
         )
-        assert next_run_at() == tomorrow
+        assert next_run_at() == moved_on
 
-        make_stale()
+        handler.update_trigger(
+            trigger,
+            prepared_service_values={"interval": PERIODIC_INTERVAL_DAY, "hour": 11},
+        )
+        assert next_run_at() == at_eleven
+
+        move_next_run()
         handler.update_trigger(trigger, enabled=True)
-        assert next_run_at() == tomorrow
+        assert next_run_at() == at_eleven
 
     trigger.refresh_from_db()
     assert (trigger.enabled, trigger.message["formula"]) == (True, "'Changed'")

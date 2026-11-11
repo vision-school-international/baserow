@@ -136,6 +136,31 @@ describe('Agent triggers', () => {
     ])
   })
 
+  test('saves nothing when the cards only load, and saves a minute frequency edit', async () => {
+    useFakeTimers()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
+    const everyMinutes = (id, minute) =>
+      periodicTrigger({
+        id,
+        service: { ...periodicTrigger().service, interval: 'MINUTE', minute },
+      })
+    const wrapper = await mountSection([everyMinutes(1, 1), everyMinutes(2, 5)])
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    const inputs = wrapper.findAll('.agent-trigger-card input[type="number"]')
+
+    expect(patches(testApp)).toEqual([])
+    expect(inputs.map((input) => input.element.value)).toEqual(['1', '5'])
+
+    await inputs[0].setValue(2)
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { service: { type: 'periodic', minute: '2' } }],
+    ])
+  })
+
   test('shows why the service settings were rejected on the card', async () => {
     useFakeTimers()
     testApp.mock.onPatch('/agent/10/triggers/1/').reply(400, {

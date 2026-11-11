@@ -9,6 +9,7 @@ from django.db.models import QuerySet
 
 from baserow.contrib.agent.constants import AGENT_TRIGGER_TYPES_ENABLED
 from baserow.contrib.agent.models import AgentApplication, AgentTrigger
+from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -16,6 +17,7 @@ from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
     service_type_registry,
@@ -128,11 +130,12 @@ class AgentTriggerHandler:
         enabled: bool | None = None,
         message: str | BaserowFormulaObject | None = None,
         prepared_service_values: dict | None = None,
-    ) -> AgentTrigger:
+    ) -> AgentTriggerUpdated:
         """
-        Update a trigger, re-arming its service when service values are written
-        or the trigger is switched on: arming also replaces any schedule a
-        concurrent run wrote meanwhile.
+        Update a trigger, re-arming its service when its values change or the
+        trigger is switched on: arming also replaces any schedule a concurrent run
+        wrote meanwhile. Values that change nothing aren't written, as saving the
+        service could put back a run time a concurrent run already moved on.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.
@@ -141,17 +144,24 @@ class AgentTriggerHandler:
             through ``prepare_values``, or None to leave the service as it is.
         :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
             type that isn't available.
-        :return: The updated trigger.
+        :return: The updated trigger and the names of the parts that changed:
+            ``enabled``, ``message`` and ``service``.
         """
 
-        rearm = prepared_service_values is not None
+        service_changed = False
         if prepared_service_values is not None:
             service = trigger.service.specific
-            trigger.service = (
-                ServiceHandler()
-                .update_service(service.get_type(), service, **prepared_service_values)
-                .service
-            )
+            service_changed = self._changes_service(service, prepared_service_values)
+            if service_changed:
+                service = (
+                    ServiceHandler()
+                    .update_service(
+                        service.get_type(), service, **prepared_service_values
+                    )
+                    .service
+                )
+            trigger.service = service
+        rearm = service_changed
         changed_fields = []
         if enabled is not None and enabled != trigger.enabled:
             trigger.enabled = enabled
@@ -164,7 +174,23 @@ class AgentTriggerHandler:
             trigger.save(update_fields=[*changed_fields, "updated_on"])
         if rearm:
             self.arm(trigger)
-        return trigger
+        if service_changed:
+            changed_fields.append("service")
+        return AgentTriggerUpdated(trigger, changed_fields)
+
+    def _changes_service(self, service: Service, prepared_service_values: dict) -> bool:
+        """
+        :param service: The specific service of the trigger.
+        :param prepared_service_values: The service values to set, already passed
+            through ``prepare_values``.
+        :return: Whether any of the values differs from the saved one.
+        """
+
+        saved = service.get_type().export_prepared_values(service)
+        return any(
+            key not in saved or saved[key] != value
+            for key, value in prepared_service_values.items()
+        )
 
     def delete_trigger(self, user: AbstractUser, trigger: AgentTrigger) -> None:
         """

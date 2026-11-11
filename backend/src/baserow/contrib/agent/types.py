@@ -9,7 +9,7 @@ from baserow.core.models import Workspace
 from baserow.core.types import Subject
 
 from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
-from .models import AgentApplication, AgentConversation, AgentMessage
+from .models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
 
 
 @dataclass(frozen=True)
@@ -82,6 +82,14 @@ class AgentConversationUpdated:
     conversation: AgentConversation
     original_values: dict[str, str]
     new_values: dict[str, str]
+
+
+@dataclass
+class AgentTriggerUpdated:
+    """An updated trigger and the parts of it that the update changed."""
+
+    trigger: AgentTrigger
+    changed_fields: list[str]
 
 
 @dataclass(frozen=True)

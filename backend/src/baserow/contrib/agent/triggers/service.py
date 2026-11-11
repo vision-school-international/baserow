@@ -4,6 +4,7 @@ from django.db import transaction
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
+from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.operations import UpdateApplicationOperationType
@@ -147,7 +148,7 @@ class AgentTriggerService:
         enabled: bool | None = None,
         message: BaserowFormulaObject | str | None = None,
         service_values: dict | None = None,
-    ) -> AgentTrigger:
+    ) -> AgentTriggerUpdated:
         """
         Change a trigger's switch, message or service values, for a user who may
         update and read its Agent's configuration.
@@ -167,7 +168,7 @@ class AgentTriggerService:
         :raises AgentTriggerTypeNotAvailable: When it would switch on or reschedule
             a trigger of a type the Agent's configuration doesn't offer.
         :raises TriggerServiceMisconfigured: When the service values are invalid.
-        :return: The updated trigger.
+        :return: The updated trigger and the names of the parts that changed.
         """
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)

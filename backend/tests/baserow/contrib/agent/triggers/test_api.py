@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
@@ -383,6 +384,28 @@ def test_update_without_service_values_leaves_the_service_alone(
     service = CorePeriodicService.objects.get(id=trigger.service_id)
     assert (service.interval, service.hour) == ("DAY", 9)
     assert registered.call_args.args[1]["changed_fields"] == ["enabled"]
+
+
+@pytest.mark.django_db
+def test_update_with_the_saved_service_values_neither_reschedules_nor_audits(
+    data_fixture, periodic_trigger, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    next_run_at = timezone.now() + timedelta(days=3)
+    trigger = periodic_trigger(
+        agent, interval="MINUTE", minute=1, next_run_at=next_run_at
+    )
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id),
+        {"service": {"type": "periodic", "minute": "1"}},
+    )
+
+    assert response.status_code == 200, response.json()
+    service = CorePeriodicService.objects.get(id=trigger.service_id)
+    assert service.next_run_at == next_run_at
+    assert not registered.called
 
 
 @pytest.mark.django_db
