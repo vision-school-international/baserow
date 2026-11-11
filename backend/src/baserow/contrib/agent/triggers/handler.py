@@ -5,11 +5,13 @@ from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db.models import Exists, OuterRef, QuerySet
+from django.db.models import Exists, OuterRef, Q, QuerySet
 
-from baserow.contrib.agent.constants import AGENT_TRIGGER_TYPES_ENABLED
+from baserow.contrib.agent.constants import (
+    AGENT_RUN_TYPE,
+    AGENT_TRIGGER_TYPES_ENABLED,
+)
 from baserow.contrib.agent.models import (
-    GOING_REPLY_STATUSES,
     AgentApplication,
     AgentConversation,
     AgentMessage,
@@ -19,6 +21,7 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRun
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
@@ -312,18 +315,35 @@ class AgentTriggerHandler:
         for conversation in conversations:
             agent_conversation_activity.send(self, conversation=conversation, user=None)
 
+    def _is_going(self) -> Q:
+        """
+        The condition a going reply meets: it waits for approvals, or it runs while
+        its conversation has an active run. A reply its run left ``running`` when
+        ending without saving it, for example on a database error, never holds its
+        trigger back.
+
+        :return: The condition on ``AgentMessage``.
+        """
+
+        active_run = ChatRun.objects.filter(
+            run_type=AGENT_RUN_TYPE,
+            chat_id=OuterRef("conversation_id"),
+            status__in=ACTIVE_CHAT_RUN_STATUSES,
+        )
+        return Q(status=AgentReplyStatus.WAITING) | Q(
+            Exists(active_run), status=AgentReplyStatus.RUNNING
+        )
+
     def has_going_reply(self, trigger: AgentTrigger) -> bool:
         """
-        Whether a reply of the trigger still holds a run or waits for approvals. A
-        reply is ``running`` exactly while its run is active, so the status alone
-        answers, without joining runs.
+        Whether a reply of the trigger still holds a run or waits for approvals.
 
         :param trigger: The trigger whose conversations are looked at.
         :return: True while one of its replies is going.
         """
 
         return AgentMessage.objects.filter(
-            conversation__trigger=trigger, status__in=GOING_REPLY_STATUSES
+            self._is_going(), conversation__trigger=trigger
         ).exists()
 
     def get_queued_replies(self, trigger: AgentTrigger) -> QuerySet[AgentMessage]:
@@ -365,7 +385,7 @@ class AgentTriggerHandler:
                     status=AgentReplyStatus.QUEUED, conversation__trashed=False
                 )
             ),
-            ~Exists(replies.filter(status__in=GOING_REPLY_STATUSES)),
+            ~Exists(replies.filter(self._is_going())),
         )
 
     def recent_conversation_times(

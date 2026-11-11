@@ -8,6 +8,7 @@ from django.test import override_settings
 import pytest
 from freezegun import freeze_time
 
+from baserow.contrib.agent.constants import AGENT_RUN_TYPE
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentConversation,
@@ -29,29 +30,51 @@ from ..utils import (
 
 
 def trigger_reply(
-    data_fixture, trigger: AgentTrigger, status: str, **conversation_kwargs
+    data_fixture,
+    trigger: AgentTrigger,
+    status: str,
+    run_status: str | None = None,
+    **conversation_kwargs,
 ) -> AgentMessage:
-    """A reply with the given status, in a new conversation of the trigger."""
+    """
+    A reply with the given status, in a new conversation of the trigger, written
+    by a run with the given status, or by none.
+    """
 
     conversation = data_fixture.create_shared_agent_conversation(
         agent=trigger.agent, trigger=trigger, **conversation_kwargs
     )
-    return data_fixture.create_agent_message(
+    reply = data_fixture.create_agent_message(
         conversation=conversation,
         role=AgentMessage.Role.ASSISTANT,
         content="",
         status=status,
     )
+    if run_status is not None:
+        ChatRun.objects.create(
+            run_type=AGENT_RUN_TYPE,
+            chat_id=conversation.id,
+            workspace=trigger.agent.workspace,
+            status=run_status,
+            context={"reply_id": reply.id},
+        )
+    return reply
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("going_status", ["running", "waiting"])
-def test_queued_and_going_replies_are_told_apart(data_fixture, going_status):
+@pytest.mark.parametrize(
+    "going_status,run_status", [("running", "running"), ("waiting", None)]
+)
+def test_queued_and_going_replies_are_told_apart(
+    data_fixture, going_status, run_status
+):
     trigger = data_fixture.create_agent_trigger()
     other = data_fixture.create_agent_trigger(agent=trigger.agent)
     for status in ("completed", "failed", "cancelled"):
         trigger_reply(data_fixture, trigger, status)
-    trigger_reply(data_fixture, other, going_status)
+    # Its run ended without saving it, as when persisting the outcome failed.
+    trigger_reply(data_fixture, trigger, "running", run_status="failed")
+    trigger_reply(data_fixture, other, going_status, run_status=run_status)
     first = trigger_reply(data_fixture, trigger, "queued")
     second = trigger_reply(data_fixture, trigger, "queued")
     trigger_reply(data_fixture, trigger, "queued", trashed=True)
@@ -61,7 +84,7 @@ def test_queued_and_going_replies_are_told_apart(data_fixture, going_status):
     assert handler.count_queued_replies(trigger) == 2
     assert list(handler.get_queued_replies(trigger)) == [first, second]
 
-    trigger_reply(data_fixture, trigger, going_status)
+    trigger_reply(data_fixture, trigger, going_status, run_status=run_status)
 
     assert handler.has_going_reply(trigger) is True
 
@@ -71,13 +94,14 @@ def test_the_sweep_lists_only_idle_triggers_with_queued_replies(
     data_fixture, django_assert_num_queries
 ):
     idle = data_fixture.create_agent_trigger()
-    busy, finished, trashed = (
+    busy, stuck, finished, trashed = (
         data_fixture.create_agent_trigger(agent=idle.agent, trashed=is_trashed)
-        for is_trashed in (False, False, True)
+        for is_trashed in (False, False, False, True)
     )
-    for trigger in (idle, busy, trashed):
+    for trigger in (idle, busy, stuck, trashed):
         trigger_reply(data_fixture, trigger, "queued")
-    trigger_reply(data_fixture, busy, "running")
+    trigger_reply(data_fixture, busy, "running", run_status="queued")
+    trigger_reply(data_fixture, stuck, "running", run_status="failed")
     trigger_reply(data_fixture, finished, "completed")
 
     with django_assert_num_queries(1):
@@ -85,7 +109,7 @@ def test_the_sweep_lists_only_idle_triggers_with_queued_replies(
             AgentTriggerHandler().list_idle_triggers_with_queued_replies()
         )
 
-    assert idle_triggers == [idle]
+    assert idle_triggers == [idle, stuck]
 
 
 @pytest.mark.django_db

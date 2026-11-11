@@ -483,6 +483,23 @@ def test_a_waiting_trigger_fails_a_reply_whose_message_failed_instead_of_queuein
 
 
 @pytest.mark.django_db
+def test_a_reply_its_ended_run_left_running_isnt_the_previous_run(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent)
+    stuck = AgentHandler().start_trigger_conversation(trigger, "Stuck").conversation
+    ChatRun.objects.update(status="failed", error_code="persist_failed")
+
+    tick()
+
+    trigger.refresh_from_db()
+    assert reply_of(stuck).status == "running"
+    assert ChatRun.objects.exclude(chat_id=stuck.id).get().status == "queued"
+    assert (trigger.last_fired_on, trigger.last_skipped_reason) == (FIRED_AT, "")
+
+
+@pytest.mark.django_db
 @override_settings(AGENT_TRIGGER_MAX_QUEUED_RUNS=1)
 def test_a_trigger_that_waits_queues_replies_without_a_run_up_to_the_cap(
     data_fixture, configured_agent, mocker
