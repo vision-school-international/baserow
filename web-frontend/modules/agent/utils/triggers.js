@@ -19,3 +19,16 @@ export function defaultTriggerMessage(t, triggerName) {
     version: '0.1',
   }
 }
+
+/**
+ * A removed plugin's trigger type is unknown here, and `Registry.get` would throw.
+ *
+ * @param {object} registry The app registry.
+ * @param {string|null} type The service type of a trigger.
+ * @returns {object|null} The service type, or null when it isn't registered.
+ */
+export function serviceTypeOf(registry, type) {
+  return type && registry.exists('service', type)
+    ? registry.get('service', type)
+    : null
+}

@@ -1,6 +1,7 @@
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
+import cloneDeep from 'lodash/cloneDeep'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -10,7 +11,25 @@ import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
 
 const TYPED_SAVE_DELAY = 500
 
-/** Page-local trigger list of one Agent, saved through the triggers API. */
+/**
+ * @param {object} trigger A trigger as the server returned it.
+ * @returns {object} The values a card edits, as the server holds them.
+ */
+const savedValuesOf = (trigger) =>
+  cloneDeep({
+    enabled: trigger.enabled,
+    message: trigger.message,
+    service: trigger.service,
+  })
+
+/**
+ * Page-local trigger list of one Agent. Cards show their edits at once, and each
+ * trigger saves the difference from what the server holds, one request at a
+ * time, so a rejected or slow save never loses or reverts a newer edit.
+ *
+ * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
+ * @returns {object} The triggers, their loading and saving state, and actions.
+ */
 export function useAgentTriggers(agent) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
@@ -20,36 +39,65 @@ export function useAgentTriggers(agent) {
   const loadError = ref(false)
   const savingIds = reactive(new Set())
   const serviceErrors = reactive({})
-  // Typed edits are batched per trigger so two cards never cancel each other.
-  const pendingSaves = new Map()
+  // Per trigger id: the server's values and the Agent they belong to.
+  const saved = new Map()
   const scheduledSaves = new Map()
-  // The form keeps showing rejected values, so they ride along until saved.
-  const rejectedServiceValues = new Map()
+  const inFlight = new Set()
+  const editedWhileSaving = new Set()
   let scope = 0
+  let listRequest = 0
 
   const agentId = () => agent.value?.id
   const scopeIsCurrent = (currentScope) => scope === currentScope
-  const findTrigger = (triggerId) =>
-    triggers.value.find((trigger) => trigger.id === triggerId)
+  const errorCode = (error) => error.response?.data?.error
 
+  function track(trigger) {
+    saved.set(trigger.id, {
+      agentId: agentId(),
+      values: savedValuesOf(trigger),
+    })
+  }
+
+  function forget(triggerId) {
+    scheduledSaves.get(triggerId)?.cancel()
+    scheduledSaves.delete(triggerId)
+    saved.delete(triggerId)
+    delete serviceErrors[triggerId]
+  }
+
+  function removeTrigger(trigger) {
+    forget(trigger.id)
+    triggers.value = triggers.value.filter((item) => item !== trigger)
+  }
+
+  /** Loads the triggers, ignoring a reply that a newer load or reset replaced. */
   async function fetchTriggers() {
     if (!agentId()) return
     const currentScope = scope
+    const request = ++listRequest
+    const isCurrent = () =>
+      scopeIsCurrent(currentScope) && request === listRequest
     loading.value = true
     loadError.value = false
     try {
       const { data } = await service.list(agentId())
-      if (scopeIsCurrent(currentScope)) {
-        triggers.value = data
-        forgetRejectedServiceValues()
-      }
+      if (!isCurrent()) return
+      data.forEach(track)
+      triggers.value = data
     } catch {
-      if (scopeIsCurrent(currentScope)) loadError.value = true
+      if (isCurrent()) loadError.value = true
     } finally {
-      if (scopeIsCurrent(currentScope)) loading.value = false
+      if (isCurrent()) loading.value = false
     }
   }
 
+  /**
+   * Creates a trigger of the given type with the type's defaults and the default
+   * opening message.
+   *
+   * @param {string} type The service type of the trigger.
+   * @returns {Promise<object|null>} The created trigger, or null when it failed.
+   */
   async function createTrigger(type) {
     const currentScope = scope
     const serviceType = $registry.get('service', type)
@@ -59,7 +107,10 @@ export function useAgentTriggers(agent) {
         message: defaultTriggerMessage(t, serviceType.name),
         service: serviceType.getDefaultValues(null, {}),
       })
-      if (scopeIsCurrent(currentScope)) triggers.value.push(data)
+      if (scopeIsCurrent(currentScope)) {
+        track(data)
+        triggers.value.push(data)
+      }
       return data
     } catch (error) {
       notifyIf(error, 'trigger')
@@ -67,187 +118,215 @@ export function useAgentTriggers(agent) {
     }
   }
 
-  async function save(trigger, values) {
+  /**
+   * @param {object} trigger A tracked trigger, as its card shows it.
+   * @returns {object} What the card shows that the server doesn't hold, with
+   *   service values compared field by field.
+   */
+  function unsavedValues(trigger) {
+    const { values } = saved.get(trigger.id)
+    const unsaved = {}
+    if (trigger.enabled !== values.enabled) unsaved.enabled = trigger.enabled
+    if (!isEqual(trigger.message, values.message)) {
+      unsaved.message = trigger.message
+    }
+    const serviceValues = Object.fromEntries(
+      Object.entries(trigger.service).filter(
+        ([field, value]) => !isEqual(value, values.service[field])
+      )
+    )
+    if (Object.keys(serviceValues).length) {
+      unsaved.service = { type: trigger.service.type, ...serviceValues }
+    }
+    return unsaved
+  }
+
+  /**
+   * Sends what a trigger's card shows that the server doesn't hold, unless a
+   * save of it is already in flight: that one saves again once it ends.
+   *
+   * @param {object} trigger The trigger to save.
+   * @param {string[]|null} fields The fields to send, or null for all of them.
+   */
+  async function flush(trigger, fields = null) {
+    const entry = saved.get(trigger.id)
+    if (!entry) return
+    if (inFlight.has(trigger.id)) {
+      editedWhileSaving.add(trigger.id)
+      return
+    }
+    const sent = Object.fromEntries(
+      Object.entries(unsavedValues(trigger)).filter(
+        ([field]) => !fields || fields.includes(field)
+      )
+    )
+    if (!Object.keys(sent).length) return
     const currentScope = scope
+    inFlight.add(trigger.id)
     savingIds.add(trigger.id)
     try {
-      const { data } = await service.update(agentId(), trigger.id, values)
+      const { data } = await service.update(entry.agentId, trigger.id, sent)
       if (!scopeIsCurrent(currentScope)) return
-      if ('service' in values) {
-        forgetSavedServiceValues(trigger.id, values.service)
-        const rejected = rejectedServiceValues.get(trigger.id)
-        if (!rejected) delete serviceErrors[trigger.id]
-        // A reply must not undo service values still waiting on the debounce.
-        if (!pendingSaves.get(trigger.id)?.service) {
-          Object.assign(trigger, {
-            service: { ...data.service, ...rejected },
-            schema: data.schema,
-          })
+      if (sent.service) delete serviceErrors[trigger.id]
+      adoptSaved(trigger, sent, data)
+    } catch (error) {
+      if (scopeIsCurrent(currentScope)) handleSaveError(trigger, sent, error)
+    } finally {
+      inFlight.delete(trigger.id)
+      savingIds.delete(trigger.id)
+    }
+    if (editedWhileSaving.delete(trigger.id)) flush(trigger)
+  }
+
+  /**
+   * Takes the server's reply as saved, and shows its values where the card still
+   * shows what was sent: a field edited meanwhile keeps the newer edit.
+   *
+   * @param {object} trigger The saved trigger.
+   * @param {object} sent The values that were sent.
+   * @param {object} data The trigger the server returned.
+   */
+  function adoptSaved(trigger, sent, data) {
+    const entry = saved.get(trigger.id)
+    if (!entry) return
+    const previous = entry.values
+    const latest = savedValuesOf(data)
+    const shows = (value, field, base) =>
+      isEqual(value, field in sent ? sent[field] : base)
+    if (shows(trigger.enabled, 'enabled', previous.enabled)) {
+      trigger.enabled = latest.enabled
+    }
+    if (shows(trigger.message, 'message', previous.message)) {
+      trigger.message = latest.message
+    }
+    const sentService = sent.service || {}
+    trigger.service = Object.fromEntries(
+      Object.entries({ ...trigger.service, ...latest.service }).map(
+        ([field, value]) => {
+          const showsSaved = isEqual(
+            trigger.service[field],
+            field in sentService ? sentService[field] : previous.service[field]
+          )
+          return [field, showsSaved ? value : trigger.service[field]]
+        }
+      )
+    )
+    trigger.schema = data.schema
+    entry.values = latest
+  }
+
+  /**
+   * Keeps rejected service values shown with their error, to be sent again with
+   * the next edit; otherwise shows the server's values again for what failed.
+   *
+   * @param {object} trigger The trigger whose save failed.
+   * @param {object} sent The values that were sent.
+   * @param {Error} error The failure.
+   */
+  function handleSaveError(trigger, sent, error) {
+    const code = errorCode(error)
+    if (code === API_ERROR_CODE.TRIGGER_SERVICE_MISCONFIGURED) {
+      const detail = error.response.data.detail
+      serviceErrors[trigger.id] =
+        typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
+      return
+    }
+    if (code === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
+      removeTrigger(trigger)
+      return
+    }
+    notifyIf(error, 'trigger')
+    const { values } = saved.get(trigger.id) || {}
+    if (!values) return
+    if ('enabled' in sent && trigger.enabled === sent.enabled) {
+      trigger.enabled = values.enabled
+    }
+    if ('message' in sent && isEqual(trigger.message, sent.message)) {
+      trigger.message = values.message
+    }
+    if (sent.service) {
+      const reverted = { ...trigger.service }
+      for (const [field, value] of Object.entries(sent.service)) {
+        if (isEqual(trigger.service[field], value)) {
+          reverted[field] = values.service[field]
         }
       }
-    } catch (error) {
-      if (!scopeIsCurrent(currentScope)) return
-      if (
-        error.response?.data?.error ===
-        API_ERROR_CODE.TRIGGER_SERVICE_MISCONFIGURED
-      ) {
-        if (values.service)
-          rememberRejectedServiceValues(trigger, values.service)
-        const detail = error.response.data.detail
-        serviceErrors[trigger.id] =
-          typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
-        return
-      }
-      notifyIf(error, 'trigger')
-      fetchTriggers()
-    } finally {
-      if (scopeIsCurrent(currentScope)) savingIds.delete(trigger.id)
+      trigger.service = reverted
     }
   }
 
-  /**
-   * Keeps the rejected service values the form still shows, to send them again.
-   *
-   * @param {object} trigger The trigger whose save was rejected.
-   * @param {object} serviceValues The service values of the rejected save.
-   */
-  function rememberRejectedServiceValues(trigger, serviceValues) {
-    const stillShown = Object.fromEntries(
-      Object.entries(serviceValues).filter(
-        ([field, value]) =>
-          field !== 'type' && isEqual(value, trigger.service[field])
-      )
-    )
-    const rejected = { ...rejectedServiceValues.get(trigger.id), ...stillShown }
-    if (Object.keys(rejected).length) {
-      rejectedServiceValues.set(trigger.id, rejected)
-    }
-  }
-
-  /**
-   * Drops the rejected service values that a successful save has now replaced.
-   *
-   * @param {number} triggerId The id of the saved trigger.
-   * @param {object} savedServiceValues The service values the server accepted.
-   */
-  function forgetSavedServiceValues(triggerId, savedServiceValues) {
-    const remaining = Object.fromEntries(
-      Object.entries(rejectedServiceValues.get(triggerId) || {}).filter(
-        ([field]) => !(field in savedServiceValues)
-      )
-    )
-    if (Object.keys(remaining).length) {
-      rejectedServiceValues.set(triggerId, remaining)
-    } else {
-      rejectedServiceValues.delete(triggerId)
-    }
-  }
-
-  /** Drops every rejected service value, as the remounted forms show the server state. */
-  function forgetRejectedServiceValues() {
-    rejectedServiceValues.clear()
-    for (const key of Object.keys(serviceErrors)) delete serviceErrors[key]
-  }
-
-  /** The given values that differ from the trigger, service values field by field. */
-  function changedValues(trigger, values) {
-    const changed = {}
-    for (const [key, value] of Object.entries(values)) {
-      if (key === 'service') {
-        const serviceChanges = Object.fromEntries(
-          Object.entries(value).filter(
-            ([field, fieldValue]) =>
-              !isEqual(fieldValue, trigger.service[field])
-          )
-        )
-        if (Object.keys(serviceChanges).length) changed.service = serviceChanges
-      } else if (!isEqual(value, trigger[key])) {
-        changed[key] = value
-      }
-    }
-    return changed
-  }
-
-  function flushScheduledSave(triggerId) {
-    const batch = pendingSaves.get(triggerId)
-    pendingSaves.delete(triggerId)
-    const trigger = findTrigger(triggerId)
-    if (trigger && batch) save(trigger, batch)
-  }
-
-  function scheduleSave(trigger, values) {
-    const pending = pendingSaves.get(trigger.id) || {}
-    pendingSaves.set(trigger.id, {
-      ...pending,
-      ...values,
-      ...(values.service
-        ? { service: { ...pending.service, ...values.service } }
-        : {}),
-    })
+  function scheduleSave(trigger) {
     if (!scheduledSaves.has(trigger.id)) {
       scheduledSaves.set(
         trigger.id,
-        debounce(flushScheduledSave, TYPED_SAVE_DELAY)
+        debounce(() => flush(trigger), TYPED_SAVE_DELAY)
       )
     }
-    scheduledSaves.get(trigger.id)(trigger.id)
+    scheduledSaves.get(trigger.id)()
   }
 
+  /**
+   * Shows a card's edit at once and saves it: a switch right away and alone, so
+   * rejected settings can't block it, typed values with everything unsaved once
+   * typing pauses.
+   *
+   * @param {object} trigger The trigger the card shows.
+   * @param {object} values The edited `enabled`, `message` or service values.
+   */
   function updateTrigger(trigger, values) {
-    const {
-      service: serviceValues,
-      message,
-      ...immediate
-    } = changedValues(trigger, values)
-    Object.assign(trigger, immediate)
-    if (message !== undefined) trigger.message = message
-    if (serviceValues)
-      trigger.service = { ...trigger.service, ...serviceValues }
-    if (Object.keys(immediate).length) save(trigger, immediate)
-    if (serviceValues || message !== undefined) {
-      scheduleSave(trigger, {
-        ...(serviceValues
-          ? {
-              service: {
-                type: trigger.service.type,
-                ...rejectedServiceValues.get(trigger.id),
-                ...serviceValues,
-              },
-            }
-          : {}),
-        ...(message !== undefined ? { message } : {}),
-      })
+    if (!saved.has(trigger.id)) return
+    if ('enabled' in values) trigger.enabled = values.enabled
+    if ('message' in values) trigger.message = values.message
+    if (values.service) {
+      trigger.service = { ...trigger.service, ...values.service }
+    }
+    if ('enabled' in values) {
+      flush(trigger, ['enabled'])
+    } else {
+      scheduleSave(trigger)
     }
   }
 
+  /**
+   * Removes the trigger at once and trashes it; it comes back if that fails,
+   * unless it was already gone.
+   *
+   * @param {object} trigger The trigger to delete.
+   */
   async function deleteTrigger(trigger) {
     const currentScope = scope
-    scheduledSaves.get(trigger.id)?.cancel()
-    pendingSaves.delete(trigger.id)
-    rejectedServiceValues.delete(trigger.id)
     const index = triggers.value.indexOf(trigger)
     if (index === -1) return
+    const entry = saved.get(trigger.id)
+    scheduledSaves.get(trigger.id)?.cancel()
     triggers.value.splice(index, 1)
     try {
-      await service.delete(agentId(), trigger.id)
+      await service.delete(entry?.agentId ?? agentId(), trigger.id)
     } catch (error) {
-      if (scopeIsCurrent(currentScope)) {
+      if (!scopeIsCurrent(currentScope)) return
+      if (errorCode(error) !== API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
         triggers.value.splice(index, 0, trigger)
         notifyIf(error, 'trigger')
+        return
       }
     }
+    forget(trigger.id)
+  }
+
+  function flushScheduledSaves() {
+    for (const scheduled of scheduledSaves.values()) scheduled.flush()
   }
 
   function reset() {
-    for (const scheduled of scheduledSaves.values()) scheduled.cancel()
-    scheduledSaves.clear()
-    pendingSaves.clear()
-    forgetRejectedServiceValues()
+    flushScheduledSaves()
+    for (const triggerId of [...saved.keys()]) forget(triggerId)
     ++scope
     triggers.value = []
     loading.value = false
     loadError.value = false
     savingIds.clear()
+    inFlight.clear()
+    editedWhileSaving.clear()
   }
 
   onMounted(fetchTriggers)
@@ -258,10 +337,7 @@ export function useAgentTriggers(agent) {
       fetchTriggers()
     }
   )
-  // Leaving the section must not drop a batch still waiting on the debounce.
-  onBeforeUnmount(() => {
-    for (const scheduled of scheduledSaves.values()) scheduled.flush()
-  })
+  onBeforeUnmount(flushScheduledSaves)
 
   return {
     triggers,

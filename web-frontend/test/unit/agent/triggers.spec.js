@@ -67,14 +67,18 @@ describe('Agent triggers', () => {
     vi.useRealTimers()
   })
 
-  const mountSection = (triggers, availableTypes = ['periodic']) => {
+  const mountSection = (
+    triggers,
+    availableTypes = ['periodic'],
+    editable = true
+  ) => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
     return testApp.mount(AgentWhenItRunsSection, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
         }),
-        editable: true,
+        editable,
       },
       global: { provide: { agentApplication: ref(agent) } },
     })
@@ -120,14 +124,14 @@ describe('Agent triggers', () => {
     const dropdown = wrapper.get('.agent-trigger-card .dropdown')
 
     await choose(dropdown, 'periodicForm.everyDay')
-    await choose(dropdown, 'periodicForm.everyHour')
+    await choose(dropdown, 'periodicForm.everyWeek')
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
 
     expect(patches(testApp)).toEqual([
       [
         '/agent/10/triggers/1/',
-        { service: { type: 'periodic', interval: 'HOUR' } },
+        { service: { type: 'periodic', interval: 'WEEK' } },
       ],
     ])
   })
@@ -194,7 +198,7 @@ describe('Agent triggers', () => {
     expect(card.find('[role="alert"]').exists()).toBe(false)
   })
 
-  test('drops a rejected service value once a refetch shows the saved trigger', async () => {
+  test('a rejected save keeps its message edit to send with the next change', async () => {
     useFakeTimers()
     testApp.mock
       .onPatch('/agent/10/triggers/1/')
@@ -203,10 +207,104 @@ describe('Agent triggers', () => {
         detail: 'The schedule is invalid.',
       })
       .onPatch('/agent/10/triggers/1/')
-      .replyOnce(500)
-      .onPatch('/agent/10/triggers/1/')
       .reply(200, periodicTrigger())
     const wrapper = await mountSection([periodicTrigger()])
+    const card = wrapper.get('.agent-trigger-card')
+    const message = { formula: "'Changed'", mode: 'simple', version: '0.1' }
+
+    await choose(card.get('.dropdown'), 'periodicForm.everyDay')
+    card
+      .findComponent(AgentTriggerMessageInput)
+      .vm.$emit('update:modelValue', message)
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    await card.get('input[type="number"]').setValue(9)
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp).map(([, body]) => body)).toEqual([
+      { message, service: { type: 'periodic', interval: 'DAY' } },
+      { message, service: { type: 'periodic', interval: 'DAY', hour: '9' } },
+    ])
+  })
+
+  test('a save waits for the one in flight, whose older reply keeps the newer edit', async () => {
+    useFakeTimers()
+    let answerFirst
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(
+        () =>
+          new Promise((resolve) => {
+            answerFirst = resolve
+          })
+      )
+      .onPatch('/agent/10/triggers/1/')
+      .reply((config) => [
+        200,
+        periodicTrigger({
+          service: {
+            ...periodicTrigger().service,
+            ...JSON.parse(config.data).service,
+          },
+        }),
+      ])
+    const wrapper = await mountSection([periodicTrigger()])
+    const dropdown = wrapper.get('.agent-trigger-card .dropdown')
+
+    await choose(dropdown, 'periodicForm.everyDay')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    await choose(dropdown, 'periodicForm.everyWeek')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    expect(patches(testApp)).toHaveLength(1)
+
+    answerFirst([
+      200,
+      periodicTrigger({
+        service: { ...periodicTrigger().service, interval: 'DAY' },
+      }),
+    ])
+    await flushPromises()
+
+    expect(patches(testApp).map(([, body]) => body.service.interval)).toEqual([
+      'DAY',
+      'WEEK',
+    ])
+    expect(dropdown.text()).toContain('periodicForm.everyWeek')
+  })
+
+  test('a failed save shows the saved value again without reloading the list', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(500)
+    const wrapper = await mountSection([periodicTrigger()])
+    const toggle = () => wrapper.get('.agent-trigger-card__switch')
+
+    await toggle().trigger('click')
+    await flushPromises()
+
+    expect(toggle().attributes('aria-checked')).toBe('true')
+    expect(testApp.mock.history.get).toHaveLength(1)
+  })
+
+  test('a trigger deleted elsewhere stays removed after its delete fails', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onDelete('/agent/10/triggers/1/').reply(404, {
+      error: 'ERROR_AGENT_TRIGGER_DOES_NOT_EXIST',
+    })
+    const wrapper = await mountSection([periodicTrigger()])
+
+    await wrapper.get('.agent-trigger-card__delete').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.agent-trigger-card').exists()).toBe(false)
+    expect(wrapper.text()).toContain('agent.noTriggers')
+  })
+
+  test('a read-only member edits nothing', async () => {
+    useFakeTimers()
+    const wrapper = await mountSection([periodicTrigger()], ['periodic'], false)
 
     await choose(
       wrapper.get('.agent-trigger-card .dropdown'),
@@ -214,23 +312,23 @@ describe('Agent triggers', () => {
     )
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
-    await wrapper.get('.agent-trigger-card__switch').trigger('click')
-    await flushPromises()
-    const card = wrapper.get('.agent-trigger-card')
-    expect(card.find('[role="alert"]').exists()).toBe(false)
 
-    await card.get('input[type="number"]').setValue(9)
-    await vi.advanceTimersByTimeAsync(500)
-    await flushPromises()
+    expect(patches(testApp)).toEqual([])
+    expect(wrapper.find('.agent-trigger-card__delete').exists()).toBe(false)
+  })
 
-    expect(patches(testApp)).toEqual([
-      [
-        '/agent/10/triggers/1/',
-        { service: { type: 'periodic', interval: 'DAY' } },
-      ],
-      ['/agent/10/triggers/1/', { enabled: false }],
-      ['/agent/10/triggers/1/', { service: { type: 'periodic', minute: '9' } }],
+  test('a trigger of an unknown type shows its type and can be deleted', async () => {
+    testApp.mock.onDelete('/agent/10/triggers/1/').reply(204)
+    const wrapper = await mountSection([
+      periodicTrigger({ type: 'removed_plugin_trigger' }),
     ])
+
+    expect(wrapper.get('.agent-trigger-card__name').text()).toBe(
+      'removed_plugin_trigger'
+    )
+    await wrapper.get('.agent-trigger-card__delete').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.agent-trigger-card').exists()).toBe(false)
   })
 
   test('switches a trigger off at once and deletes it', async () => {

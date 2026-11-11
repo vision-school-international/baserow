@@ -3,11 +3,13 @@
     <header class="agent-trigger-card__header">
       <div class="agent-trigger-card__type">
         <Icon
-          :icon="serviceType.icon"
+          :icon="serviceType?.icon || 'iconoir-flash'"
           class="agent-trigger-card__icon"
           aria-hidden="true"
         />
-        <span class="agent-trigger-card__name">{{ serviceType.name }}</span>
+        <span class="agent-trigger-card__name">{{
+          serviceType?.name || trigger.type
+        }}</span>
         <Icon
           v-if="configurationError"
           v-tooltip="configurationError"
@@ -44,7 +46,7 @@
         @keydown.space.prevent="toggleEnabled"
       />
     </header>
-    <div class="agent-trigger-card__body">
+    <div v-if="serviceType" class="agent-trigger-card__body">
       <div class="agent-trigger-card__service">
         <component
           :is="serviceType.formComponent"
@@ -137,6 +139,7 @@ import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
+import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 const props = defineProps({
   trigger: { type: Object, required: true },
@@ -150,7 +153,7 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
-const serviceType = computed(() => $registry.get('service', props.trigger.type))
+const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
 // Trigger forms hold no formulas; the plain input satisfies the NodeSidePanel host contract.
 provide('formulaComponent', FormulaInputField)
 provide('dataProvidersAllowed', [])
@@ -169,14 +172,14 @@ provide(
 // Like an automation node: the header flags it, the form shows field errors once touched.
 const configurationError = computed(
   () =>
-    serviceType.value.getErrorMessage({
+    serviceType.value?.getErrorMessage({
       service: props.trigger.service,
       workspace: props.workspace,
     }) || ''
 )
 const summary = computed(() =>
   [
-    serviceType.value.getSummary(props.trigger.service),
+    serviceType.value?.getSummary(props.trigger.service),
     t('agent.triggerRunStartsConversation'),
   ]
     .filter(Boolean)
@@ -194,6 +197,7 @@ const schemaProperties = computed(() => {
 })
 
 function onServiceValuesChanged(values) {
+  if (!props.editable) return
   if (form.value?.isFormValid && !form.value.isFormValid()) return
   emit('update', { service: values })
 }

@@ -28,6 +28,7 @@
 import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
+import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 /** The opening message of a trigger-started conversation. */
 const props = defineProps({
@@ -41,12 +42,7 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const textId = useId()
 const expanded = ref(false)
-// A removed plugin's trigger type is unknown here, and Registry.get would throw.
-const serviceType = computed(() =>
-  props.triggerType && $registry.exists('service', props.triggerType)
-    ? $registry.get('service', props.triggerType)
-    : null
-)
+const serviceType = computed(() => serviceTypeOf($registry, props.triggerType))
 const icon = computed(() => serviceType.value?.icon || 'iconoir-flash')
 const title = computed(() =>
   serviceType.value

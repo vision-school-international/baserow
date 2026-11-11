@@ -161,6 +161,7 @@ import { nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import { useNuxtApp } from '#app'
+import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -196,11 +197,10 @@ const shownItems = ref(props.items)
 const itemButtons = {}
 let renameOriginal = ''
 
-// A removed plugin's trigger type is unknown here, and Registry.get would throw.
 function conversationIcon(item) {
-  return item.trigger_type && $registry.exists('service', item.trigger_type)
-    ? $registry.get('service', item.trigger_type).icon
-    : 'iconoir-chat-bubble'
+  return (
+    serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-chat-bubble'
+  )
 }
 const canUpdateItem = (item) =>
   props.canUpdate && (!item.shared || props.canUpdateAgent)
