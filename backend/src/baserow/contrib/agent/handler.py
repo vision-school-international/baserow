@@ -84,6 +84,7 @@ from .models import (
     AgentTrigger,
 )
 from .registries import agent_tool_type_registry
+from .triggers.data_providers import trigger_timezone_name
 from .triggers.handler import AgentTriggerHandler
 from .types import (
     AgentConfiguration,
@@ -1176,7 +1177,6 @@ class AgentHandler:
 
         conversation = reply.conversation
         agent = conversation.agent
-        owner = conversation.owner_user
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
@@ -1192,7 +1192,7 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
-        tools = self._get_reply_tools(agent, acting_subject, owner is None)
+        tools = self._get_reply_tools(agent, acting_subject, conversation.is_shared)
         resume = (
             None
             if transcript is None
@@ -1228,11 +1228,25 @@ class AgentHandler:
             acting_subject=acting_subject,
             allowed_tool_names=tools["allowed_tools"],
             ask_first_tool_names=tools["ask_first_tools"],
-            timezone=owner.profile.timezone if owner is not None else "UTC",
+            timezone=self._get_reply_timezone(conversation),
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
         )
+
+    def _get_reply_timezone(self, conversation: AgentConversation) -> str:
+        """
+        :param conversation: The conversation the reply is written in.
+        :return: The timezone the reply's tools read dates in: the owner's, or for
+            a shared conversation its trigger's, so "today" means the day the
+            builder scheduled it for.
+        """
+
+        if not conversation.is_shared:
+            return conversation.owner_user.profile.timezone
+        if conversation.trigger is None:
+            return "UTC"
+        return trigger_timezone_name(conversation.trigger.service.specific)
 
     def _get_paused_transcript(
         self, reply: AgentMessage

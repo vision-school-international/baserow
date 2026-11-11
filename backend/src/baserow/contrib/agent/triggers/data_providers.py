@@ -17,6 +17,16 @@ FIRED_AT_FORMAT = "%Y-%m-%d %H:%M"
 FIRED_AT_DEFAULT_TIMEZONE = "UTC"
 
 
+def trigger_timezone_name(service: Service) -> str:
+    """
+    :param service: The trigger's specific service.
+    :return: The timezone the trigger runs in, for its message and its replies'
+        dates, or UTC when its type has none.
+    """
+
+    return service.get_type().get_timezone_name(service) or FIRED_AT_DEFAULT_TIMEZONE
+
+
 class AgentTriggerDispatchContext(DispatchContext):
     """
     The context a trigger message formula is resolved in: the trigger that fired,
@@ -61,10 +71,7 @@ class AgentTriggerDispatchContext(DispatchContext):
             timezone its service runs in, or in UTC when the type has none.
         """
 
-        service = self.service
-        zone_name = (
-            service.get_type().get_timezone_name(service) or FIRED_AT_DEFAULT_TIMEZONE
-        )
+        zone_name = trigger_timezone_name(self.service)
         local = self.fired_at.astimezone(ZoneInfo(zone_name))
         return f"{local.strftime(FIRED_AT_FORMAT)} ({zone_name})"
 

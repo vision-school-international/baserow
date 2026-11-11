@@ -103,7 +103,9 @@ template install are always disabled.
 Trigger runs start with no user (`created_by=None`): the per-user run cap does not
 apply, the workspace cap does, and a cap hit records a failed reply with the code
 `chat_run_limit_reached` instead of disappearing. Ask-first tools are not offered in
-these runs; only tools marked Allow are.
+these runs; only tools marked Allow are. Their tools read dates in the trigger's
+timezone (the service's own, or UTC when its type has none), so a daily digest's
+"today" is the day the builder scheduled it for.
 
 The dispatcher resolves the payload of every matched trigger before filtering, so a
 disabled trigger still advances its schedule and never fires a backlog when enabled
@@ -157,5 +159,5 @@ fails at run time opens the conversation with the payload and fails the reply wi
   agent: reconsider a consumer registry.
 - Row triggers ship and readers need the raw payload: add the payload column.
 - Approver-role rules land: re-open "never wait" for shared conversations.
-- Agent identities become users: trigger runs keep `created_by=None`, and the
-  identity's timezone replaces UTC in trigger replies.
+- Agent identities become users: trigger runs keep `created_by=None` and the
+  trigger's timezone.

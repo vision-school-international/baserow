@@ -2029,14 +2029,17 @@ def test_history_treats_a_trigger_message_like_a_prompt():
 
 
 @pytest.mark.django_db
-def test_an_unattended_reply_offers_no_ask_first_tools_and_uses_utc(
+def test_an_unattended_reply_offers_no_ask_first_tools_and_uses_its_trigger_timezone(
     data_fixture, configured_agent, mocker
 ):
     agent = configured_agent()
     allow_tools(
         data_fixture, agent, ("list_tables", "create_rows"), ask_first=("create_rows",)
     )
-    trigger = data_fixture.create_agent_trigger(agent=agent)
+    trigger = data_fixture.create_agent_trigger(
+        agent=agent,
+        service=data_fixture.create_core_periodic_service(timezone="Europe/Rome"),
+    )
     respond(mocker)
     requested = mocker.spy(AgentHandler, "get_reply_request")
 
@@ -2051,7 +2054,7 @@ def test_an_unattended_reply_offers_no_ask_first_tools_and_uses_utc(
         request.ask_first_tool_names,
         request.timezone,
         request.prompt,
-    ) == (["list_tables"], [], "UTC", "Tick")
+    ) == (["list_tables"], [], "Europe/Rome", "Tick")
     reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
     assert reply_state(reply.id) == ("completed", "", "Done.")
 
