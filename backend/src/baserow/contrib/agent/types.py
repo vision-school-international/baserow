@@ -45,7 +45,7 @@ class AgentConfiguration:
     web_search_blocked_by_tools: bool
     ask_first_tools: list[str]
     available_trigger_types: list[str]
-    max_queued_runs: int
+    max_queued_trigger_runs: int
     errors: dict[str, AgentConfigurationErrorCode]
 
 

@@ -75,14 +75,14 @@ describe('Agent triggers', () => {
     triggers,
     availableTypes = ['periodic'],
     editable = true,
-    maxQueuedRuns = 10
+    maxQueuedTriggerRuns = 10
   ) => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
     return testApp.mount(AgentWhenItRunsSection, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
-          max_queued_runs: maxQueuedRuns,
+          max_queued_trigger_runs: maxQueuedTriggerRuns,
         }),
         editable,
       },

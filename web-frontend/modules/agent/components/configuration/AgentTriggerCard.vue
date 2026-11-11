@@ -204,7 +204,7 @@ const props = defineProps({
   /** Whether a save of the trigger is in flight. */
   saving: Boolean,
   /** How many runs of a waiting trigger the server queues, for its hint. */
-  maxQueuedRuns: { type: Number, default: null },
+  maxQueuedTriggerRuns: { type: Number, default: null },
   /** Why the server rejected the service values, or ''. */
   serviceError: { type: String, default: '' },
 })
@@ -248,10 +248,11 @@ const summary = computed(() =>
 )
 /** The hint of an overlap option; a queue cap of 0 lets runs wait without limit. */
 const overlapHint = (option) => {
-  const unlimited = props.maxQueuedRuns !== null && props.maxQueuedRuns <= 0
+  const unlimited =
+    props.maxQueuedTriggerRuns !== null && props.maxQueuedTriggerRuns <= 0
   return unlimited && option.unlimitedHint
     ? t(option.unlimitedHint)
-    : t(option.hint, { count: props.maxQueuedRuns })
+    : t(option.hint, { count: props.maxQueuedTriggerRuns })
 }
 /** Why the last firing started nothing, until a later firing is accepted. */
 const skippedText = computed(() => {

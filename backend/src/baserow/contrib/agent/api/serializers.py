@@ -140,7 +140,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The trigger types that can be added to the agent on this "
         "instance, as service type names.",
     )
-    max_queued_runs = serializers.IntegerField(
+    max_queued_trigger_runs = serializers.IntegerField(
         help_text="How many runs of a trigger that waits for its previous run can "
         "be queued on this instance; later firings are skipped."
     )

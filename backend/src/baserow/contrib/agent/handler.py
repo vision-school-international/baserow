@@ -181,7 +181,7 @@ class AgentHandler:
             available_trigger_types=AgentTriggerHandler().available_trigger_types(
                 agent
             ),
-            max_queued_runs=settings.AGENT_TRIGGER_MAX_QUEUED_RUNS,
+            max_queued_trigger_runs=settings.AGENT_TRIGGER_MAX_QUEUED_RUNS,
             errors=errors,
         )
 

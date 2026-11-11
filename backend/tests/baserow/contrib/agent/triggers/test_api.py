@@ -76,7 +76,7 @@ def test_configuration_tells_how_many_trigger_runs_can_wait(
 
     response = api_client.get(agent_url(agent, "configuration"))
 
-    assert response.json()["max_queued_runs"] == 3
+    assert response.json()["max_queued_trigger_runs"] == 3
 
 
 def call(

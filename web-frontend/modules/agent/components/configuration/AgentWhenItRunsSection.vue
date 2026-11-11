@@ -40,7 +40,7 @@
         :trigger="trigger"
         :workspace="workspace"
         :editable="editable"
-        :max-queued-runs="configuration.max_queued_runs"
+        :max-queued-trigger-runs="configuration.max_queued_trigger_runs"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
         @update="updateTrigger(trigger, $event)"
