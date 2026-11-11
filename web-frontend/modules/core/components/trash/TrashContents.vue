@@ -45,11 +45,7 @@
             v-for="item in trashContents"
             :key="'trash-item-' + item.id"
             :trash-entry="item"
-            :disabled="
-              loadingContents ||
-              shouldTrashEntryBeDisabled(item) ||
-              !canRestore(item)
-            "
+            :disabled="loadingContents || shouldTrashEntryBeDisabled(item)"
             @restore="$emit('restore', $event)"
           ></TrashEntry>
         </template>
@@ -132,24 +128,22 @@ export default {
         ? 'workspace'
         : 'application'
     },
-    // A trashed workspace isn't in the store, so the backend decides for it.
-    workspaceWithPermissions() {
+    canEmpty() {
+      if (this.selectedTrashApplication !== null) {
+        return true
+      }
+      // A trashed workspace is not in the store, so its permissions are unknown
+      // and the backend decides.
       const workspace = this.$store.getters['workspace/get'](
         this.selectedTrashWorkspace.id
       )
-      return workspace?._.permissionsLoaded ? workspace : null
-    },
-    canEmpty() {
-      if (
-        this.selectedTrashApplication !== null ||
-        this.workspaceWithPermissions === null
-      ) {
+      if (!workspace?._.permissionsLoaded) {
         return true
       }
       return this.$hasPermission(
         'workspace.empty_trash',
-        this.workspaceWithPermissions,
-        this.workspaceWithPermissions.id
+        workspace,
+        workspace.id
       )
     },
     title() {
@@ -182,21 +176,6 @@ export default {
       if (!this.loadingContents) {
         this.$refs.emptyModal.show()
       }
-    },
-    canRestore(entry) {
-      if (
-        this.selectedTrashApplication === null ||
-        this.workspaceWithPermissions === null
-      ) {
-        return true
-      }
-      return this.$registry
-        .get('application', this.selectedTrashApplication.type)
-        .canRestoreTrashEntry(
-          this.selectedTrashApplication,
-          entry,
-          this.workspaceWithPermissions.id
-        )
     },
     shouldTrashEntryBeDisabled(entry) {
       const entryIsForSelectedItem =

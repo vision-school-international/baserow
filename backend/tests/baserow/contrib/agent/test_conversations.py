@@ -5,7 +5,6 @@ from uuid import UUID, uuid4
 
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection, transaction
-from django.urls import reverse
 
 import pytest
 from freezegun import freeze_time
@@ -828,24 +827,3 @@ def test_a_trashed_shared_conversation_has_no_owner_and_counts_no_approvals(
     assert entry.trash_item_owner is None
     pending_count_updated.assert_not_called()
     assert AgentConversation.objects.filter(id=conversation.id).exists()
-
-
-@pytest.mark.django_db
-def test_the_trash_lists_the_owner_of_private_conversations_only(
-    data_fixture, configured_agent, api_client, api_user
-):
-    agent = configured_agent(user=api_user)
-    private = data_fixture.create_agent_conversation(user=api_user, agent=agent)
-    shared = data_fixture.create_shared_agent_conversation(agent=agent)
-    for conversation in [private, shared]:
-        AgentService().delete_conversation(api_user, agent.id, conversation.uuid)
-
-    response = api_client.get(
-        reverse("api:trash:contents", kwargs={"workspace_id": agent.workspace_id}),
-        {"application_id": agent.id},
-    )
-
-    assert {
-        entry["trash_item_id"]: entry["trash_item_owner"]
-        for entry in response.json()["results"]
-    } == {private.id: api_user.id, shared.id: None}

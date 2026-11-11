@@ -226,19 +226,6 @@ export class ApplicationType extends Registerable {
   }
 
   /**
-   * Whether the user may restore a trash entry of an application of this type,
-   * so the trash only offers what the backend accepts.
-   *
-   * @param {object} application The application, as the trash structure lists it.
-   * @param {object} trashEntry The trash entry.
-   * @param {number} workspaceId The id of the workspace of the application.
-   * @returns {boolean} Whether the entry can be restored.
-   */
-  canRestoreTrashEntry(application, trashEntry, workspaceId) {
-    return true
-  }
-
-  /**
    * The colour the icon is shown in, one of the colours `ItemIcon` accepts.
    */
   getIconColor() {

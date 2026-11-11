@@ -8,7 +8,6 @@ describe('TrashContents', () => {
   const mountContents = ({
     storeWorkspace = { id: 1, _: { permissionsLoaded: true } },
     hasPermission = () => false,
-    applicationType = null,
     props = {},
   } = {}) => {
     return shallowMount(TrashContents, {
@@ -29,7 +28,6 @@ describe('TrashContents', () => {
             getters: { 'workspace/get': () => storeWorkspace },
           },
           $hasPermission: hasPermission,
-          $registry: { get: () => applicationType },
         },
       },
     })
@@ -67,33 +65,5 @@ describe('TrashContents', () => {
     })
 
     expect(wrapper.vm.canEmpty).toBe(true)
-  })
-
-  it('asks the application type whether an entry can be restored', () => {
-    const entry = { id: 5, trash_item_type: 'agent_conversation' }
-    const applicationType = { canRestoreTrashEntry: vi.fn(() => false) }
-    const wrapper = mountContents({
-      applicationType,
-      props: { selectedTrashApplication: application },
-    })
-
-    expect(wrapper.vm.canRestore(entry)).toBe(false)
-    expect(applicationType.canRestoreTrashEntry).toHaveBeenCalledWith(
-      application,
-      entry,
-      1
-    )
-  })
-
-  it('offers restore when the workspace permissions are unknown', () => {
-    const applicationType = { canRestoreTrashEntry: vi.fn(() => false) }
-    const wrapper = mountContents({
-      storeWorkspace: null,
-      applicationType,
-      props: { selectedTrashApplication: application },
-    })
-
-    expect(wrapper.vm.canRestore({ id: 5 })).toBe(true)
-    expect(applicationType.canRestoreTrashEntry).not.toHaveBeenCalled()
   })
 })
