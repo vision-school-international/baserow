@@ -1,7 +1,6 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
-from rest_framework.fields import SkipField, empty
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.services.serializers import (
@@ -59,23 +58,6 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
         return service.get_type().generate_schema(service)
 
 
-class AgentTriggerServiceRequestSerializer(PolymorphicServiceRequestSerializer):
-    def run_validation(self, data: object = empty) -> dict:
-        """
-        Skip the field when the payload leaves it out. The parent turns an
-        omitted service into ``{}``, which would run a no-op service update and
-        be audited as a change.
-
-        :param data: The service values given, or ``empty``.
-        :raises SkipField: When the payload has no ``service`` key.
-        :return: The validated service values, with the pinned ``type``.
-        """
-
-        if data is empty:
-            raise SkipField()
-        return super().run_validation(data)
-
-
 class TriggerServiceFieldMixin:
     def get_fields(self) -> dict[str, serializers.Field]:
         """
@@ -86,7 +68,7 @@ class TriggerServiceFieldMixin:
         """
 
         fields = super().get_fields()
-        fields["service"] = AgentTriggerServiceRequestSerializer(
+        fields["service"] = PolymorphicServiceRequestSerializer(
             default_type_name=self.context.get("service_type_name"),
             required=False,
             help_text=SERVICE_HELP_TEXT,

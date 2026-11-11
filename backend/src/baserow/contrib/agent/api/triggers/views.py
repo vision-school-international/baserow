@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -70,6 +72,22 @@ FEATURE_ERRORS = {403: get_error_schema(["ERROR_FEATURE_DISABLED"])}
 SERIALIZER_CONTEXT = {"application_type": AgentApplicationType}
 
 
+def pop_service_values(data: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    Take the service values out of the validated payload. A payload leaving out
+    `service` validates to just the pinned `type`, which must not run a no-op
+    service update nor be audited as a change.
+
+    :param data: The validated payload, which loses its `service`.
+    :return: The values to set on the service, or None when the payload has none.
+    """
+
+    service_values = data.pop("service", {})
+    # Pinned to `type` already, and no service model has a `type` field.
+    service_values.pop("type", None)
+    return service_values or None
+
+
 class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER],
@@ -129,17 +147,13 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 "service_type_name": type_name if isinstance(type_name, str) else None,
             },
         )
-        service_values = data.get("service")
-        if service_values is not None:
-            # Pinned to `type` already, and no service model has a `type` field.
-            service_values.pop("type")
         trigger = action_type_registry.get_by_type(CreateAgentTriggerActionType).do(
             request.user,
             agent_id,
             data["type"],
             message=data["message"],
             enabled=data["enabled"],
-            service=service_values,
+            service=pop_service_values(data),
         )
         return Response(AgentTriggerSerializer(trigger).data)
 
@@ -188,8 +202,9 @@ class AgentTriggerView(APIView):
                 "service_type_name": trigger.service.get_type().type,
             },
         )
+        service_values = pop_service_values(data)
         trigger = action_type_registry.get_by_type(UpdateAgentTriggerActionType).do(
-            request.user, agent_id, trigger_id, **data
+            request.user, agent_id, trigger_id, service=service_values, **data
         )
         return Response(AgentTriggerSerializer(trigger).data)
 

@@ -344,15 +344,23 @@ def test_update_trigger_saves_the_switch_message_and_service_values(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"enabled": False},
+        {"enabled": False, "service": {}},
+        {"enabled": False, "service": {"type": "periodic"}},
+    ],
+)
 def test_update_without_service_values_leaves_the_service_alone(
-    data_fixture, periodic_trigger, api_client, api_user, mocker
+    data_fixture, periodic_trigger, api_client, api_user, mocker, payload
 ):
     agent = data_fixture.create_agent_application(user=api_user)
     trigger = periodic_trigger(agent, interval="DAY", hour=9)
     registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
 
     response = api_client.patch(
-        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"enabled": False}
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), payload
     )
 
     assert response.status_code == 200, response.json()
