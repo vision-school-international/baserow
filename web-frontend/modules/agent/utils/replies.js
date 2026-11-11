@@ -35,7 +35,8 @@ const FAILED_REPLY_NOTICES = {
  *
  * @param {object} reply A saved reply, or a followed run's status and error.
  * @param {string} [reply.status] The reply's or the run's status.
- * @param {string} [reply.error_code] Why a failed reply failed.
+ * @param {string} [reply.error_code] Why a failed reply failed, or
+ *   `not_started` for a cancelled one that never ran.
  * @param {string|null} [reply.run_id] The run the reply belongs to, if any.
  * @param {boolean} [reply.replying] Whether its run is still being followed.
  * @returns {{note?: string, error?: string}} Translation keys to show.
@@ -58,7 +59,12 @@ export function replyOutcome({
     return { note: 'agent.replyWaitingForPreviousRun' }
   }
   if (status === AGENT_REPLY_STATUS.CANCELLED) {
-    return { note: 'agent.replyStopped' }
+    return {
+      note:
+        errorCode === RUN_ERROR_CODE.NOT_STARTED
+          ? 'agent.replyCancelledBeforeStart'
+          : 'agent.replyStopped',
+    }
   }
   if (status === AGENT_REPLY_STATUS.FAILED) {
     return { error: FAILED_REPLY_NOTICES[errorCode] || 'agent.replyFailed' }

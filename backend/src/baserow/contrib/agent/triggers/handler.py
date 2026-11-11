@@ -21,6 +21,7 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRun
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -298,7 +299,8 @@ class AgentTriggerHandler:
         """
         Cancel the trigger's queued replies, deleted conversations included, once
         nothing will start them: the trigger is switched off or deleted for good.
-        The readers of the other conversations are told.
+        They are marked ``not_started``, so they don't read as stopped mid-run. The
+        readers of the other conversations are told.
 
         :param trigger: The trigger whose queued replies are cancelled.
         """
@@ -311,7 +313,9 @@ class AgentTriggerHandler:
                 id__in=replies.values("conversation_id")
             ).select_related("agent")
         )
-        replies.update(status=AgentReplyStatus.CANCELLED)
+        replies.update(
+            status=AgentReplyStatus.CANCELLED, error_code=ChatRunErrorCode.NOT_STARTED
+        )
         for conversation in conversations:
             agent_conversation_activity.send(self, conversation=conversation, user=None)
 

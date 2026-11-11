@@ -133,6 +133,7 @@
     "writing": "Writing…",
     "stop": "Stop",
     "replyStopped": "Stopped.",
+    "replyCancelledBeforeStart": "Cancelled before it started.",
     "replyTimedOut": "This reply took too long and was stopped.",
     "replyInterrupted": "This reply was interrupted.",
     "replyNotStarted": "The agent couldn’t start replying. Send your message again.",

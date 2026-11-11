@@ -260,10 +260,13 @@ def test_switching_a_trigger_off_or_deleting_it_for_good_cancels_its_queued_repl
 
     stop(user, trigger)
 
-    assert [AgentMessage.objects.get(id=reply.id).status for reply in replies] == [
-        "running",
-        "cancelled",
-        "cancelled",
+    assert [
+        AgentMessage.objects.values_list("status", "error_code").get(id=reply.id)
+        for reply in replies
+    ] == [
+        ("running", ""),
+        ("cancelled", "not_started"),
+        ("cancelled", "not_started"),
     ]
     activity.assert_called_once_with(
         mocker.ANY, conversation=replies[1].conversation, user=None
