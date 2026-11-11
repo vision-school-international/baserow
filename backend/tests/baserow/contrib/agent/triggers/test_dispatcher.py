@@ -447,11 +447,13 @@ def test_a_trigger_over_a_rate_limit_is_skipped_but_keeps_its_schedule(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("on_overlap,max_queued", [("skip", 10), ("wait", 0)])
 def test_a_trigger_that_skips_records_that_its_previous_run_was_still_going(
-    data_fixture, configured_agent
+    data_fixture, configured_agent, settings, on_overlap, max_queued
 ):
+    settings.AGENT_TRIGGER_MAX_QUEUED_RUNS = max_queued
     agent = configured_agent(user=data_fixture.create_user())
-    trigger = periodic_trigger(data_fixture, agent)
+    trigger = periodic_trigger(data_fixture, agent, on_overlap=on_overlap)
     AgentHandler().start_trigger_conversation(trigger, "Still going")
 
     tick()

@@ -320,7 +320,12 @@ class AgentTriggerDispatcher:
             return AgentTrigger.SkipReason.PREVIOUS_RUNNING
         waits = not skips and (going or queued > 0)
         if waits and queued >= settings.AGENT_TRIGGER_MAX_QUEUED_RUNS:
-            return AgentTrigger.SkipReason.QUEUE_FULL
+            # With no room to queue at all, nothing waits that could be full.
+            return (
+                AgentTrigger.SkipReason.QUEUE_FULL
+                if queued
+                else AgentTrigger.SkipReason.PREVIOUS_RUNNING
+            )
         created = AgentHandler().start_trigger_conversation(
             trigger, content, failure, start_run=not waits
         )
