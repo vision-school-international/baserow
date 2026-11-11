@@ -74,13 +74,15 @@ describe('Agent triggers', () => {
   const mountSection = (
     triggers,
     availableTypes = ['periodic'],
-    editable = true
+    editable = true,
+    maxQueuedRuns = 10
   ) => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
     return testApp.mount(AgentWhenItRunsSection, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
+          max_queued_runs: maxQueuedRuns,
         }),
         editable,
       },
@@ -569,9 +571,9 @@ describe('Agent triggers', () => {
     ).toEqual([
       [
         'agent.triggerOnOverlapSkip agent.triggerOnOverlapRecommended',
-        'agent.triggerOnOverlapSkipHint',
+        'agent.triggerOnOverlapSkipHint - 10',
       ],
-      ['agent.triggerOnOverlapWait', 'agent.triggerOnOverlapWaitHint'],
+      ['agent.triggerOnOverlapWait', 'agent.triggerOnOverlapWaitHint - 10'],
     ])
     expect(new Set(radios.map((radio) => radio.attributes('name'))).size).toBe(
       1
@@ -585,6 +587,18 @@ describe('Agent triggers', () => {
       ['/agent/10/triggers/1/', { on_overlap: 'wait' }],
     ])
     expect(checked()).toEqual([false, true])
+  })
+
+  test('tells how many runs can wait, as the server allows', async () => {
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic'],
+      true,
+      3
+    )
+    const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
+
+    expect(hints[1].text()).toBe('agent.triggerOnOverlapWaitHint - 3')
   })
 
   test.each([

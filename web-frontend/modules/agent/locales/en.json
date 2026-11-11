@@ -253,7 +253,7 @@
     "triggerOnOverlapSkip": "Skip the new run",
     "triggerOnOverlapSkipHint": "Nothing piles up. The next one runs as usual.",
     "triggerOnOverlapWait": "Wait for the previous run",
-    "triggerOnOverlapWaitHint": "Runs start one after another, in order.",
+    "triggerOnOverlapWaitHint": "Runs start one after another. Up to {count} can wait; later ones are skipped.",
     "triggerOnOverlapRecommended": "Recommended",
     "triggerSkippedRateLimited": "Skipped at {time}: it fired too often.",
     "triggerSkippedAgentRateLimited": "Skipped at {time}: the agent’s triggers fired too often.",

@@ -153,7 +153,7 @@
                 </Badge>
               </div>
               <div class="agent-trigger-card__overlap-option-hint">
-                {{ $t(option.hint) }}
+                {{ $t(option.hint, { count: maxQueuedRuns }) }}
               </div>
             </div>
           </Radio>
@@ -203,6 +203,8 @@ const props = defineProps({
   editable: Boolean,
   /** Whether a save of the trigger is in flight. */
   saving: Boolean,
+  /** How many runs of a waiting trigger the server queues, for its hint. */
+  maxQueuedRuns: { type: Number, default: null },
   /** Why the server rejected the service values, or ''. */
   serviceError: { type: String, default: '' },
 })

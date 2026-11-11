@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
@@ -180,6 +181,7 @@ class AgentHandler:
             available_trigger_types=AgentTriggerHandler().available_trigger_types(
                 agent
             ),
+            max_queued_runs=settings.AGENT_TRIGGER_MAX_QUEUED_RUNS,
             errors=errors,
         )
 

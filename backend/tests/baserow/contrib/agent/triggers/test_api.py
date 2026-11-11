@@ -67,6 +67,18 @@ def test_configuration_lists_the_available_trigger_types(
     assert api_client.get(url).json()["available_trigger_types"] == ["http_trigger"]
 
 
+@pytest.mark.django_db
+def test_configuration_tells_how_many_trigger_runs_can_wait(
+    data_fixture, api_client, api_user, settings
+):
+    settings.AGENT_TRIGGER_MAX_QUEUED_RUNS = 3
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["max_queued_runs"] == 3
+
+
 def call(
     name: str, user: AbstractUser, agent: AgentApplication, trigger: AgentTrigger
 ) -> Any:
