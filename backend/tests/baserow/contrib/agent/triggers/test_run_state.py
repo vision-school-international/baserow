@@ -16,6 +16,7 @@ from baserow.contrib.agent.models import (
     AgentTrigger,
 )
 from baserow.contrib.agent.signals import agent_conversation_activity
+from baserow.contrib.agent.tasks import start_queued_trigger_replies
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
@@ -301,6 +302,29 @@ def test_a_stopped_trigger_keeps_its_queued_replies_waiting(
     assert list(AgentTriggerHandler().list_idle_triggers_with_queued_replies()) == []
     assert AgentHandler().start_next_queued_reply(trigger) is None
     assert AgentMessage.objects.get(id=reply.id).status == "queued"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "trash,trash_item_type,trashed",
+    [
+        (trash_trigger, "agent_trigger", lambda trigger: trigger),
+        (trash_agent, "application", lambda trigger: trigger.agent),
+        (trash_workspace, "workspace", lambda trigger: trigger.agent.workspace),
+    ],
+)
+def test_a_queued_reply_starts_once_its_trashed_trigger_is_restored(
+    data_fixture, configured_agent, trash, trash_item_type, trashed
+):
+    user = data_fixture.create_user()
+    trigger = data_fixture.create_agent_trigger(agent=configured_agent(user=user))
+    reply = queued_reply(trigger)
+    trash(user, trigger)
+
+    TrashHandler.restore_item(user, trash_item_type, trashed(trigger).id)
+    start_queued_trigger_replies()
+
+    assert AgentMessage.objects.get(id=reply.id).status == "running"
 
 
 def lock_the_trigger(trigger: AgentTrigger) -> None:
