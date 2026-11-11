@@ -218,7 +218,7 @@ or a workspace's **Settings → AI providers**. See [AI providers](ai-providers.
 | BASEROW\_AGENT\_MAX\_ACTIVE\_RUNS\_PER\_WORKSPACE | The most Agent replies that can be queued or running at once in one workspace. Unset, empty or `0` means no limit. With a positive limit, further messages are refused until a reply finishes.                                                                                                                                                               | 0 (no limit) |
 | BASEROW\_AGENT\_TRIGGER\_RATE\_LIMITS | How often one Agent trigger may start a conversation: a comma-separated list of integer pairs formatted as `max_runs,window_seconds`. For example, `10,5,30,300` means 10 conversations per 5 seconds and 30 per 5 minutes. A firing over a limit starts nothing and the trigger shows it was skipped. A single comma disables the limits. | "10,5,30,300,100,3600" |
 | BASEROW\_AGENT\_TRIGGER\_AGENT\_RATE\_LIMITS | How often all triggers of one Agent together may start conversations, in the same `max_runs,window_seconds` format, so adding triggers doesn't raise the limit. A single comma disables the limits. | "20,60,300,3600" |
-| BASEROW\_AGENT\_TRIGGER\_MAX\_QUEUED\_RUNS | The most runs a trigger set to "Wait for the previous run" can have waiting. Further firings start nothing and the trigger shows it was skipped. `0` makes such triggers skip like the others. | 10 |
+| BASEROW\_AGENT\_TRIGGER\_MAX\_QUEUED\_RUNS | The most runs a trigger set to "Wait for the previous run" can have waiting. Further firings start nothing and the trigger shows it was skipped. `0` means no limit: runs wait as long as needed, and the rate limits above still bound how many start. | 10 |
 
 #### Deprecated AI provider variables
 

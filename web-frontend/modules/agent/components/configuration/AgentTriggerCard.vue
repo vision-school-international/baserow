@@ -153,7 +153,7 @@
                 </Badge>
               </div>
               <div class="agent-trigger-card__overlap-option-hint">
-                {{ $t(option.hint, { count: maxQueuedRuns }) }}
+                {{ overlapHint(option) }}
               </div>
             </div>
           </Radio>
@@ -246,6 +246,13 @@ const summary = computed(() =>
     .filter(Boolean)
     .join(' ')
 )
+/** The hint of an overlap option; a queue cap of 0 lets runs wait without limit. */
+const overlapHint = (option) => {
+  const unlimited = props.maxQueuedRuns !== null && props.maxQueuedRuns <= 0
+  return unlimited && option.unlimitedHint
+    ? t(option.unlimitedHint)
+    : t(option.hint, { count: props.maxQueuedRuns })
+}
 /** Why the last firing started nothing, until a later firing is accepted. */
 const skippedText = computed(() => {
   const {

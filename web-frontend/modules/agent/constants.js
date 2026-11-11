@@ -47,6 +47,7 @@ export const TRIGGER_OVERLAP_OPTIONS = Object.freeze([
     value: 'wait',
     label: 'agent.triggerOnOverlapWait',
     hint: 'agent.triggerOnOverlapWaitHint',
+    unlimitedHint: 'agent.triggerOnOverlapWaitUnlimitedHint',
   },
 ])
 

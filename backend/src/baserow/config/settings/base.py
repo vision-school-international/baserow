@@ -2103,6 +2103,7 @@ AGENT_TRIGGER_RATE_LIMITS = _parse_int_pairs(
 AGENT_TRIGGER_AGENT_RATE_LIMITS = _parse_int_pairs(
     "BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS", "20,60,300,3600"
 )
+# 0 or less lets runs wait without limit.
 AGENT_TRIGGER_MAX_QUEUED_RUNS = int(
     os.getenv("BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS") or 10
 )

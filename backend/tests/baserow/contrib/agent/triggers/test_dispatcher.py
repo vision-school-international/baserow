@@ -447,13 +447,11 @@ def test_a_trigger_over_a_rate_limit_is_skipped_but_keeps_its_schedule(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("on_overlap,max_queued", [("skip", 10), ("wait", 0)])
 def test_a_trigger_that_skips_records_that_its_previous_run_was_still_going(
-    data_fixture, configured_agent, settings, on_overlap, max_queued
+    data_fixture, configured_agent
 ):
-    settings.AGENT_TRIGGER_MAX_QUEUED_RUNS = max_queued
     agent = configured_agent(user=data_fixture.create_user())
-    trigger = periodic_trigger(data_fixture, agent, on_overlap=on_overlap)
+    trigger = periodic_trigger(data_fixture, agent, on_overlap="skip")
     AgentHandler().start_trigger_conversation(trigger, "Still going")
 
     tick()
@@ -529,6 +527,25 @@ def test_a_trigger_that_waits_queues_replies_without_a_run_up_to_the_cap(
     activity.assert_called_once_with(
         agent_trigger_dispatcher, conversation=queued, user=None, run_id=None
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("no_limit", [0, -1])
+def test_a_trigger_that_waits_queues_without_limit_when_the_cap_is_not_positive(
+    data_fixture, configured_agent, settings, no_limit
+):
+    settings.AGENT_TRIGGER_MAX_QUEUED_RUNS = no_limit
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent, on_overlap="wait")
+    AgentHandler().start_trigger_conversation(trigger, "Still going")
+
+    with freeze_time(TICK_AT):
+        for _ in range(3):
+            fire([trigger.service], {})
+
+    trigger.refresh_from_db()
+    assert AgentTriggerHandler().count_queued_replies(trigger) == 3
+    assert (trigger.last_fired_on, trigger.last_skipped_reason) == (FIRED_AT, "")
 
 
 @pytest.mark.django_db

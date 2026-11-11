@@ -601,6 +601,18 @@ describe('Agent triggers', () => {
     expect(hints[1].text()).toBe('agent.triggerOnOverlapWaitHint - 3')
   })
 
+  test('tells runs can wait indefinitely when the server has no cap', async () => {
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic'],
+      true,
+      0
+    )
+    const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
+
+    expect(hints[1].text()).toBe('agent.triggerOnOverlapWaitUnlimitedHint')
+  })
+
   test.each([
     ['rate_limited', 'agent.triggerSkippedRateLimited'],
     ['agent_rate_limited', 'agent.triggerSkippedAgentRateLimited'],

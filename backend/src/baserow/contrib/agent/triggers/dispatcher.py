@@ -299,7 +299,8 @@ class AgentTriggerDispatcher:
         behind starts first, so a firing never queues behind a queue that doesn't
         move. One the workspace's run limit holds back isn't a previous run: a
         waiting firing queues behind it and a skipping one starts and fails on the
-        limit, visibly. A failed message fails its reply at once, never queued.
+        limit, visibly. A failed message fails its reply at once, never queued. A
+        queue cap of 0 lets replies queue without limit.
 
         :param trigger: The trigger that fired, with its agent.
         :param content: The resolved message opening the conversation.
@@ -318,13 +319,9 @@ class AgentTriggerDispatcher:
         if going and skips:
             return AgentTrigger.SkipReason.PREVIOUS_RUNNING
         waits = not skips and (going or queued > 0)
-        if waits and queued >= settings.AGENT_TRIGGER_MAX_QUEUED_RUNS:
-            # With no room to queue at all, nothing waits that could be full.
-            return (
-                AgentTrigger.SkipReason.QUEUE_FULL
-                if queued
-                else AgentTrigger.SkipReason.PREVIOUS_RUNNING
-            )
+        queue_cap = settings.AGENT_TRIGGER_MAX_QUEUED_RUNS
+        if waits and queue_cap > 0 and queued >= queue_cap:
+            return AgentTrigger.SkipReason.QUEUE_FULL
         created = AgentHandler().start_trigger_conversation(
             trigger, content, failure, start_run=not waits
         )
