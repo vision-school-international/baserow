@@ -5,11 +5,13 @@ import pytest
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.triggers.exceptions import AgentTriggerDoesNotExist
 from baserow.contrib.agent.triggers.service import AgentTriggerService
+from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItemType
 from baserow.core.exceptions import PermissionException
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
-CALLS = ["list", "get", "get_missing", "create", "update", "delete"]
+CALLS = ["list", "get", "get_missing", "create", "update", "delete", "restore"]
 
 
 @pytest.mark.django_db
@@ -39,6 +41,8 @@ def test_only_builders_read_and_change_triggers(
         )
     agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
     trigger = enterprise_data_fixture.create_agent_trigger(agent=agent)
+    trashed = enterprise_data_fixture.create_agent_trigger(agent=agent)
+    AgentTriggerService().delete_trigger(admin, agent.id, trashed.id)
     service = AgentTriggerService()
     attempts = {
         "list": lambda: service.list_triggers(user, agent.id),
@@ -49,6 +53,9 @@ def test_only_builders_read_and_change_triggers(
             user, agent.id, trigger.id, enabled=False
         ),
         "delete": lambda: service.delete_trigger(user, agent.id, trigger.id),
+        "restore": lambda: TrashHandler.restore_item(
+            user, AgentTriggerTrashableItemType.type, trashed.id
+        ),
     }
 
     outcomes = {}
@@ -69,6 +76,9 @@ def test_only_builders_read_and_change_triggers(
     )
     assert outcomes == expected
     trigger.refresh_from_db()
-    assert (AgentTrigger.objects_and_trash.count(), trigger.trashed) == (
-        (2, True) if allowed else (1, False)
-    )
+    trashed.refresh_from_db()
+    assert (
+        AgentTrigger.objects_and_trash.count(),
+        trigger.trashed,
+        trashed.trashed,
+    ) == ((3, True, False) if allowed else (2, False, True))

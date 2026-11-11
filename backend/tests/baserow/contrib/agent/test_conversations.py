@@ -471,12 +471,23 @@ def test_deleting_a_user_removes_their_conversations(data_fixture, configured_ag
     agent = configured_agent(
         workspace=data_fixture.create_workspace(user=owner, members=[participant])
     )
-    data_fixture.create_agent_conversation(user=participant, agent=agent)
+    deleted = data_fixture.create_agent_conversation(user=participant, agent=agent)
     retained = data_fixture.create_agent_conversation(user=owner, agent=agent)
+    shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    trashed_shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    for conversation in [deleted, trashed_shared]:
+        TrashHandler.trash(participant, agent.workspace, agent, conversation)
 
     participant.delete()
 
-    assert list(AgentConversation.objects.all()) == [retained]
+    assert set(AgentConversation.objects_and_trash.all()) == {
+        retained,
+        shared,
+        trashed_shared,
+    }
+    assert list(TrashEntry.objects.values_list("trash_item_id", flat=True)) == [
+        trashed_shared.id
+    ]
 
 
 @pytest.mark.django_db(transaction=True)

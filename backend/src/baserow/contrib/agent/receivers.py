@@ -23,10 +23,8 @@ def agent_loaded_mark_last_viewed(
 @receiver(pre_delete, sender=User)
 def delete_owned_conversations(sender, instance: AbstractUser, **kwargs) -> None:
     """
-    Delete the user's conversations and their trash entries before the user row.
-    Without their owner, trash entries would show private titles to everyone.
-    The cascade can't do it either: a nullable owner no longer orders the
-    conversations' deletion before the user's.
+    Delete the user's private conversations with their trash entries, which would
+    otherwise lose their owner and show private titles in everyone's trash.
 
     :param sender: The user model.
     :param instance: The user being deleted.

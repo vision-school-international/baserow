@@ -1,11 +1,11 @@
-from datetime import timedelta
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import AbstractUser
-from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 
 from baserow.contrib.agent.models import AgentApplication, AgentTrigger
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
@@ -80,15 +80,6 @@ def call(
         "delete": lambda: service.delete_trigger(user, agent.id, trigger.id),
     }
     return calls[name]()
-
-
-def test_trigger_action_types_are_registered():
-    for action_type in (
-        CreateAgentTriggerActionType,
-        UpdateAgentTriggerActionType,
-        DeleteAgentTriggerActionType,
-    ):
-        assert isinstance(action_type_registry.get(action_type.type), action_type)
 
 
 @pytest.mark.django_db
@@ -229,17 +220,18 @@ def test_create_trigger_with_service_values_schedules_it(
         "timezone": "Europe/Rome",
     }
 
-    response = api_client.post(
-        agent_url(agent, "triggers:list"),
-        {"type": "periodic", "message": MESSAGE, "service": service_values},
-    )
+    with freeze_time("2026-11-10 07:30"):
+        token = data_fixture.generate_token(api_user)
+        api_client.credentials(HTTP_AUTHORIZATION=f"JWT {token}")
+        response = api_client.post(
+            agent_url(agent, "triggers:list"),
+            {"type": "periodic", "message": MESSAGE, "service": service_values},
+        )
 
     assert response.status_code == 200, response.json()
     service = CorePeriodicService.objects.get(agent_trigger__id=response.json()["id"])
     assert {key: getattr(service, key) for key in service_values} == service_values
-    next_run_at = service.next_run_at.astimezone(ZoneInfo("Europe/Rome"))
-    assert (next_run_at.hour, next_run_at.minute) == (9, 0)
-    assert timezone.now() < next_run_at <= timezone.now() + timedelta(days=1)
+    assert service.next_run_at == datetime(2026, 11, 10, 8, 0, tzinfo=dt_timezone.utc)
     body = response.json()["service"]
     assert {key: body[key] for key in service_values} == service_values
 

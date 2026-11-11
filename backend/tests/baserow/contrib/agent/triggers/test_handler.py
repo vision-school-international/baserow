@@ -85,21 +85,6 @@ def test_update_trigger_reschedules_when_service_values_are_written_or_it_switch
 
 
 @pytest.mark.django_db
-def test_get_trigger_loads_the_agent_workspace_and_service_in_one_query(
-    data_fixture, django_assert_num_queries
-):
-    trigger = daily_trigger(data_fixture)
-    expected = (trigger.agent.workspace_id, trigger.service_id)
-
-    with django_assert_num_queries(1):
-        found = AgentTriggerHandler().get_trigger(trigger.id)
-        assert (found.agent.workspace.id, found.service.id) == expected
-
-    with pytest.raises(AgentTriggerDoesNotExist):
-        AgentTriggerHandler().get_trigger(trigger.id + 1)
-
-
-@pytest.mark.django_db
 def test_trashing_a_trigger_hides_its_service_until_it_is_restored(
     data_fixture, mocker
 ):

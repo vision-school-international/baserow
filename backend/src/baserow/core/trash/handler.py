@@ -37,6 +37,7 @@ from baserow.core.trash.registries import (
     trash_operation_type_registry,
 )
 from baserow.core.trash.signals import before_permanently_deleted, permanently_deleted
+from baserow.core.types import PermissionCheck
 
 User = get_user_model()
 
@@ -166,16 +167,17 @@ class TrashHandler:
             context = trashable_item_type.get_restore_operation_context(
                 trash_entry, trash_item
             )
-            for operation in trashable_item_type.get_restore_operation_types(
-                trash_item
-            ):
-                CoreHandler().check_permissions(
-                    user,
-                    operation,
-                    include_trash=True,
-                    workspace=trash_entry.workspace,
-                    context=context,
-                )
+            CoreHandler().check_multiple_permissions(
+                [
+                    PermissionCheck(user, operation, context)
+                    for operation in trashable_item_type.get_restore_operation_types(
+                        trash_item
+                    )
+                ],
+                workspace=trash_entry.workspace,
+                include_trash=True,
+                raise_exception=True,
+            )
 
             cls._restore_trash_entry(user, trash_entry, trash_item)
 
