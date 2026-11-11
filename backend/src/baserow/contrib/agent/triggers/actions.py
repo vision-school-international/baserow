@@ -17,6 +17,8 @@ from .service import AgentTriggerService
 
 
 class CreateAgentTriggerActionType(ActionType):
+    """Adds a trigger to an Agent; not undoable, like the rest of its configuration."""
+
     type = "create_agent_trigger"
     description = ActionTypeDescription(
         _("Create agent trigger"),
@@ -53,6 +55,12 @@ class CreateAgentTriggerActionType(ActionType):
         :param message: The formula whose text opens each conversation it starts.
         :param enabled: Whether the trigger starts conversations right away.
         :param service: Initial values of the service, by field name, or None.
+        :raises FeatureDisabledException: When Agents are disabled.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises PermissionException: When the user may not update the Agent or read
+            its configuration.
+        :raises AgentTriggerTypeNotAvailable: When the Agent doesn't offer the type.
+        :raises TriggerServiceMisconfigured: When the service values are invalid.
         :return: The created trigger.
         """
 
@@ -85,6 +93,8 @@ class CreateAgentTriggerActionType(ActionType):
 
 
 class UpdateAgentTriggerActionType(ActionType):
+    """Changes a trigger's switch, message or service values; not undoable."""
+
     type = "update_agent_trigger"
     description = ActionTypeDescription(
         _("Update agent trigger"),
@@ -120,6 +130,14 @@ class UpdateAgentTriggerActionType(ActionType):
         :param enabled: The new switch state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param service: The service values to set, by field name, or None.
+        :raises FeatureDisabledException: When Agents are disabled.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises PermissionException: When the user may not update the Agent or read
+            its configuration.
+        :raises AgentTriggerDoesNotExist: When the Agent has no such trigger.
+        :raises AgentTriggerTypeNotAvailable: When it would switch on or reschedule
+            a trigger of a type the Agent doesn't offer.
+        :raises TriggerServiceMisconfigured: When the service values are invalid.
         :return: The updated trigger.
         """
 
@@ -158,6 +176,8 @@ class UpdateAgentTriggerActionType(ActionType):
 
 
 class DeleteAgentTriggerActionType(ActionType):
+    """Trashes a trigger with its service; restored from the trash."""
+
     type = "delete_agent_trigger"
     description = ActionTypeDescription(
         _("Delete agent trigger"),
@@ -180,6 +200,11 @@ class DeleteAgentTriggerActionType(ActionType):
         :param user: The user deleting the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
+        :raises FeatureDisabledException: When Agents are disabled.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises PermissionException: When the user may not update the Agent or read
+            its configuration.
+        :raises AgentTriggerDoesNotExist: When the Agent has no such trigger.
         """
 
         trigger = AgentTriggerService().delete_trigger(user, agent_id, trigger_id)

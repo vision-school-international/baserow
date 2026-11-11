@@ -18,6 +18,8 @@ WRITE_OPERATIONS = (
 
 
 class AgentTriggerService:
+    """Trigger changes for a user allowed to make them on the trigger's Agent."""
+
     def __init__(self) -> None:
         self.handler = AgentTriggerHandler()
         self.agent_service = AgentService()

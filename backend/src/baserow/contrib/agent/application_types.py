@@ -184,8 +184,19 @@ class AgentApplicationType(ApplicationType):
         storage: Storage | None = None,
         progress_builder: ChildProgressBuilder | None = None,
     ) -> AgentApplication:
-        """Import the configuration, its triggers switched off, and any copied
-        conversations as one new Agent."""
+        """
+        Import the configuration, its triggers switched off, and any copied
+        conversations as one new Agent.
+
+        :param workspace: The workspace the Agent is imported into.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :param id_mapping: The export-to-import id map, filled in.
+        :param files_zip: The zip file service files are read from.
+        :param storage: The storage service files are written to.
+        :param progress_builder: Reports the import's progress.
+        :return: The new Agent.
+        """
 
         application = super().import_serialized(
             workspace,

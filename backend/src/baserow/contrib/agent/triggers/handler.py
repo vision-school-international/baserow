@@ -28,6 +28,8 @@ from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
 
 
 class AgentTriggerHandler:
+    """The triggers of Agents and their services, without permission checks."""
+
     def get_trigger(
         self, trigger_id: int, base_queryset: QuerySet[AgentTrigger] | None = None
     ) -> AgentTrigger:

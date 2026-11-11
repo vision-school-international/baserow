@@ -773,7 +773,7 @@ class AgentHandler:
     ) -> AgentMessageCreated:
         """
         Start a shared conversation from a trigger's resolved message, titled after
-        it, with a system run writing the reply. A workspace at its maximum of
+        it, with an unattended run writing the reply. A workspace at its maximum of
         replies running fails the reply with ``chat_run_limit_reached`` instead of
         raising: nobody can retry a trigger's message, so the list shows why it
         wasn't answered.
@@ -901,7 +901,16 @@ class AgentHandler:
     def _start_reply_run(
         self, conversation: AgentConversation, reply: AgentMessage
     ) -> ChatRun:
-        """Start the run writing the reply, as the owner or as a system run."""
+        """
+        Start the run writing the reply: as the owner, or with nobody for a shared
+        conversation's unattended reply.
+
+        :param conversation: The conversation, with its agent and owner.
+        :param reply: The empty reply the run writes.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
+        :return: The run.
+        """
 
         return ChatRunHandler().start_run(
             AGENT_RUN_TYPE,

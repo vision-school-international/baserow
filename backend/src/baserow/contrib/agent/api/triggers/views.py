@@ -89,6 +89,8 @@ def pop_service_values(data: dict[str, Any]) -> dict[str, Any] | None:
 
 
 class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
+    """Lists an Agent's triggers and adds new ones."""
+
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agent applications"],
@@ -113,9 +115,9 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="create_agent_trigger",
         description=(
             "Adds a trigger of one of the configuration's available_trigger_types "
-            "to the agent, with the given values of its service, of that type, "
-            "which is scheduled right away when they configure it. Requires "
-            "permission to update the agent and read its configuration."
+            "to the agent, with initial values for its service. A configured "
+            "service starts receiving events right away. Requires permission to "
+            "update the agent and read its configuration."
         ),
         request=CreateAgentTriggerSerializer,
         responses={
@@ -158,6 +160,8 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
 
 
 class AgentTriggerView(APIView):
+    """Changes or trashes one of an Agent's triggers."""
+
     @extend_schema(
         parameters=[
             AGENT_ID_PATH_PARAMETER,

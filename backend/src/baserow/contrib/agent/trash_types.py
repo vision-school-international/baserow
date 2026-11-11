@@ -27,6 +27,12 @@ class AgentConversationTrashableItemType(TrashableItemType):
         return trashed_item.title
 
     def get_owner(self, trashed_item: AgentConversation) -> AbstractUser | None:
+        """
+        :param trashed_item: The trashed conversation.
+        :return: Its owner, whose trash alone lists it, or None for a shared one,
+            which every trash reader sees.
+        """
+
         return trashed_item.owner_user
 
     def permanently_delete_item(

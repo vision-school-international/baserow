@@ -18,6 +18,8 @@ SERVICE_HELP_TEXT = "The service producing the trigger's events."
 
 
 class AgentTriggerSerializer(serializers.ModelSerializer):
+    """A trigger with its service, its message and the payload schema it provides."""
+
     type = serializers.SerializerMethodField(
         help_text="The service type of the trigger."
     )
@@ -59,6 +61,8 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
 
 
 class TriggerServiceFieldMixin:
+    """Adds a `service` field of the trigger's own service type."""
+
     def get_fields(self) -> dict[str, serializers.Field]:
         """
         Add the service field pinned to the service type named in the context, so
@@ -81,6 +85,8 @@ class CreateAgentTriggerSerializer(
     UnknownFieldRaisesExceptionSerializerMixin,
     serializers.Serializer,
 ):
+    """A new trigger: its type, message, switch and initial service values."""
+
     type = serializers.CharField(
         max_length=255,
         help_text="The service type of the trigger, one of the configuration's "
@@ -99,6 +105,8 @@ class UpdateAgentTriggerSerializer(
     UnknownFieldRaisesExceptionSerializerMixin,
     serializers.Serializer,
 ):
+    """The parts of a trigger to change; the ones left out keep their value."""
+
     enabled = serializers.BooleanField(
         required=False,
         help_text="Whether the trigger starts conversations when its event happens.",

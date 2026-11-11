@@ -46,17 +46,31 @@ class AgentChatRunType(ChatRunType):
         return settings.BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE
 
     def can_read(self, user: AbstractUser, run: ChatRun) -> bool:
-        """The owner, or any reader of the Agent's conversations for a shared one."""
+        """
+        :param user: The user asking.
+        :param run: The run writing a reply in a conversation.
+        :return: Whether the user may read it: the owner, or any reader of the
+            Agent's conversations for a shared one.
+        """
 
         return AgentService().can_read_conversation(user, run.chat_id)
 
     def can_cancel(self, user: AbstractUser, run: ChatRun) -> bool:
-        """The owner; for a shared conversation, whoever may also update the Agent."""
+        """
+        :param user: The user asking.
+        :param run: The run writing a reply in a conversation.
+        :return: Whether the user may stop it: the owner, or for a shared
+            conversation a reader who may also update the Agent.
+        """
 
         return AgentService().can_cancel_conversation_run(user, run.chat_id)
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
-        """The owner, or any reader of the Agent's conversations for a shared one."""
+        """
+        :param user: The user following the conversation.
+        :param chat_id: The id of the conversation.
+        :return: Whether the user may follow its runs.
+        """
 
         return AgentService().can_follow_conversation(user, chat_id)
 
