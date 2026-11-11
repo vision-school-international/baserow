@@ -93,8 +93,8 @@ Viewers only read conversations. Renaming, trashing and restoring any conversati
 a private one included, needs the editor role, the lowest role that may create one.
 
 The opening message, with role `trigger`, holds the resolved trigger message (a runtime
-formula over the event payload, or the payload as JSON when the formula is empty). It
-is the only record of what the model received; the title derives from it, and no raw
+formula over the event payload, or the payload as JSON when it resolves to blank text).
+It is the only record of what the model received; the title derives from it, and no raw
 payload column exists. Triggers that arrive through duplicate, snapshot restore or
 template install are always disabled.
 
@@ -103,13 +103,17 @@ template install are always disabled.
 Trigger runs start with no user (`created_by=None`): the per-user run cap does not
 apply, the workspace cap does, and a cap hit records a failed reply with the code
 `chat_run_limit_reached` instead of disappearing. Ask-first tools are not offered in
-these runs; only tools marked Allow are. Agent readiness is checked when the event is
-dispatched (skip and log, no conversation) and again when the run executes.
+these runs; only tools marked Allow are.
 
 The dispatcher resolves the payload of every matched trigger before filtering, so a
 disabled trigger still advances its schedule and never fires a backlog when enabled
-again. Each conversation start runs in its own savepoint and never raises into the
-request or task that produced the event.
+again. It resolves each enabled trigger's message during the event, then starts the
+conversation in a task once the event's transaction commits, in a transaction of its
+own: the workspace run lock lasts until the outermost commit, which must not be the
+rest of a beat tick. The task checks again that the trigger is enabled, its type is
+available and its agent is ready, and logs instead of raising. A message whose formula
+fails at run time opens the conversation with the payload and fails the reply with
+`trigger_message_failed`, so the list shows why the agent didn't answer.
 
 ## Options considered
 
@@ -126,19 +130,21 @@ request or task that produced the event.
 
 ## Consequences
 
-- Any new trigger service type is available to agents with no agent code: a service
-  type, a form and, when going live needs state, an `arm` override.
+- A new trigger service type needs no agent model or dispatch code. Before it enters
+  `AGENT_TRIGGER_TYPES_ENABLED`, its form must be verified in the agent host and its
+  reach reviewed: row triggers read tables the builder could read when saving, in any
+  workspace, and HTTP and email triggers hand unauthenticated input to a run that may
+  use write tools.
 - Plugins that overrode `start_listening` or `stop_listening` on a trigger service type
   must override `connect` and `disconnect` instead; the `on_event` class attribute is
-  now a method. Recorded as a breaking change.
+  now a method.
 - `NULL` owner means shared, not missing. Every site that reads the owner (permission
   subject, timezone, realtime recipient, pending counts, approvals) handles it, and new
   code must too.
 - Readers of a shared conversation see what the run identity could read. Builders pick
   the identity knowing that.
-- The periodic beat tick does more inside its transaction (agent inserts and run
-  starts). Acceptable while the picker offers periodic only; rate limits and auto-disable
-  follow before other types are offered.
+- The periodic beat tick only resolves trigger messages; conversations start in tasks
+  after it commits. Rate limits and auto-disable follow before other types are offered.
 - Follow-ups: editors continuing shared conversations and approvals in them, the
   agent-level pause switch, "Run once" and "Last run", HTTP, email and row triggers in
   the picker, per trigger rate limits and auto-disable, the setup wizard's "Run
@@ -151,5 +157,5 @@ request or task that produced the event.
   agent: reconsider a consumer registry.
 - Row triggers ship and readers need the raw payload: add the payload column.
 - Approver-role rules land: re-open "never wait" for shared conversations.
-- Identities become users (ADR 013): trigger runs keep `created_by=None`, and the
+- Agent identities become users: trigger runs keep `created_by=None`, and the
   identity's timezone replaces UTC in trigger replies.
