@@ -270,7 +270,7 @@ def test_switching_a_trigger_off_or_deleting_it_for_good_cancels_its_queued_repl
 
 
 def disable(user: AbstractUser, trigger: AgentTrigger) -> None:
-    # A firing can queue a reply while the switch-off commits.
+    # Only switched-on triggers start, however the switch was turned off.
     AgentTrigger.objects.filter(id=trigger.id).update(enabled=False)
 
 

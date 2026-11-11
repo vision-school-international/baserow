@@ -4,7 +4,6 @@ from functools import partial
 from uuid import UUID
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils import timezone
 
@@ -34,7 +33,7 @@ class AgentTriggerDispatcher:
         self,
         services: Iterable[Service],
         event_payload: dict | Callable | None = None,
-        user: AbstractUser | None = None,
+        user: Subject | None = None,
         isolate_failures: bool = False,
     ) -> list:
         """
