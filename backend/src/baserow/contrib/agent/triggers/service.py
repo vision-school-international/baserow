@@ -11,7 +11,6 @@ from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.registries import service_type_registry
 from baserow.core.types import PermissionCheck
 
-from .exceptions import AgentTriggerTypeNotAvailable
 from .handler import AgentTriggerHandler
 
 WRITE_OPERATIONS = (
@@ -71,16 +70,6 @@ class AgentTriggerService:
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
         return self.handler.get_trigger(trigger_id, base_queryset=queryset)
-
-    def available_trigger_types(self, agent: AgentApplication) -> list[str]:
-        """
-        List the trigger types a trigger of this Agent can have.
-
-        :param agent: The Agent the triggers would belong to.
-        :return: The service type names the Agent's configuration offers.
-        """
-
-        return self.handler.available_trigger_types(agent)
 
     def list_triggers(self, user: AbstractUser, agent_id: int) -> list[AgentTrigger]:
         """
@@ -151,8 +140,7 @@ class AgentTriggerService:
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.agent_handler.get_agent(agent_id, for_update=True)
         self._check_permissions(user, agent, *WRITE_OPERATIONS)
-        if service_type_name not in self.available_trigger_types(agent):
-            raise AgentTriggerTypeNotAvailable(service_type_name)
+        self.handler.check_type_available(agent, service_type_name)
         service_type = service_type_registry.get(service_type_name)
         prepared_service_values = service_type.prepare_values(
             service_values or {}, user
@@ -191,6 +179,8 @@ class AgentTriggerService:
             is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
+        :raises AgentTriggerTypeNotAvailable: When it would switch on or reschedule
+            a trigger of a type the Agent's configuration doesn't offer.
         :raises TriggerServiceMisconfigured: When the service values are invalid.
         :return: The updated trigger.
         """

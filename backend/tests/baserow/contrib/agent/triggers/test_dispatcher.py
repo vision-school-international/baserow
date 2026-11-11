@@ -285,10 +285,10 @@ def test_an_agent_trigger_leaves_the_periodic_payload_and_schema_unchanged(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "reason", ["disabled", "agent_trashed", "not_ready", "flag_off"]
+    "reason", ["disabled", "agent_trashed", "not_ready", "flag_off", "unavailable"]
 )
 def test_a_skipped_trigger_starts_nothing_but_keeps_its_schedule(
-    data_fixture, configured_agent, settings, reason
+    data_fixture, configured_agent, settings, mocker, reason
 ):
     user = data_fixture.create_user()
     agent = (
@@ -301,6 +301,10 @@ def test_a_skipped_trigger_starts_nothing_but_keeps_its_schedule(
         AgentApplication.objects_and_trash.filter(id=agent.id).update(trashed=True)
     if reason == "flag_off":
         settings.FEATURE_FLAGS = []
+    if reason == "unavailable":
+        mocker.patch(
+            "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED", ()
+        )
 
     tick()
 

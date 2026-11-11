@@ -9,7 +9,6 @@ from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItemType
 from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_DAY,
-    PERIODIC_INTERVAL_HOUR,
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
@@ -49,31 +48,40 @@ def test_create_trigger_creates_an_armed_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_trigger_rearms_only_for_a_new_schedule_or_switching_on(
-    data_fixture, mocker
+def test_update_trigger_reschedules_when_service_values_are_written_or_it_switches_on(
+    data_fixture,
 ):
     trigger = daily_trigger(data_fixture, enabled=False)
-    arm = mocker.patch.object(CorePeriodicTriggerServiceType, "arm")
     handler = AgentTriggerHandler()
+    stale = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+    tomorrow = datetime(2026, 1, 2, 9, 0, tzinfo=timezone.utc)
 
-    handler.update_trigger(trigger, message="'Changed'")
-    handler.update_trigger(
-        trigger, prepared_service_values={"interval": PERIODIC_INTERVAL_DAY, "hour": 9}
-    )
-    handler.update_trigger(trigger, enabled=False)
-    assert arm.call_count == 0
+    def next_run_at() -> datetime:
+        return CorePeriodicService.objects.get(id=trigger.service_id).next_run_at
 
-    handler.update_trigger(
-        trigger,
-        prepared_service_values={"interval": PERIODIC_INTERVAL_HOUR, "minute": 30},
-    )
-    handler.update_trigger(trigger, enabled=True)
-    assert arm.call_count == 2
+    def make_stale() -> None:
+        CorePeriodicService.objects.filter(id=trigger.service_id).update(
+            next_run_at=stale
+        )
+
+    with freeze_time("2026-01-01 10:00"):
+        make_stale()
+        handler.update_trigger(trigger, message="'Changed'")
+        handler.update_trigger(trigger, enabled=False)
+        assert next_run_at() == stale
+
+        handler.update_trigger(
+            trigger,
+            prepared_service_values={"interval": PERIODIC_INTERVAL_DAY, "hour": 9},
+        )
+        assert next_run_at() == tomorrow
+
+        make_stale()
+        handler.update_trigger(trigger, enabled=True)
+        assert next_run_at() == tomorrow
 
     trigger.refresh_from_db()
-    service = CorePeriodicService.objects.get(id=trigger.service_id)
     assert (trigger.enabled, trigger.message["formula"]) == (True, "'Changed'")
-    assert (service.interval, service.minute) == (PERIODIC_INTERVAL_HOUR, 30)
 
 
 @pytest.mark.django_db

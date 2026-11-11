@@ -10,6 +10,7 @@ from loguru import logger
 
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.services.models import Service
+from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import exception_capturer
 
 from ..constants import AGENT_TRIGGER_MESSAGE_FAILED, AgentReadinessState
@@ -17,6 +18,7 @@ from ..handler import AgentHandler
 from ..models import AgentTrigger
 from ..signals import agent_conversation_activity
 from .data_providers import payload_as_message, resolve_trigger_message
+from .handler import AgentTriggerHandler
 from .tasks import start_trigger_conversation
 
 
@@ -100,10 +102,17 @@ class AgentTriggerDispatcher:
 
         agent = trigger.agent
         workspace = agent.workspace
+        service_type = service_type_registry.get_by_model(
+            trigger.service.specific_class
+        )
         if not trigger.enabled:
             reason = "it is disabled"
         elif agent.trashed or workspace is None or workspace.trashed:
             reason = "its agent is trashed or is a snapshot"
+        elif service_type.type not in AgentTriggerHandler().available_trigger_types(
+            agent
+        ):
+            reason = "its type isn't available"
         elif (
             AgentHandler().get_configuration_readiness(agent)[0]
             != AgentReadinessState.READY
@@ -158,7 +167,7 @@ class AgentTriggerDispatcher:
             with transaction.atomic():
                 trigger = (
                     AgentTrigger.objects.filter(id=trigger_id)
-                    .select_related("agent__workspace")
+                    .select_related("agent__workspace", "service")
                     .first()
                 )
                 if trigger is None or not self._is_runnable(trigger):

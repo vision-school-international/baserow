@@ -4,10 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
-from baserow.contrib.agent.constants import (
-    AGENT_TRIGGER_TYPES_ENABLED,
-    AGENT_TRIGGER_TYPES_EXCLUDED,
-)
+from baserow.contrib.agent.constants import AGENT_TRIGGER_TYPES_ENABLED
 from baserow.contrib.agent.models import AgentApplication, AgentTrigger
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.registries import ImportExportConfig
@@ -19,7 +16,7 @@ from baserow.core.services.registries import (
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 
-from .exceptions import AgentTriggerDoesNotExist
+from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
 
 
 class AgentTriggerHandler:
@@ -71,9 +68,19 @@ class AgentTriggerHandler:
             for service_type in service_type_registry.get_all()
             if isinstance(service_type, TriggerServiceTypeMixin)
             and service_type.type in AGENT_TRIGGER_TYPES_ENABLED
-            and service_type.type not in AGENT_TRIGGER_TYPES_EXCLUDED
             and not service_type.is_deactivated(agent.workspace)
         ]
+
+    def check_type_available(self, agent: AgentApplication, type_name: str) -> None:
+        """
+        :param agent: The Agent the trigger belongs to.
+        :param type_name: The service type of the trigger.
+        :raises AgentTriggerTypeNotAvailable: When the Agent's configuration doesn't
+            offer the type, so no trigger of it may be created, armed or fired.
+        """
+
+        if type_name not in self.available_trigger_types(agent):
+            raise AgentTriggerTypeNotAvailable(type_name)
 
     def create_trigger(
         self,
@@ -92,6 +99,7 @@ class AgentTriggerHandler:
             ``service_type.prepare_values``.
         :param message: The message formula resolved against the trigger payload.
         :param enabled: Whether firing starts a conversation.
+        :raises AgentTriggerTypeNotAvailable: When the type isn't available.
         :return: The created trigger, with its specific service.
         """
 
@@ -112,25 +120,28 @@ class AgentTriggerHandler:
         prepared_service_values: dict | None = None,
     ) -> AgentTrigger:
         """
-        Update a trigger, re-arming its service when the service values changed
-        or the trigger was switched on.
+        Update a trigger, re-arming its service when service values are written
+        or the trigger is switched on: arming also replaces any schedule a
+        concurrent run wrote meanwhile.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param prepared_service_values: The service values to set, already passed
             through ``prepare_values``, or None to leave the service as it is.
-        :return: The updated trigger, with its specific service.
+        :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
+            type that isn't available.
+        :return: The updated trigger.
         """
 
-        rearm = False
+        rearm = prepared_service_values is not None
         if prepared_service_values is not None:
             service = trigger.service.specific
-            updated = ServiceHandler().update_service(
-                service.get_type(), service, **prepared_service_values
+            trigger.service = (
+                ServiceHandler()
+                .update_service(service.get_type(), service, **prepared_service_values)
+                .service
             )
-            trigger.service = updated.service
-            rearm = updated.original_service_values != updated.new_service_values
         changed_fields = []
         if enabled is not None and enabled != trigger.enabled:
             trigger.enabled = enabled
@@ -160,11 +171,14 @@ class AgentTriggerHandler:
         """
         Make the trigger's service receive real events from now on.
 
-        :param trigger: The trigger whose service is armed.
+        :param trigger: The trigger whose service is armed, with its Agent.
+        :raises AgentTriggerTypeNotAvailable: When the type isn't available.
         """
 
         service = trigger.service.specific
-        service.get_type().arm(service)
+        service_type = service.get_type()
+        self.check_type_available(trigger.agent, service_type.type)
+        service_type.arm(service)
 
     def export_triggers(
         self,

@@ -53,7 +53,7 @@ def test_configuration_lists_the_available_trigger_types(
 
     mocker.patch(
         "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger", "manual"),
+        ("periodic", "http_trigger"),
     )
     assert set(api_client.get(url).json()["available_trigger_types"]) == {
         "periodic",
@@ -282,6 +282,30 @@ def test_create_rejects_a_type_the_agent_can_not_use(
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"
     assert not AgentTrigger.objects.exists()
+
+
+@pytest.mark.django_db
+def test_update_refuses_to_switch_on_a_trigger_of_a_type_the_agent_can_not_use(
+    data_fixture, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = data_fixture.create_agent_trigger(
+        agent=agent,
+        service=data_fixture.create_core_http_trigger_service(),
+        enabled=False,
+    )
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id),
+        {"enabled": True},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"
+    trigger.refresh_from_db()
+    assert trigger.enabled is False
+    assert trigger.service.specific.is_public is False
 
 
 @pytest.mark.django_db
