@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.db import DEFAULT_DB_ALIAS
 
 from asgiref.sync import sync_to_async
 from pydantic_ai.models import Model
@@ -14,7 +13,6 @@ from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
-from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.signals import application_pending_count_updated
 
@@ -23,7 +21,6 @@ from .constants import AGENT_NOT_ALLOWED, AGENT_NOT_READY, AGENT_RUN_TYPE
 from .exceptions import AgentConversationDoesNotExist, AgentNotReady
 from .handler import AgentHandler
 from .models import AgentReplyStatus
-from .operations import ReadAgentConversationsOperationType
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_activity
@@ -59,35 +56,9 @@ class AgentChatRunType(ChatRunType):
         return AgentService().can_cancel_conversation_run(user, run.chat_id)
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
-        """
-        One query for the owner, as it runs on the websocket's shared thread; a
-        shared conversation also needs its readers' permission on the Agent.
+        """The owner, or any reader of the Agent's conversations for a shared one."""
 
-        :param user: The user following the conversation.
-        :param chat_id: The id of the conversation.
-        :return: Whether the user may follow the conversation's runs.
-        """
-
-        # A replica can lag behind the conversation that this tab's send just created.
-        conversation = (
-            AgentHandler()
-            .get_accessible_conversations(user)
-            .using(DEFAULT_DB_ALIAS)
-            .select_related("agent__workspace")
-            .filter(id=chat_id)
-            .first()
-        )
-        if conversation is None:
-            return False
-        if conversation.owner_user_id is not None:
-            return True
-        return CoreHandler().check_permissions(
-            user,
-            ReadAgentConversationsOperationType.type,
-            workspace=conversation.agent.workspace,
-            context=conversation.agent,
-            raise_permission_exceptions=False,
-        )
+        return AgentService().can_follow_conversation(user, chat_id)
 
     async def execute(self, run: ChatRun, journal: "ChatRunJournal") -> ChatRunOutcome:
         """Check access and configuration again: both can change while the run waits."""
@@ -162,10 +133,7 @@ class AgentChatRunType(ChatRunType):
             return None
         conversation = reply.conversation
         agent_conversation_activity.send(self, conversation=conversation, user=None)
-        if (
-            reply.status == AgentReplyStatus.WAITING
-            and conversation.owner_user_id is not None
-        ):
+        if reply.status == AgentReplyStatus.WAITING and not conversation.is_shared:
             application_pending_count_updated.send(
                 self,
                 application=conversation.agent,

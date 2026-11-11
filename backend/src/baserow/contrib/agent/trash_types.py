@@ -1,10 +1,10 @@
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.models import TrashEntry
-from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.registries import TrashableItemType
 
+from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation
 from .operations import RestoreAgentConversationOperationType
 from .signals import agent_conversation_activity
@@ -39,7 +39,7 @@ class AgentConversationTrashableItemType(TrashableItemType):
     def restore(self, trashed_item: AgentConversation, trash_entry: TrashEntry) -> None:
         super().restore(trashed_item, trash_entry)
         agent_conversation_activity.send(self, conversation=trashed_item, user=None)
-        if trashed_item.owner_user_id is not None:
+        if not trashed_item.is_shared:
             application_pending_count_updated.send(
                 self,
                 application=trashed_item.agent,
@@ -57,10 +57,10 @@ class AgentConversationTrashableItemType(TrashableItemType):
         :return: The operations a user needs on the Agent to restore it.
         """
 
-        operations = [self.get_restore_operation_type()]
-        if trashed_item.owner_user_id is None:
-            operations.append(UpdateApplicationOperationType.type)
-        return operations
+        return [
+            self.get_restore_operation_type(),
+            *AgentHandler().get_shared_change_operations(trashed_item),
+        ]
 
     def get_restore_operation_context(
         self, trash_entry: TrashEntry, trashed_item: AgentConversation

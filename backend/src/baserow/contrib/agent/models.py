@@ -98,6 +98,15 @@ class AgentConversation(
     # Both indexes below lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
 
+    @property
+    def is_shared(self) -> bool:
+        """
+        :return: Whether a trigger started the conversation: it has no owner and
+            everyone who may read the agent's conversations reads it.
+        """
+
+        return self.owner_user_id is None
+
     class Meta:
         ordering = ("-updated_on", "-id")
         indexes = [

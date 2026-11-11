@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import QuerySet
 
 from baserow.core.exceptions import PermissionDenied
@@ -207,12 +207,9 @@ class AgentService:
             may not update the agent.
         """
 
-        if conversation.owner_user_id is None:
+        for operation in self.handler.get_shared_change_operations(conversation):
             CoreHandler().check_permissions(
-                user,
-                UpdateApplicationOperationType.type,
-                workspace=agent.workspace,
-                context=agent,
+                user, operation, workspace=agent.workspace, context=agent
             )
 
     @transaction.atomic
@@ -276,7 +273,7 @@ class AgentService:
         self._check_shared_change(user, agent, conversation)
         self.handler.delete_conversation(user, conversation)
         agent_conversation_deleted.send(self, conversation=conversation, user=user)
-        if conversation.owner_user_id is not None:
+        if not conversation.is_shared:
             application_pending_count_updated.send(
                 self, application=agent, user_ids=[conversation.owner_user_id]
             )
@@ -290,21 +287,40 @@ class AgentService:
             raise AgentNotReady
 
     def _get_accessible_conversation(
-        self, user: AbstractUser, conversation_id: int
+        self, user: AbstractUser, conversation_id: int, using: str | None = None
     ) -> AgentConversation | None:
         """
         Fetch the conversation with its agent if the user sees it at all.
 
         :param user: The user asking.
         :param conversation_id: The id of the conversation.
+        :param using: The database to read from, or None to let the router pick.
         :return: The conversation, or None when the user doesn't see it.
         """
 
         return (
             self.handler.get_accessible_conversations(user)
+            .using(using)
             .select_related("agent__workspace")
             .filter(id=conversation_id)
             .first()
+        )
+
+    def _can_read_agent_conversations(
+        self, user: AbstractUser, agent: AgentApplication
+    ) -> bool:
+        """
+        :param user: The user asking.
+        :param agent: The agent, with its workspace.
+        :return: Whether the user may read the agent's conversations.
+        """
+
+        return CoreHandler().check_permissions(
+            user,
+            ReadAgentConversationsOperationType.type,
+            workspace=agent.workspace,
+            context=agent,
+            raise_permission_exceptions=False,
         )
 
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
@@ -320,12 +336,27 @@ class AgentService:
         conversation = self._get_accessible_conversation(user, conversation_id)
         if conversation is None:
             return False
-        return CoreHandler().check_permissions(
-            user,
-            ReadAgentConversationsOperationType.type,
-            workspace=conversation.agent.workspace,
-            context=conversation.agent,
-            raise_permission_exceptions=False,
+        return self._can_read_agent_conversations(user, conversation.agent)
+
+    def can_follow_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
+        """
+        Check that the user may follow the conversation's runs: their own with one
+        query, as it runs on the websocket's shared thread, a shared one also with
+        the permission to read the agent's conversations.
+
+        :param user: The user following the conversation.
+        :param conversation_id: The id of the conversation.
+        :return: Whether the user may follow the conversation's runs.
+        """
+
+        # A replica can lag behind the conversation that this tab's send just created.
+        conversation = self._get_accessible_conversation(
+            user, conversation_id, using=DEFAULT_DB_ALIAS
+        )
+        if conversation is None:
+            return False
+        return not conversation.is_shared or self._can_read_agent_conversations(
+            user, conversation.agent
         )
 
     def can_cancel_conversation_run(
@@ -344,9 +375,10 @@ class AgentService:
         conversation = self._get_accessible_conversation(user, conversation_id)
         if conversation is None:
             return False
-        operations = [ReadAgentConversationsOperationType.type]
-        if conversation.owner_user_id is None:
-            operations.append(UpdateApplicationOperationType.type)
+        operations = [
+            ReadAgentConversationsOperationType.type,
+            *self.handler.get_shared_change_operations(conversation),
+        ]
         agent = conversation.agent
         allowed = CoreHandler().check_multiple_permissions(
             [PermissionCheck(user, operation, agent) for operation in operations],
@@ -391,7 +423,7 @@ class AgentService:
         # Workspace membership is part of the permission check below.
         if agent.trashed or agent.workspace is None or agent.workspace.trashed:
             raise PermissionDenied
-        if conversation.owner_user_id is None:
+        if conversation.is_shared:
             self._require_live_trigger(conversation)
         else:
             CoreHandler().check_permissions(
@@ -503,7 +535,7 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
-        if conversation.owner_user_id is None:
+        if conversation.is_shared:
             raise AgentConversationReadOnly
         validate_message_content(content)
         retry = self.handler.get_message_retry(conversation, uuid, content)
@@ -571,7 +603,7 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
-        if conversation.owner_user_id is None:
+        if conversation.is_shared:
             raise AgentConversationReadOnly
         reply, decided, all_decided = self.handler.decide_approvals(
             conversation, user, decisions

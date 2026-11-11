@@ -354,7 +354,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         :return: Whether a trigger started it, so it has no owner.
         """
 
-        return conversation.owner_user_id is None
+        return conversation.is_shared
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_trigger_type(self, conversation: AgentConversation) -> str | None:

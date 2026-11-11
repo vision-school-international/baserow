@@ -48,6 +48,7 @@ from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.pagination import KeysetCursor
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
@@ -545,6 +546,18 @@ class AgentHandler:
             )
         return conversations
 
+    def get_shared_change_operations(
+        self, conversation: AgentConversation
+    ) -> list[str]:
+        """
+        :param conversation: The conversation a user changes, stops or restores.
+        :return: The operations needed on the agent on top of the conversation's
+            own: a shared conversation is the agent's record, so changing it needs
+            the access of a configuration update.
+        """
+
+        return [UpdateApplicationOperationType.type] if conversation.is_shared else []
+
     def get_conversation(
         self,
         agent: AgentApplication,
@@ -575,7 +588,7 @@ class AgentHandler:
         except AgentConversation.DoesNotExist as exc:
             raise AgentConversationDoesNotExist from exc
         conversation.agent = agent
-        if conversation.owner_user_id is not None:
+        if not conversation.is_shared:
             conversation.owner_user = user
         return conversation
 

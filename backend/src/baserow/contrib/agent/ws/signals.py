@@ -81,7 +81,7 @@ def _notify_readers(
         **data,
     }
     web_socket_id = getattr(user, "web_socket_id", None)
-    if conversation.owner_user_id is not None:
+    if not conversation.is_shared:
         send = partial(
             broadcast_to_users.delay,
             [conversation.owner_user_id],
