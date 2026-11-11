@@ -34,6 +34,13 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
         help_text="The JSON schema of the payload one event provides to the "
         "message, or null while the service can't tell yet."
     )
+    # Read-only model fields lose allow_blank, so the schema would reject "".
+    last_skipped_reason = serializers.ChoiceField(
+        choices=AgentTrigger.SkipReason.choices,
+        allow_blank=True,
+        read_only=True,
+        help_text="Why the last skipped firing started nothing, empty until one is.",
+    )
 
     class Meta:
         model = AgentTrigger
@@ -59,10 +66,6 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
             "last_skipped_on": {
                 "read_only": True,
                 "help_text": "When a firing was last skipped.",
-            },
-            "last_skipped_reason": {
-                "read_only": True,
-                "help_text": "Why the last skipped firing started nothing.",
             },
         }
 
