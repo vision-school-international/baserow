@@ -24,6 +24,8 @@ const FAILED_REPLY_NOTICES = {
   [AGENT_REPLY_ERROR_CODE.NOT_READY]: 'agent.replyNotReady',
   [AGENT_REPLY_ERROR_CODE.NOT_ALLOWED]: 'agent.replyNotAllowed',
   [AGENT_REPLY_ERROR_CODE.RUN_LIMIT_REACHED]: 'agent.replyRunLimitReached',
+  [AGENT_REPLY_ERROR_CODE.TRIGGER_MESSAGE_FAILED]:
+    'agent.replyTriggerMessageFailed',
 }
 
 /** A stopped reply's note or an unfinished one's error, as translation keys. */

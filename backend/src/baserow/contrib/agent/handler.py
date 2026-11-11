@@ -756,8 +756,8 @@ class AgentHandler:
         return self._add_message(conversation, content, uuid=message_uuid)
 
     def start_trigger_conversation(
-        self, trigger: AgentTrigger, content: str
-    ) -> AgentConversation:
+        self, trigger: AgentTrigger, content: str, failure: str | None = None
+    ) -> AgentMessageCreated:
         """
         Start a shared conversation from a trigger's resolved message, titled after
         it, with a system run writing the reply. A workspace at its maximum of
@@ -767,7 +767,10 @@ class AgentHandler:
 
         :param trigger: The trigger that fired, with its agent.
         :param content: The resolved trigger message.
-        :return: The new conversation, holding the trigger message and its reply.
+        :param failure: The error code failing the reply instead of running it, or
+            None.
+        :return: The new conversation, its trigger message, its reply and the run
+            writing it, if any.
         """
 
         conversation = AgentConversation.objects.create(
@@ -782,7 +785,8 @@ class AgentHandler:
             content,
             role=AgentMessage.Role.TRIGGER,
             raise_on_run_limit=False,
-        ).conversation
+            failure=failure,
+        )
 
     def get_message_retry(
         self, conversation: AgentConversation, uuid: UUID, content: str
@@ -831,6 +835,7 @@ class AgentHandler:
         role: AgentMessage.Role = AgentMessage.Role.USER,
         uuid: UUID | None = None,
         raise_on_run_limit: bool = True,
+        failure: str | None = None,
     ) -> AgentMessageCreated:
         """
         Add the message and its empty reply, and start the run writing it.
@@ -841,9 +846,11 @@ class AgentHandler:
         :param uuid: The client's uuid of the message, or None for a new one.
         :param raise_on_run_limit: Whether a workspace at its maximum of replies
             running raises, or fails the reply with ``chat_run_limit_reached``.
+        :param failure: The error code failing the reply instead of running it, or
+            None.
         :raises ChatRunLimitReached: When the limit is reached and raising is asked.
         :return: The conversation, the new message, its reply and the run writing
-            it, or no run when the reply failed on the limit.
+            it, or no run when the reply failed.
         """
 
         message = AgentMessage.objects.create(
@@ -860,15 +867,15 @@ class AgentHandler:
             status=ChatRunStatus.RUNNING,
         )
         run_id = None
-        try:
-            run_id = self._start_reply_run(conversation, reply).id
-        except ChatRunLimitReached:
-            if raise_on_run_limit:
-                raise
-            self.finish_reply(
-                reply.id, ChatRunStatus.FAILED, AGENT_RUN_LIMIT_REACHED, None
-            )
-            reply.refresh_from_db()
+        if failure is None:
+            try:
+                run_id = self._start_reply_run(conversation, reply).id
+            except ChatRunLimitReached:
+                if raise_on_run_limit:
+                    raise
+                failure = AGENT_RUN_LIMIT_REACHED
+        if failure is not None:
+            reply = self.finish_reply(reply.id, ChatRunStatus.FAILED, failure, None)
         return AgentMessageCreated(
             conversation,
             message,

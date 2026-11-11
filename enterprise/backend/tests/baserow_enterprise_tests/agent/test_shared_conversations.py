@@ -53,7 +53,9 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
         )
     agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
     trigger = enterprise_data_fixture.create_agent_trigger(agent=agent)
-    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
     run = ChatRun.objects.get(run_type="agent", chat_id=conversation.id)
     service, run_type = AgentService(), AgentChatRunType()
     attempts = {

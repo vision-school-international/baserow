@@ -134,7 +134,7 @@ class TriggerDataProviderType(DataProviderType):
         return path
 
 
-def _payload_as_message(event_payload: dict[str, Any]) -> str:
+def payload_as_message(event_payload: dict[str, Any]) -> str:
     """
     :param event_payload: The payload the trigger's service produced.
     :return: The payload as a fenced JSON block, the opening message when the
@@ -142,7 +142,7 @@ def _payload_as_message(event_payload: dict[str, Any]) -> str:
     """
 
     payload = json.dumps(event_payload, default=str, indent=2)
-    return f"Trigger data:\n```json\n{payload}\n```"
+    return f"Trigger data:\n```json\n{payload}\n```"[:AGENT_TEXT_MAX_LENGTH]
 
 
 def resolve_trigger_message(
@@ -168,5 +168,5 @@ def resolve_trigger_message(
         )
     )
     if not content.strip():
-        content = _payload_as_message(event_payload)
+        return payload_as_message(event_payload)
     return content[:AGENT_TEXT_MAX_LENGTH]

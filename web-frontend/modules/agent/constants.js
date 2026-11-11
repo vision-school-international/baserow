@@ -68,6 +68,7 @@ export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   NOT_READY: 'not_ready',
   NOT_ALLOWED: 'not_allowed',
   RUN_LIMIT_REACHED: 'chat_run_limit_reached',
+  TRIGGER_MESSAGE_FAILED: 'trigger_message_failed',
 })
 
 export const RUN_AS_STATUS = Object.freeze({

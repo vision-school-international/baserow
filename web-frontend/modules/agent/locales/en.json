@@ -105,6 +105,7 @@
     "startedByTrigger": "Started by a trigger",
     "conversationReadOnly": "This conversation was started by a trigger and can’t be continued.",
     "replyRunLimitReached": "Agents in this workspace were busy, so this run didn’t start.",
+    "replyTriggerMessageFailed": "The trigger’s opening message couldn’t be built, so this run didn’t start. Check the message in When it runs.",
     "loadMore": "Load more",
     "olderMessages": "Load older messages",
     "talkTo": "Talk to {name}",

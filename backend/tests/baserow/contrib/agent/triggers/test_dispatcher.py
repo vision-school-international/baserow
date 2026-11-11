@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from django.db import connection
-from django.test import override_settings
+from django.test import TestCase, override_settings
 
 import pytest
 from freezegun import freeze_time
@@ -24,6 +24,7 @@ from baserow.contrib.integrations.core.service_types import (
 )
 from baserow.contrib.integrations.tasks import call_periodic_services_that_are_due
 from baserow.core.action.registries import action_type_registry
+from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
@@ -32,6 +33,12 @@ from baserow.core.services.registries import (
 
 DUE_AT = datetime(2026, 11, 9, 10, 0, tzinfo=timezone.utc)
 TICK_AT = "2026-11-09 10:00:30"
+
+
+@pytest.fixture(autouse=True)
+def queued_runs_stay_queued(mocker) -> None:
+    # Eager Celery would otherwise run each reply the triggers start.
+    mocker.patch.object(ChatRunHandler, "_enqueue")
 
 
 def periodic_trigger(data_fixture, agent: AgentApplication, **kwargs) -> AgentTrigger:
@@ -49,10 +56,17 @@ def next_run_at(trigger: AgentTrigger) -> datetime:
 
 
 def tick() -> None:
-    """Run the beat task once, 30 seconds after ``DUE_AT``."""
+    """Run the beat task once, 30 seconds after ``DUE_AT``, and what it queues."""
 
-    with freeze_time(TICK_AT):
+    with TestCase.captureOnCommitCallbacks(execute=True), freeze_time(TICK_AT):
         call_periodic_services_that_are_due()
+
+
+def fire(services: list, payload: dict, **kwargs) -> list:
+    """Send an event to the dispatcher and run the starts it queues."""
+
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        return agent_trigger_dispatcher.on_event(services, payload, **kwargs)
 
 
 @pytest.mark.django_db
@@ -63,8 +77,10 @@ def test_a_trigger_conversation_is_shared_and_answered_by_a_system_run(
     agent = configured_agent(user=user)
     trigger = periodic_trigger(data_fixture, agent)
 
-    conversation = AgentHandler().start_trigger_conversation(
-        trigger, "  Check\nthe inbox  "
+    conversation = (
+        AgentHandler()
+        .start_trigger_conversation(trigger, "  Check\nthe inbox  ")
+        .conversation
     )
 
     message, reply = AgentMessage.objects.order_by("id")
@@ -94,7 +110,11 @@ def test_a_trigger_conversation_records_the_run_limit_on_its_reply(
     )
     trigger = periodic_trigger(data_fixture, agent)
 
-    conversation = AgentHandler().start_trigger_conversation(trigger, "Check the inbox")
+    conversation = (
+        AgentHandler()
+        .start_trigger_conversation(trigger, "Check the inbox")
+        .conversation
+    )
 
     reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
     assert (reply.status, reply.error_code) == ("failed", "chat_run_limit_reached")
@@ -141,6 +161,52 @@ def test_a_due_trigger_starts_its_conversation_and_tells_the_readers(
 
 
 @pytest.mark.django_db
+def test_a_trigger_starts_its_conversation_only_after_the_event_commits(
+    data_fixture, configured_agent
+):
+    trigger = periodic_trigger(data_fixture, configured_agent())
+
+    with TestCase.captureOnCommitCallbacks() as queued, freeze_time(TICK_AT):
+        call_periodic_services_that_are_due()
+
+    assert not AgentConversation.objects.exists()
+    assert next_run_at(trigger) == DUE_AT + timedelta(minutes=1)
+    for callback in queued:
+        callback()
+    assert AgentConversation.objects.get().trigger_id == trigger.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "message",
+    [
+        "datetime_format(get('trigger.triggered_at'), 'YYYY', 'Mars/Olympus')",
+        "get('trigger.triggered_at') / 2",
+    ],
+)
+def test_a_message_failing_at_run_time_opens_with_the_payload_and_fails_its_reply(
+    data_fixture, configured_agent, mocker, logs, message
+):
+    trigger = periodic_trigger(data_fixture, configured_agent(), message=message)
+    captured = mocker.patch(
+        "baserow.contrib.agent.triggers.dispatcher.exception_capturer"
+    )
+
+    tick()
+
+    opening = AgentMessage.objects.get(role="trigger")
+    reply = AgentMessage.objects.get(role="assistant")
+    assert opening.content.startswith("Trigger data:")
+    assert (reply.status, reply.error_code) == ("failed", "trigger_message_failed")
+    assert not ChatRun.objects.exists()
+    captured.assert_not_called()
+    [log] = logs
+    assert log.record["message"].startswith(
+        f"Agent trigger {trigger.id} message failed"
+    )
+
+
+@pytest.mark.django_db
 def test_a_due_trigger_opens_with_the_time_it_fired_in_the_service_timezone(
     data_fixture, configured_agent
 ):
@@ -177,7 +243,7 @@ def test_every_trigger_of_an_event_gets_the_time_the_dispatcher_handled_it(
 
     # Every clock read moves a minute on, so a second read would show up.
     with freeze_time(TICK_AT, auto_tick_seconds=60):
-        agent_trigger_dispatcher.on_event(services, {})
+        fire(services, {})
 
     fired_at = "2026-11-09 10:00 (UTC)"
     assert list(
@@ -284,9 +350,7 @@ def test_an_event_without_a_message_formula_opens_with_its_payload(
     trigger = periodic_trigger(data_fixture, agent, message="")
     payload = {"triggered_at": "2026-11-09T10:00:00+00:00", "next_run_at": None}
 
-    histories = agent_trigger_dispatcher.on_event(
-        [trigger.service], payload, user=user, isolate_failures=False
-    )
+    histories = fire([trigger.service], payload, user=user, isolate_failures=False)
 
     message = AgentMessage.objects.get(role="trigger")
     assert histories == []

@@ -905,7 +905,9 @@ def test_a_shared_reply_is_followed_by_members_and_stopped_with_agent_update_acc
         workspace=data_fixture.create_workspace(user=admin, members=[member])
     )
     trigger = data_fixture.create_agent_trigger(agent=agent)
-    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
     run = run_of(conversation)
     run_type = AgentChatRunType()
     check = mocker.spy(CoreHandler, "check_multiple_permissions")
@@ -2038,7 +2040,9 @@ def test_an_unattended_reply_offers_no_ask_first_tools_and_uses_utc(
     respond(mocker)
     requested = mocker.spy(AgentHandler, "get_reply_request")
 
-    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
     run_reply(run_of(conversation))
 
     request = requested.spy_return
@@ -2059,7 +2063,9 @@ def test_an_unattended_reply_stops_once_its_trigger_is_gone(
 ):
     agent = configured_agent()
     trigger = data_fixture.create_agent_trigger(agent=agent)
-    conversation = AgentHandler().start_trigger_conversation(trigger, "Tick")
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
     if change == "disable":
         trigger.enabled = False
         trigger.save(update_fields=["enabled"])

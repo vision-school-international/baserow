@@ -12,11 +12,12 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.services.models import Service
 from baserow.core.utils import exception_capturer
 
-from ..constants import AgentReadinessState
+from ..constants import AGENT_TRIGGER_MESSAGE_FAILED, AgentReadinessState
 from ..handler import AgentHandler
 from ..models import AgentTrigger
 from ..signals import agent_conversation_activity
-from .data_providers import resolve_trigger_message
+from .data_providers import payload_as_message, resolve_trigger_message
+from .tasks import start_trigger_conversation
 
 
 class AgentTriggerDispatcher:
@@ -57,7 +58,8 @@ class AgentTriggerDispatcher:
             logger.debug("Agent triggers skipped: the agent builder is off.")
             return []
         for trigger in triggers:
-            self._start(trigger, payloads[trigger.id] or {}, fired_at)
+            if trigger.enabled:
+                self._queue_start(trigger, payloads[trigger.id] or {}, fired_at)
         return []
 
     def _match(
@@ -112,34 +114,66 @@ class AgentTriggerDispatcher:
         logger.debug("Agent trigger {} skipped: {}.", trigger.id, reason)
         return False
 
-    def _start(self, trigger: AgentTrigger, payload: dict, fired_at: datetime) -> None:
+    def _queue_start(
+        self, trigger: AgentTrigger, payload: dict, fired_at: datetime
+    ) -> None:
         """
-        Start the trigger's conversation in a savepoint if it is runnable, telling
-        the readers. A failure rolls back only this trigger and is logged.
+        Resolve the trigger's message while its payload is at hand, and start its
+        conversation in its own transaction after the event's one commits, so the
+        workspace run lock isn't held for the rest of a beat tick. A message that
+        can't be resolved opens with the payload and fails its reply.
 
-        :param trigger: The trigger that fired, with its agent.
+        :param trigger: The enabled trigger that fired.
         :param payload: The event payload the message formula reads.
         :param fired_at: When the event was handled, shared by all its triggers.
         """
 
+        failure = None
         try:
-            with transaction.atomic():
-                if not self._is_runnable(trigger):
-                    return
-                content = resolve_trigger_message(trigger, payload, fired_at)
-                handler = AgentHandler()
-                conversation = handler.start_trigger_conversation(trigger, content)
-                run_id = next(
-                    iter(handler.get_active_reply_runs(conversation).values()), None
-                )
-                agent_conversation_activity.send(
-                    self, conversation=conversation, user=None, run_id=run_id
-                )
+            content = resolve_trigger_message(trigger, payload, fired_at)
         except SoftTimeLimitExceeded:
-            # The task is out of time and must stop instead of starting the rest.
             raise
         except Exception as e:
-            logger.exception("Could not start agent trigger {}.", trigger.id)
+            # A user's formula, not a bug: log it without reporting it.
+            logger.warning(
+                "Agent trigger {} message failed ({}).", trigger.id, type(e).__name__
+            )
+            content, failure = payload_as_message(payload), AGENT_TRIGGER_MESSAGE_FAILED
+        transaction.on_commit(
+            lambda: start_trigger_conversation.delay(trigger.id, content, failure)
+        )
+
+    def start(self, trigger_id: int, content: str, failure: str | None) -> None:
+        """
+        Start the conversation of a trigger that fired, if it still can run, and
+        tell the readers. A failure is logged and reported, never raised.
+
+        :param trigger_id: The id of the trigger that fired.
+        :param content: The resolved message opening the conversation.
+        :param failure: The error code failing the reply instead of running it, or
+            None.
+        """
+
+        try:
+            with transaction.atomic():
+                trigger = (
+                    AgentTrigger.objects.filter(id=trigger_id)
+                    .select_related("agent__workspace")
+                    .first()
+                )
+                if trigger is None or not self._is_runnable(trigger):
+                    return
+                created = AgentHandler().start_trigger_conversation(
+                    trigger, content, failure
+                )
+                agent_conversation_activity.send(
+                    self,
+                    conversation=created.conversation,
+                    user=None,
+                    run_id=created.run_id,
+                )
+        except Exception as e:
+            logger.exception("Could not start agent trigger {}.", trigger_id)
             exception_capturer(e)
 
 
