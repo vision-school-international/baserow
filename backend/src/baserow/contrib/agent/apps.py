@@ -36,7 +36,10 @@ class AgentConfig(AppConfig):
             RestoreAgentConversationOperationType,
             UpdateAgentConversationOperationType,
         )
-        from .registries import agent_tool_type_registry
+        from .registries import (
+            agent_data_provider_type_registry,
+            agent_tool_type_registry,
+        )
         from .search_types import AgentSearchType
         from .tool_types import (
             CreateFieldsAgentToolType,
@@ -59,10 +62,7 @@ class AgentConfig(AppConfig):
             DeleteAgentTriggerActionType,
             UpdateAgentTriggerActionType,
         )
-        from .triggers.data_providers import (
-            TriggerDataProviderType,
-            agent_data_provider_type_registry,
-        )
+        from .triggers.data_providers import TriggerDataProviderType
         from .triggers.dispatcher import agent_trigger_dispatcher
         from .triggers.trash_types import AgentTriggerTrashableItemType
 

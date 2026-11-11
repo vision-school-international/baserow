@@ -11,9 +11,9 @@ from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
-from baserow.contrib.agent.registries import agent_tool_type_registry
-from baserow.contrib.agent.triggers.data_providers import (
+from baserow.contrib.agent.registries import (
     agent_data_provider_type_registry,
+    agent_tool_type_registry,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT

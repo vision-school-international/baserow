@@ -50,14 +50,24 @@ class AgentService:
     def __init__(self):
         self.handler = AgentHandler()
 
-    def _get_authorized_agent(
+    def get_authorized_agent(
         self,
         user: AbstractUser,
         agent_id: int,
         *operations: str,
         for_update: bool = False,
     ) -> AgentApplication:
-        """Fetch the Agent and check each operation on it."""
+        """
+        Fetch the Agent and check each operation on it.
+
+        :param user: The user asking.
+        :param agent_id: The id of the Agent.
+        :param operations: The operation type names the user needs on the Agent.
+        :param for_update: Whether to lock the Agent.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises PermissionException: When the user lacks any of the operations.
+        :return: The Agent.
+        """
 
         agent = self.handler.get_agent(agent_id, for_update=for_update)
         CoreHandler().check_multiple_permissions(
@@ -79,7 +89,7 @@ class AgentService:
         :return: The configuration values with their readiness.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user, agent_id, ReadAgentConfigurationOperationType.type
         )
         return self.handler.get_configuration(agent)
@@ -97,7 +107,7 @@ class AgentService:
         :return: Active identity options from the Agent's authoritative workspace.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user,
             agent_id,
             UpdateApplicationOperationType.type,
@@ -127,7 +137,7 @@ class AgentService:
             resolved resulting configuration.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user,
             agent_id,
             UpdateApplicationOperationType.type,
@@ -161,7 +171,7 @@ class AgentService:
         :return: The conversations, most recently updated first.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         return self.handler.list_conversations(
@@ -184,7 +194,7 @@ class AgentService:
         :return: The conversation, and its messages newest first.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
@@ -231,7 +241,7 @@ class AgentService:
         :return: The conversation with the original and new values that changed.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user, agent_id, UpdateAgentConversationOperationType.type
         )
         # Locked so a concurrent delete or rename can't interleave with this one.
@@ -263,7 +273,7 @@ class AgentService:
         :return: The trashed conversation.
         """
 
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user, agent_id, DeleteAgentConversationOperationType.type
         )
         # The lock waits for a message being sent, so its reply is stopped too.
@@ -469,7 +479,7 @@ class AgentService:
         """
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user,
             agent_id,
             CreateAgentConversationOperationType.type,
@@ -529,7 +539,7 @@ class AgentService:
         """
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
-        agent = self._get_authorized_agent(
+        agent = self.get_authorized_agent(
             user, agent_id, CreateAgentMessageOperationType.type
         )
         conversation = self.handler.get_conversation(
@@ -598,7 +608,7 @@ class AgentService:
                 UpdateApplicationOperationType.type,
                 ReadAgentConfigurationOperationType.type,
             ]
-        agent = self._get_authorized_agent(user, agent_id, *operations)
+        agent = self.get_authorized_agent(user, agent_id, *operations)
         # The lock serializes decisions with each other and with sends and trashing.
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True

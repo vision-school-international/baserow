@@ -1,15 +1,13 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 
-from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentApplication, AgentTrigger
+from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.service import AgentService
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.formula.types import BaserowFormulaObject
-from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.registries import service_type_registry
-from baserow.core.types import PermissionCheck
 
 from .handler import AgentTriggerHandler
 
@@ -22,25 +20,7 @@ WRITE_OPERATIONS = (
 class AgentTriggerService:
     def __init__(self) -> None:
         self.handler = AgentTriggerHandler()
-        self.agent_handler = AgentHandler()
-
-    def _check_permissions(
-        self, user: AbstractUser, agent: AgentApplication, *operations: str
-    ) -> None:
-        """
-        Check each operation on the Agent, as the configuration calls do.
-
-        :param user: The user to check.
-        :param agent: The Agent the operations apply to.
-        :param operations: The operation type names the user needs.
-        :raises PermissionException: When the user lacks any of the operations.
-        """
-
-        CoreHandler().check_multiple_permissions(
-            [PermissionCheck(user, operation, agent) for operation in operations],
-            workspace=agent.workspace,
-            raise_exception=True,
-        )
+        self.agent_service = AgentService()
 
     def _get_authorized_trigger(
         self,
@@ -64,8 +44,9 @@ class AgentTriggerService:
         :return: The trigger with its Agent and service.
         """
 
-        agent = self.agent_handler.get_agent(agent_id, for_update=for_update)
-        self._check_permissions(user, agent, *operations)
+        agent = self.agent_service.get_authorized_agent(
+            user, agent_id, *operations, for_update=for_update
+        )
         queryset = AgentTrigger.objects.filter(agent=agent)
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
@@ -82,8 +63,9 @@ class AgentTriggerService:
         :return: The triggers, oldest first.
         """
 
-        agent = self.agent_handler.get_agent(agent_id)
-        self._check_permissions(user, agent, ReadAgentConfigurationOperationType.type)
+        agent = self.agent_service.get_authorized_agent(
+            user, agent_id, ReadAgentConfigurationOperationType.type
+        )
         return list(self.handler.list_triggers(agent))
 
     def get_trigger(
@@ -138,8 +120,9 @@ class AgentTriggerService:
         """
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
-        agent = self.agent_handler.get_agent(agent_id, for_update=True)
-        self._check_permissions(user, agent, *WRITE_OPERATIONS)
+        agent = self.agent_service.get_authorized_agent(
+            user, agent_id, *WRITE_OPERATIONS, for_update=True
+        )
         self.handler.check_type_available(agent, service_type_name)
         service_type = service_type_registry.get(service_type_name)
         prepared_service_values = service_type.prepare_values(

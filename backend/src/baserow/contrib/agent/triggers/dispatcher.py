@@ -17,7 +17,6 @@ from ..constants import AGENT_TRIGGER_MESSAGE_FAILED, AgentReadinessState
 from ..handler import AgentHandler
 from ..models import AgentTrigger
 from ..signals import agent_conversation_activity
-from .data_providers import payload_as_message, resolve_trigger_message
 from .handler import AgentTriggerHandler
 from .tasks import start_trigger_conversation
 
@@ -79,8 +78,10 @@ class AgentTriggerDispatcher:
         triggers = list(
             AgentTrigger.objects.filter(
                 service_id__in=list(services_by_id)
-            ).select_related("agent__workspace", "service")
+            ).select_related("agent__workspace")
         )
+        for trigger in triggers:
+            trigger.service = services_by_id[trigger.service_id]
         # The callable gets the instances it handed over, which it then saves.
         payloads = {
             trigger.id: (
@@ -139,7 +140,7 @@ class AgentTriggerDispatcher:
 
         failure = None
         try:
-            content = resolve_trigger_message(trigger, payload, fired_at)
+            content = AgentTriggerHandler().resolve_message(trigger, payload, fired_at)
         except SoftTimeLimitExceeded:
             raise
         except Exception as e:
@@ -147,7 +148,8 @@ class AgentTriggerDispatcher:
             logger.warning(
                 "Agent trigger {} message failed ({}).", trigger.id, type(e).__name__
             )
-            content, failure = payload_as_message(payload), AGENT_TRIGGER_MESSAGE_FAILED
+            content = AgentTriggerHandler().payload_as_message(payload)
+            failure = AGENT_TRIGGER_MESSAGE_FAILED
         transaction.on_commit(
             lambda: start_trigger_conversation.delay(trigger.id, content, failure)
         )
