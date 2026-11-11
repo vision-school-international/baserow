@@ -349,7 +349,8 @@ class AgentTriggerHandler:
     def get_queued_replies(self, trigger: AgentTrigger) -> QuerySet[AgentMessage]:
         """
         Return the trigger's replies waiting, without a run, for its previous reply
-        to end. Deleted conversations are left out: deleting one cancels its run.
+        to end. Deleted conversations are left out: their replies wait until they
+        are restored.
 
         :param trigger: The trigger whose conversations are looked at.
         :return: The queued replies, oldest first.

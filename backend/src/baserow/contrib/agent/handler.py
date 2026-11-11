@@ -955,8 +955,8 @@ class AgentHandler:
         going, the trigger is switched off, or it, its agent or its workspace is
         trashed. The trigger's row is locked without waiting, so two callers never
         start two replies; one that finds it locked starts nothing, and the next
-        hand-off or the sweep moves the queue on. They also retry a reply left
-        queued because the workspace has its maximum of replies running.
+        hand-off or the sweep moves the queue on. A reply held back by the
+        workspace's run limit stays queued for the next hand-off or sweep.
 
         :param trigger: The trigger whose queue moves on.
         :return: The reply now running, with its conversation; None when nothing

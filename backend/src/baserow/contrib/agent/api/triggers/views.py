@@ -172,9 +172,10 @@ class AgentTriggerView(APIView):
         tags=["Agent applications"],
         operation_id="update_agent_trigger",
         description=(
-            "Updates the provided fields of the trigger: its switch, its message "
-            "and the values of its service, whose type is fixed. Requires "
-            "permission to update the agent and read its configuration."
+            "Updates the provided fields of the trigger: its switch, its message, "
+            "its overlap rule and the values of its service, whose type is fixed. "
+            "Switching it off cancels its queued replies. Requires permission to "
+            "update the agent and read its configuration."
         ),
         request=UpdateAgentTriggerSerializer,
         responses={

@@ -155,8 +155,9 @@ class AgentTriggerService:
         on_overlap: str | None = None,
     ) -> AgentTriggerUpdated:
         """
-        Change a trigger's switch, message or service values, for a user who may
-        update and read its Agent's configuration.
+        Change a trigger's switch, message, overlap rule or service values, for a
+        user who may update and read its Agent's configuration. Switching it off
+        cancels its queued replies.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
