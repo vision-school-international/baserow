@@ -9,6 +9,8 @@ ENV BASEROW_PLUGIN_DIR=/baserow/vsi-plugins
 ENV BASEROW_OSS_ONLY=true
 # Read by the backend and remapped for the frontend (web-frontend/env-remap.mjs).
 ENV BRAND_NAME="Vision School"
+# Backend reads it directly; the frontend through env-remap.mjs.
+ENV FEATURE_FLAGS="agent-builder"
 
 # No Baserow templates. With no template files, the template sync that runs after
 # migrations deletes the templates it installed before. The theme zips stay.
