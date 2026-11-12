@@ -44,6 +44,14 @@ export class DataSyncType extends Registerable {
       name: this.getName(),
     }
   }
+
+  /**
+   * Type of the two-way sync strategy. This is just used for showing the correct
+   * label. If set, then it enabled the two-way data sync.
+   */
+  getTwoWayDataSyncStrategy() {
+    return null
+  }
 }
 
 export class ICalCalendarDataSyncType extends DataSyncType {

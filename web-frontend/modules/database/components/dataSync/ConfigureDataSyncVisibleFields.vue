@@ -59,6 +59,22 @@
           {{ $t('createDataSync.deleteUnmatchedRowsLabel') }}</SwitchInput
         >
       </FormGroup>
+      <FormGroup
+        v-if="twoWaySyncStrategy"
+        small-label
+        class="margin-top-2"
+        :helper-text="twoWaySyncStrategy.getDescription()"
+      >
+        <SwitchInput
+          v-model="twoWayDataSync"
+          class="margin-top-2"
+          small
+          :disabled="updateLoading"
+          @input="completed = false"
+        >
+          {{ $t('createDataSync.twoWaySyncLabel') }}
+        </SwitchInput>
+      </FormGroup>
       <Error :error="error"></Error>
       <div class="modal-progress__actions margin-top-2">
         <ProgressBar
@@ -122,7 +138,17 @@ export default {
       syncTableValue: true,
       autoAddNewProperties: false,
       deleteUnmatchedRows: true,
+      twoWayDataSync: false,
     }
+  },
+  computed: {
+    dataSyncType() {
+      return this.$registry.get('dataSync', this.table.data_sync.type)
+    },
+    twoWaySyncStrategy() {
+      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
+      return strategy ? this.$registry.get('twoWaySyncStrategy', strategy) : null
+    },
   },
   mounted() {
     this.hideError()
@@ -131,6 +157,9 @@ export default {
     )
     this.autoAddNewProperties = this.table.data_sync.auto_add_new_properties
     this.deleteUnmatchedRows = this.table.data_sync.delete_unmatched_rows
+    this.twoWayDataSync = this.twoWaySyncStrategy
+      ? this.table.data_sync.two_way_sync
+      : false
     this.fetchExistingProperties(this.table)
   },
   methods: {
@@ -144,8 +173,7 @@ export default {
           synced_properties: this.syncedProperties,
           auto_add_new_properties: this.autoAddNewProperties,
           delete_unmatched_rows: this.deleteUnmatchedRows,
-          // No two-way sync strategy exists in core, so saving always turns it off.
-          two_way_sync: false,
+          two_way_sync: this.twoWayDataSync,
         },
         this.syncTableValue
       )

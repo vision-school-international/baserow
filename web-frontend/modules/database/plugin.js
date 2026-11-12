@@ -414,6 +414,7 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('importer')
     $registry.registerNamespace('exporter')
     $registry.registerNamespace('dataSync')
+    $registry.registerNamespace('twoWaySyncStrategy')
     $registry.registerNamespace('webhookEvent')
     $registry.registerNamespace('formula_function')
     $registry.registerNamespace('formula_type')

@@ -90,6 +90,21 @@
         {{ $t('createDataSync.deleteUnmatchedRowsLabel') }}</SwitchInput
       >
     </FormGroup>
+    <FormGroup
+      v-if="twoWaySyncStrategy"
+      small-label
+      class="margin-top-2"
+      :helper-text="twoWaySyncStrategy.getDescription()"
+    >
+      <SwitchInput
+        v-model="twoWaySync"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobIsFinished"
+      >
+        {{ $t('createDataSync.twoWaySyncLabel') }}
+      </SwitchInput>
+    </FormGroup>
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
@@ -160,6 +175,7 @@ export default {
       createdTable: null,
       autoAddNewProperties: false,
       deleteUnmatchedRows: true,
+      twoWaySync: false,
     }
   },
   computed: {
@@ -170,6 +186,11 @@ export default {
       } catch {
         return null
       }
+    },
+    twoWaySyncStrategy() {
+      if (!this.dataSyncType) return null
+      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
+      return strategy ? this.$registry.get('twoWaySyncStrategy', strategy) : null
     },
     dataSyncComponent() {
       return this.dataSyncType ? this.dataSyncType.getFormComponent() : null
@@ -249,6 +270,7 @@ export default {
       formValues.synced_properties = this.syncedProperties
       formValues.auto_add_new_properties = this.autoAddNewProperties
       formValues.delete_unmatched_rows = this.deleteUnmatchedRows
+      formValues.two_way_sync = this.twoWaySync
 
       this.creatingTable = true
       this.hideError()
