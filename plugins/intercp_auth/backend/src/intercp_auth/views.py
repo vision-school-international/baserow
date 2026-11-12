@@ -55,20 +55,18 @@ class LoginView(APIView):
 
     def get(self, request: Request) -> HttpResponseRedirect:
         try:
-            auth = oidc.start(_callback_url())
+            authorization_url, state = oidc.start(_callback_url())
         except (oidc.OIDCError, ImproperlyConfigured) as e:
             logger.warning("InterCP sign-in could not start: {}", e)
             return _error_redirect("provider_error")
 
         request.session[SESSION_KEY] = {
-            "state": auth.state,
-            "nonce": auth.nonce,
-            "code_verifier": auth.code_verifier,
+            "state": state,
             "original": _relative_path_or_none(request.GET.get("original")),
             "invitation_token": request.GET.get("workspace_invitation_token"),
             "invitation_link_slug": request.GET.get("workspace_invitation_link_slug"),
         }
-        return HttpResponseRedirect(auth.url)
+        return HttpResponseRedirect(authorization_url)
 
 
 class CallbackView(APIView):
@@ -93,9 +91,7 @@ class CallbackView(APIView):
             return _error_redirect("cancelled")
 
         try:
-            claims = oidc.finish(
-                code, _callback_url(), flow["nonce"], flow["code_verifier"]
-            )
+            claims = oidc.finish(code, _callback_url())
         except oidc.OIDCError as e:
             logger.warning("InterCP sign-in failed: {}", e)
             return _error_redirect("provider_error")

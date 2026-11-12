@@ -10,7 +10,7 @@ license = "MIT"
 requires-python = ">=3.14"
 # Both already ship with Baserow; declared so a Baserow upgrade that drops them fails the
 # install instead of failing at sign-in.
-dependencies = ["pyjwt[crypto]>=2.8", "requests>=2.31"]
+dependencies = ["pyjwt[crypto]>=2.8", "requests>=2.31", "requests-oauthlib>=2.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

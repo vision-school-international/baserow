@@ -14,6 +14,7 @@ from intercp_auth.models import InterCPAuthProviderModel
 from intercp_auth.sync import enforce_single_sign_on
 
 from baserow.core.auth_provider.handler import PasswordProviderHandler
+from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import auth_provider_type_registry
 
@@ -23,32 +24,22 @@ CLIENT_SECRET = "baserow-secret"
 AUTHORIZE = "https://auth.example.test/application/o/authorize/"
 TOKEN = "https://auth.example.test/application/o/token/"
 USERINFO = "https://auth.example.test/application/o/userinfo/"
+JWKS = ISSUER + "jwks/"
+KID = "key-1"
 FRONTEND = "https://baserow.example.test"
 SIGNING_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
 
 @pytest.fixture
-def intercp(settings, mocker):
+def intercp(settings):
     settings.INTERCP_OIDC_ISSUER = ISSUER
     settings.INTERCP_OIDC_CLIENT_ID = CLIENT_ID
     settings.INTERCP_OIDC_CLIENT_SECRET = CLIENT_SECRET
     settings.INTERCP_OIDC_NAME = "InterCP"
     settings.PUBLIC_BACKEND_URL = FRONTEND
     settings.PUBLIC_WEB_FRONTEND_URL = FRONTEND
-    oidc._discover.cache_clear()
-    # PyJWKClient fetches keys with urllib, which `responses` does not intercept.
-    mocker.patch.object(
-        jwt.PyJWKClient,
-        "get_signing_key_from_jwt",
-        return_value=jwt.PyJWK.from_dict(
-            {
-                **jwt.algorithms.RSAAlgorithm.to_jwk(
-                    SIGNING_KEY.public_key(), as_dict=True
-                ),
-                "alg": "RS256",
-            }
-        ),
-    )
+    oidc._wellknown.cache_clear()
+    global_cache.invalidate(f"intercp_auth_jwks_{JWKS}")
     with responses.RequestsMock(assert_all_requests_are_fired=False) as http:
         http.get(
             ISSUER + ".well-known/openid-configuration",
@@ -57,11 +48,25 @@ def intercp(settings, mocker):
                 "authorization_endpoint": AUTHORIZE,
                 "token_endpoint": TOKEN,
                 "userinfo_endpoint": USERINFO,
-                "jwks_uri": ISSUER + "jwks/",
+                "jwks_uri": JWKS,
+            },
+        )
+        http.get(
+            JWKS,
+            json={
+                "keys": [
+                    {
+                        **jwt.algorithms.RSAAlgorithm.to_jwk(
+                            SIGNING_KEY.public_key(), as_dict=True
+                        ),
+                        "kid": KID,
+                    }
+                ]
             },
         )
         yield http
-    oidc._discover.cache_clear()
+    oidc._wellknown.cache_clear()
+    global_cache.invalidate(f"intercp_auth_jwks_{JWKS}")
 
 
 def id_token(**overrides):
@@ -72,9 +77,12 @@ def id_token(**overrides):
         "sub": "user-1",
         "iat": now,
         "exp": now + 300,
+        "email": "nerdy_koala@visionschool.dev",
+        "email_verified": True,
+        "name": "Anthony",
         **overrides,
     }
-    return jwt.encode(claims, SIGNING_KEY, algorithm="RS256")
+    return jwt.encode(claims, SIGNING_KEY, algorithm="RS256", headers={"kid": KID})
 
 
 def start_flow(api_client, query=""):
@@ -83,22 +91,13 @@ def start_flow(api_client, query=""):
     return parse_qs(urlsplit(response["Location"]).query)
 
 
-def finish_flow(api_client, http, params, userinfo=None, **token_claims):
+def finish_flow(api_client, http, params, **token_claims):
     http.post(
         TOKEN,
         json={
             "access_token": "access",
-            "id_token": id_token(**{"nonce": params["nonce"][0], **token_claims}),
-        },
-    )
-    http.get(
-        USERINFO,
-        json=userinfo
-        or {
-            "sub": "user-1",
-            "email": "nerdy_koala@visionschool.dev",
-            "email_verified": True,
-            "name": "Anthony",
+            "token_type": "Bearer",
+            "id_token": id_token(**token_claims),
         },
     )
     return api_client.get(
@@ -155,15 +154,15 @@ def test_login_options_offer_only_intercp(intercp, data_fixture):
 
 
 @pytest.mark.django_db
-def test_login_redirects_with_state_nonce_and_pkce(intercp, api_client):
+def test_login_redirects_with_state(intercp, api_client):
     params = start_flow(api_client)
 
     assert params["response_type"] == ["code"]
     assert params["client_id"] == [CLIENT_ID]
     callback = FRONTEND + reverse("api:intercp_auth:callback")
     assert params["redirect_uri"] == [callback]
-    assert params["code_challenge_method"] == ["S256"]
-    assert params["state"] and params["nonce"] and params["code_challenge"]
+    assert params["scope"] == ["openid email profile"]
+    assert params["state"]
 
 
 @pytest.mark.django_db
@@ -208,12 +207,14 @@ def test_callback_rejects_wrong_state(intercp, api_client):
 
 
 @pytest.mark.django_db
-def test_callback_rejects_wrong_nonce(intercp, api_client, data_fixture):
+def test_callback_rejects_id_token_for_another_client(
+    intercp, api_client, data_fixture
+):
     data_fixture.create_password_provider(enabled=True)
     enforce_single_sign_on()
     params = start_flow(api_client)
 
-    response = finish_flow(api_client, intercp, params, nonce="replayed")
+    response = finish_flow(api_client, intercp, params, aud="another-client")
 
     assert error_of(response) == "provider_error"
     assert not get_user_model().objects.exists()
@@ -228,10 +229,12 @@ def test_callback_rejects_symmetric_id_token(intercp, api_client, data_fixture):
         TOKEN,
         json={
             "access_token": "access",
+            "token_type": "Bearer",
             "id_token": jwt.encode(
-                {"iss": ISSUER, "aud": CLIENT_ID, "nonce": params["nonce"][0]},
+                {"iss": ISSUER, "aud": CLIENT_ID},
                 CLIENT_SECRET,
                 algorithm="HS256",
+                headers={"kid": KID},
             ),
         },
     )
@@ -251,31 +254,10 @@ def test_callback_rejects_unverified_email(intercp, api_client, data_fixture):
     params = start_flow(api_client)
 
     response = finish_flow(
-        api_client,
-        intercp,
-        params,
-        userinfo={"sub": "user-1", "email": "a@b.test", "email_verified": False},
+        api_client, intercp, params, email="a@b.test", email_verified=False
     )
 
     assert error_of(response) == "unverified_email"
-
-
-@pytest.mark.django_db
-def test_callback_rejects_userinfo_for_another_subject(
-    intercp, api_client, data_fixture
-):
-    data_fixture.create_password_provider(enabled=True)
-    enforce_single_sign_on()
-    params = start_flow(api_client)
-
-    response = finish_flow(
-        api_client,
-        intercp,
-        params,
-        userinfo={"sub": "other", "email": "a@b.test", "email_verified": True},
-    )
-
-    assert error_of(response) == "provider_error"
 
 
 @pytest.mark.django_db
