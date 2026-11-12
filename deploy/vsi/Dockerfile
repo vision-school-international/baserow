@@ -12,9 +12,11 @@ ENV BRAND_NAME="Vision School"
 # Backend reads it directly; the frontend through env-remap.mjs.
 ENV FEATURE_FLAGS="agent-builder"
 
-# No Baserow templates. With no template files, the template sync that runs after
-# migrations deletes the templates it installed before. The theme zips stay.
-RUN rm -f /baserow/backend/templates/*.json
+# No Baserow templates. The builder's theme files (ab_*_theme.json) stay: the builder
+# loads themes from them (contrib/builder/tools/themes.py). A pattern that matches
+# nothing stops the template sync from installing them as templates.
+RUN find /baserow/backend/templates -name '*.json' ! -name 'ab_*_theme.json' -delete
+ENV BASEROW_SYNC_TEMPLATES_PATTERN="^$"
 
 # Backend only: the prod frontend cannot be rebuilt here, so plugin frontends are compiled
 # into the web-frontend image (see web-frontend/Dockerfile, builder-prod).
