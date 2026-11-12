@@ -1,0 +1,8 @@
+{
+  "name": "ai-tables",
+  "version": "0.1.0",
+  "description": "AI prompt fields: generate a cell from a prompt that reads the other fields of its row.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,31 @@
+{
+  "aiTables": {
+    "textFieldName": "AI text",
+    "choiceFieldName": "AI choice",
+    "featureName": "AI fields",
+    "featureDescription": "Models that AI text and AI choice fields can use.",
+    "prompt": "Prompt",
+    "promptHelp": "Sent to the model for every row. Insert fields to use the row's values.",
+    "promptPlaceholder": "Summarize the description in one sentence",
+    "promptInvalid": "The prompt isn't valid.",
+    "fields": "Fields",
+    "fileField": "Files",
+    "fileFieldHelp": "The files in this field are sent to the model with the prompt.",
+    "noFileField": "None",
+    "autoUpdate": "Auto update",
+    "autoUpdateHelp": "Runs as you. It stops if you lose access to the table.",
+    "autoUpdateLabel": "Regenerate when a field in the prompt changes",
+    "options": "Options",
+    "optionsHelp": "The model picks one of these for every row.",
+    "generateValues": "Generate values",
+    "generateSelected": "Generate values",
+    "generateTitle": "Generate values of {name}",
+    "generateRows": "Rows",
+    "rowsInView": "Rows in this view",
+    "rowsInTable": "All rows in the table",
+    "onlyEmpty": "Only empty cells",
+    "generate": "Generate",
+    "generateFailed": "Generating values failed",
+    "close": "Close"
+  }
+}

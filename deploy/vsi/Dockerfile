@@ -23,3 +23,6 @@ ENV BASEROW_SYNC_TEMPLATES_PATTERN="^$"
 COPY plugins/intercp_auth/baserow_plugin_info.json /baserow/vsi-plugins/intercp_auth/
 COPY plugins/intercp_auth/backend /baserow/vsi-plugins/intercp_auth/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/intercp_auth
+COPY plugins/ai_tables/baserow_plugin_info.json /baserow/vsi-plugins/ai_tables/
+COPY plugins/ai_tables/backend /baserow/vsi-plugins/ai_tables/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/ai_tables
