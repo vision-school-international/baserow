@@ -2,7 +2,6 @@ import { onTestFinished } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import UsersAdminTable from '@baserow/modules/core/components/admin/users/UsersAdminTable'
 import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
-import DisableTwoFactorAuthModal from '@baserow/modules/core/components/admin/users/modals/DisableTwoFactorAuthModal'
 import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
@@ -50,7 +49,7 @@ describe('User Admin Component Tests', () => {
     expect(userAdmin.html()).toMatchSnapshot()
 
     const cells = ui.findCells()
-    expect(cells.length).toBe(8)
+    expect(cells.length).toBe(7)
     const {
       usernameCell,
       nameCell,
@@ -58,7 +57,6 @@ describe('User Admin Component Tests', () => {
       lastLoginCell,
       signedUpCell,
       isActiveCell,
-      twoFactorAuthCell,
     } = ui.getRow(cells, 0)
 
     // Username matches with correct initials and has an admin icon
@@ -96,97 +94,6 @@ describe('User Admin Component Tests', () => {
 
     // Shown as active via the icon only (no text label)
     expect(isActiveCell.find('.iconoir-check').exists()).toBe(true)
-
-    // 2FA is shown as disabled when not configured
-    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
-  })
-
-  test('A users 2FA enabled status is displayed', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
-      twoFactorAuth: { type: 'totp', is_enabled: true },
-    })
-
-    const cells = ui.findCells()
-    const { twoFactorAuthCell } = ui.getRow(cells, 0)
-    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
-  })
-
-  test('edit user modal shows 2FA provider and remove option when enabled', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
-      twoFactorAuth: { type: 'totp', is_enabled: true },
-    })
-
-    const editUserContext = await ui.openFirstUserActionsMenu()
-    await ui.clickEditUser(editUserContext)
-
-    const userForm = ui.c.findComponent(UserForm)
-    expect(userForm.find('.user-admin-edit__remove-2fa').exists()).toBe(true)
-  })
-
-  test('edit user modal hides remove 2FA option when disabled', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({})
-
-    const editUserContext = await ui.openFirstUserActionsMenu()
-    await ui.clickEditUser(editUserContext)
-
-    const userForm = ui.c.findComponent(UserForm)
-    expect(userForm.find('.user-admin-edit__remove-2fa').exists()).toBe(false)
-  })
-
-  test('admin can remove a users 2FA', async () => {
-    // whenThereIsAUserAndYouOpenUserAdmin creates the user with id 1 by
-    // default — register the delete mock for that id before opening the UI.
-    testApp.mock.onDelete(`/admin/users/1/two-factor-auth/`).reply(204)
-
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
-      twoFactorAuth: { type: 'totp', is_enabled: true },
-    })
-    const editUserContext = await ui.openFirstUserActionsMenu()
-    await ui.clickEditUser(editUserContext)
-
-    const userForm = ui.c.findComponent(UserForm)
-    await userForm.find('.user-admin-edit__remove-2fa').trigger('click')
-    await flushPromises()
-
-    const disableModal = ui.c.findComponent(DisableTwoFactorAuthModal)
-    // the danger button is the confirm action
-    await disableModal.find('button.button--danger').trigger('click')
-    await flushPromises()
-
-    const cells = ui.findCells()
-    const { twoFactorAuthCell } = ui.getRow(cells, 0)
-    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
-  })
-
-  test('a failed 2FA removal shows an error and leaves the row unchanged', async () => {
-    testApp.mock.onDelete(`/admin/users/1/two-factor-auth/`).reply(400, {
-      error: 'ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED',
-      detail: 'Two-factor authentication is not configured.',
-    })
-
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
-      twoFactorAuth: { type: 'totp', is_enabled: true },
-    })
-    testApp.dontFailOnErrorResponses()
-
-    const editUserContext = await ui.openFirstUserActionsMenu()
-    await ui.clickEditUser(editUserContext)
-
-    const userForm = ui.c.findComponent(UserForm)
-    await userForm.find('.user-admin-edit__remove-2fa').trigger('click')
-    await flushPromises()
-
-    const disableModal = ui.c.findComponent(DisableTwoFactorAuthModal)
-    await disableModal.find('button.button--danger').trigger('click')
-    await flushPromises()
-
-    // The error is surfaced inside the modal instead of silently swallowed.
-    expect(ui.getErrorText(disableModal).length).toBeGreaterThan(0)
-
-    // The optimistic clear must NOT be applied: the row still shows 2FA enabled.
-    const cells = ui.findCells()
-    const { twoFactorAuthCell } = ui.getRow(cells, 0)
-    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
   })
 
   test('A user with no workspaces is displayed without any', async () => {
@@ -197,7 +104,7 @@ describe('User Admin Component Tests', () => {
     await flushPromises()
 
     const cells = ui.findCells()
-    expect(cells.length).toBe(8)
+    expect(cells.length).toBe(7)
     const { usernameCell, workspacesCell } = ui.getRow(cells, 0)
 
     expect(usernameCell.text()).toContain(user.username)
@@ -587,7 +494,7 @@ describe('User Admin Component Tests', () => {
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
 
-    const cells = ui.findCells(16)
+    const cells = ui.findCells(14)
     const { usernameCell: firstUsernameCell } = ui.getRow(cells, 0)
     expect(firstUsernameCell.text()).toContain('firstUser@example.com')
     const { usernameCell: secondUsernameCell } = ui.getRow(cells, 1)
@@ -618,7 +525,7 @@ describe('User Admin Component Tests', () => {
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
 
-    const cells = ui.findCells(16)
+    const cells = ui.findCells(14)
     const { usernameCell: firstUsernameCell } = ui.getRow(cells, 0)
     expect(firstUsernameCell.text()).toContain('firstUser@example.com')
     const { usernameCell: secondUsernameCell } = ui.getRow(cells, 1)

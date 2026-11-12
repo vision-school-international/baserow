@@ -81,13 +81,6 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
               </div>
             </div>
           </th>
-          <th style="" class="data-table__table-cell data-table__table-cell--header">
-            <div class="data-table__table-cell-head">
-              <div>usersAdminTable.twoFactorAuth
-                <!--v-if-->
-              </div>
-            </div>
-          </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-right">
             <div class="data-table__table-cell-head">
               <div>
@@ -147,14 +140,6 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
-              <!--v-if-->
-            </div>
-          </td>
-          <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
-            <div class="data-table__table-cell-content">
-              <div class="badge badge--neutral badge--regular badge--rounded">
-                <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
-              </div>
               <!--v-if-->
             </div>
           </td>
@@ -263,13 +248,6 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               </div>
             </div>
           </th>
-          <th style="" class="data-table__table-cell data-table__table-cell--header">
-            <div class="data-table__table-cell-head">
-              <div>usersAdminTable.twoFactorAuth
-                <!--v-if-->
-              </div>
-            </div>
-          </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-right">
             <div class="data-table__table-cell-head">
               <div>
@@ -329,14 +307,6 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
-              <!--v-if-->
-            </div>
-          </td>
-          <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
-            <div class="data-table__table-cell-content">
-              <div class="badge badge--neutral badge--regular badge--rounded">
-                <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
-              </div>
               <!--v-if-->
             </div>
           </td>
@@ -402,14 +372,6 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <!--v-if-->
             </div>
           </td>
-          <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
-            <div class="data-table__table-cell-content">
-              <div class="badge badge--neutral badge--regular badge--rounded">
-                <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
-              </div>
-              <!--v-if-->
-            </div>
-          </td>
           <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
             <div class="data-table__table-cell-content">
               <div class="data-table__more-wrapper" column="[object Object]"><button type="button" class="data-table__more" aria-label="crudTable.rowActions" aria-haspopup="menu"><i class="data-table__more-icon baserow-icon-more-vertical" aria-hidden="true"></i></button></div>
@@ -469,14 +431,6 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
-              <!--v-if-->
-            </div>
-          </td>
-          <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
-            <div class="data-table__table-cell-content">
-              <div class="badge badge--neutral badge--regular badge--rounded">
-                <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
-              </div>
               <!--v-if-->
             </div>
           </td>
