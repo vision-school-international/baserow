@@ -28,13 +28,16 @@ ENV DOCKER_USER=baserow_docker_user \
     BASEROW_PLUGIN_DIR=/baserow/data/plugins
 
 # Runtime dependencies
-RUN apt-get update && \
+# Retry downloads, and fail `apt-get update` on any repo error instead of failing later
+# with "Unable to locate package". The retry config is inherited by the prod stage.
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update --error-on=any && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     curl ca-certificates && \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc && \
+    curl -fsSL --retry 5 --retry-all-errors https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc && \
     echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    apt-get update && \
+    apt-get update --error-on=any && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     psmisc \
     gawk \
@@ -46,7 +49,8 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && \
     # Setup user and group with fixed UID/GID for volume permission consistency
-    getent group "$GID" || groupadd --system --gid "$GID" "${DOCKER_USER}" && \
+    # Grouped: an unbraced `|| groupadd` here swallowed any failure above it.
+    { getent group "$GID" || groupadd --system --gid "$GID" "${DOCKER_USER}"; } && \
     useradd --shell /bin/bash -l -u "$UID" -g "$GID" -o -c "" -d /baserow -m "${DOCKER_USER}" && \
     chmod 755 /baserow && \
     # Supervisor comes from PyPI because Debian's package pulls in a second Python interpreter
@@ -128,9 +132,9 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install postgres + redis (PGDG repo already added in base stage)
-RUN curl -fsSL https://packages.redis.io/gpg -o /usr/share/keyrings/redis-archive-keyring.asc && \
+RUN curl -fsSL --retry 5 --retry-all-errors https://packages.redis.io/gpg -o /usr/share/keyrings/redis-archive-keyring.asc && \
     echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.asc] https://packages.redis.io/deb trixie main" > /etc/apt/sources.list.d/redis.list && \
-    apt-get update && \
+    apt-get update --error-on=any && \
     apt-get install --no-install-recommends -y \
     "postgresql-${POSTGRES_VERSION}" \
     "postgresql-${POSTGRES_VERSION}-pgvector" \

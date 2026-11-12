@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends ca-certificates curl build-essential dos2unix tini && \
-    curl -fsSL -o /usr/local/bin/su-exec.c "https://github.com/ncopa/su-exec/raw/${SU_EXEC_VERSION}/su-exec.c" && \
+    curl -fsSL --retry 5 --retry-all-errors-o /usr/local/bin/su-exec.c "https://github.com/ncopa/su-exec/raw/${SU_EXEC_VERSION}/su-exec.c" && \
     echo "${SU_EXEC_SHA256}  /usr/local/bin/su-exec.c" | sha256sum -c - && \
     gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c && \
     chmod 0755 /usr/local/bin/su-exec
@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         arm64) WASMTIME_ARCH="aarch64-linux" WASMTIME_SHA256="${WASMTIME_SHA256_ARM64}" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-all-errors\
         "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}.tar.xz" \
         -o /tmp/wasmtime.tar.xz && \
     echo "${WASMTIME_SHA256}  /tmp/wasmtime.tar.xz" | sha256sum -c - && \
@@ -98,12 +98,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         arm64) WASI_SDK_ARCH="arm64" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-all-errors\
         "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}.0-${WASI_SDK_ARCH}-linux.tar.gz" \
         -o /tmp/wasi-sdk.tar.gz && \
     tar -xzf /tmp/wasi-sdk.tar.gz -C /opt && \
     mv "/opt/wasi-sdk-${WASI_SDK_VERSION}.0-${WASI_SDK_ARCH}-linux" /opt/wasi-sdk && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-all-errors\
         "https://github.com/quickjs-ng/quickjs/archive/refs/tags/v${QUICKJS_NG_VERSION}.tar.gz" \
         -o /tmp/quickjs-ng.tar.gz && \
     mkdir -p /tmp/quickjs-ng && \
@@ -344,7 +344,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
+    && curl -fsSL --retry 5 --retry-all-errorshttps://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
     && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -453,7 +453,7 @@ ENV POSTGRES_VERSION=15 \
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
+    && curl -fsSL --retry 5 --retry-all-errorshttps://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
     && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
