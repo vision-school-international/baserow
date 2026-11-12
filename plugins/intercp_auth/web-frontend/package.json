@@ -1,0 +1,8 @@
+{
+  "name": "intercp-auth",
+  "version": "0.1.0",
+  "description": "Sign in with InterCP for Baserow.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "intercp_auth",
+  "version": "0.1.0",
+  "supported_baserow_versions": "2.4.2",
+  "plugin_api_version": "0.0.1-alpha",
+  "description": "Sign in with InterCP (OpenID Connect). Password sign-in is disabled.",
+  "author": "Vision School International",
+  "author_url": "https://github.com/vision-school-international",
+  "url": "https://github.com/vision-school-international/baserow",
+  "license": "MIT",
+  "contact": "https://github.com/vision-school-international/baserow"
+}

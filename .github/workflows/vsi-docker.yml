@@ -1,4 +1,4 @@
-# Vision School: builds backend, web-frontend, then the all-in-one image and publishes to
+# Vision School: builds backend, web-frontend, all-in-one, then the plugin image, and publishes to
 # ghcr.io/<owner>/<repo> on v* tags (same pattern as good-shepherd-insights/doop docker.yml).
 # shortcut: amd64 only, add linux/arm64 if a host ever needs it.
 name: VSI Docker
@@ -53,5 +53,14 @@ jobs:
           build-args: |
             BACKEND_IMAGE=ghcr.io/${{ github.repository }}/backend:${{ steps.meta.outputs.version }}
             WEBFRONTEND_IMAGE=ghcr.io/${{ github.repository }}/web-frontend:${{ steps.meta.outputs.version }}
+          tags: ghcr.io/${{ github.repository }}/all-in-one:${{ steps.meta.outputs.version }}
+      # The deployable image: all-in-one plus plugins/ (deploy/vsi/Dockerfile).
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/vsi/Dockerfile
+          push: true
+          build-args: |
+            BASE_IMAGE=ghcr.io/${{ github.repository }}/all-in-one:${{ steps.meta.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

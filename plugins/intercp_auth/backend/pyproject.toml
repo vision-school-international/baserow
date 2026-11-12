@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intercp_auth"
+version = "0.1.0"
+description = "Sign in with InterCP (OpenID Connect) for Baserow."
+license = "MIT"
+requires-python = ">=3.14"
+# Both already ship with Baserow; declared so a Baserow upgrade that drops them fails the
+# install instead of failing at sign-in.
+dependencies = ["pyjwt[crypto]>=2.8", "requests>=2.31"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
