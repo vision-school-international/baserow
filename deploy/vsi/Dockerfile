@@ -9,7 +9,6 @@ ENV BASEROW_PLUGIN_DIR=/baserow/vsi-plugins
 ENV BASEROW_OSS_ONLY=true
 # Read by the backend and remapped for the frontend (web-frontend/env-remap.mjs).
 ENV BRAND_NAME="Vision School"
-ENV BRAND_URL=https://website.visionschool.dev
 
 # Backend only: the prod frontend cannot be rebuilt here, so plugin frontends are compiled
 # into the web-frontend image (see web-frontend/Dockerfile, builder-prod).

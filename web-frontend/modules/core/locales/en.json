@@ -976,8 +976,6 @@
     "emailPlaceholder": "Enter your email address..",
     "passwordPlaceholder": "Enter your password..",
     "forgotPassword": "Forgot?",
-    "signUpText": "New to Baserow?",
-    "signUp": "Sign up",
     "redirecting": "Redirecting to authentication provider..."
   },
   "resetPassword": {

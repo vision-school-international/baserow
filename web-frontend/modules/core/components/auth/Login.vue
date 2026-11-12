@@ -15,18 +15,10 @@
     <template v-else>
       <div v-if="displayHeader">
         <div class="auth__logo">
-          <NuxtLink :to="{ name: 'index' }">
-            <Logo />
-          </NuxtLink>
+          <Logo />
         </div>
         <h1 class="auth__head-title">{{ $t('login.title') }}</h1>
         <div class="auth__head">
-          <span v-if="settings.allow_new_signups" class="auth__head-text">
-            {{ $t('login.signUpText') }}
-            <NuxtLink :to="{ name: 'signup' }">
-              {{ $t('login.signUp') }}
-            </NuxtLink>
-          </span>
           <LangPicker class="margin-left-auto" />
         </div>
       </div>

@@ -2,9 +2,7 @@
   <div class="auth__wrapper">
     <template v-if="invitationLink">
       <div class="auth__logo">
-        <NuxtLink :to="{ name: 'index' }">
-          <Logo />
-        </NuxtLink>
+        <Logo />
       </div>
       <h1 class="auth__head-title">{{ pageTitle }}</h1>
       <i18n-t

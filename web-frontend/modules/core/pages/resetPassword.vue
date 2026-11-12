@@ -2,9 +2,7 @@
   <div class="auth__wrapper">
     <div v-if="!success">
       <div class="auth__logo">
-        <nuxt-link :to="{ name: 'index' }">
-          <Logo />
-        </nuxt-link>
+        <Logo />
       </div>
 
       <div class="auth__head auth__head-title">

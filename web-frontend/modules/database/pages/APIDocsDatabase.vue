@@ -1,9 +1,9 @@
 <template>
   <div ref="api-docs" class="api-docs">
     <div ref="header" class="api-docs__header">
-      <nuxt-link :to="{ name: 'index' }" class="api-docs__logo">
+      <div class="api-docs__logo">
         <Logo />
-      </nuxt-link>
+      </div>
       <a
         ref="databasesToggle"
         class="api-docs__switch"

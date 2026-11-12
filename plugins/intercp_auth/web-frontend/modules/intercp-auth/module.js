@@ -13,6 +13,13 @@ export default defineNuxtModule({
       if (!loginPages) {
         throw new Error('intercp-auth: core route "login-pages" not found.')
       }
+      // Login only: core's sign-up page is replaced by a redirect to the login page.
+      const signup = loginPages.children.find((route) => route.name === 'signup')
+      if (!signup) {
+        throw new Error('intercp-auth: core route "signup" not found.')
+      }
+      signup.file = resolve('./pages/signupRedirect.vue')
+
       loginPages.children.push({
         name: 'login-intercp-error',
         path: '/login/intercp-error',

@@ -1,14 +1,7 @@
 <template>
   <div v-if="!redirecting" class="placeholder">
     <div class="placeholder__logo">
-      <a
-        v-if="!shouldCloseTab"
-        :href="$router.resolve(homeRoute).fullPath"
-        @click.prevent="clearAndNavigate(homeRoute)"
-      >
-        <Logo class="placeholder__logo-image" />
-      </a>
-      <Logo v-else class="placeholder__logo-image" />
+      <Logo class="placeholder__logo-image" />
     </div>
     <h1 class="placeholder__title">{{ message }}</h1>
     <p v-if="error.statusCode === 404" class="placeholder__content">
