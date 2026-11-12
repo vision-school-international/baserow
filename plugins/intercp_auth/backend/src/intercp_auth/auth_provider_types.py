@@ -45,6 +45,6 @@ class InterCPAuthProviderType(AuthProviderType):
                     "redirect_url": login_url,
                 }
             ],
-            # The login page sends users straight here when it is the only option.
-            "default_redirect_url": login_url,
+            # No `default_redirect_url`: core's login page would leave for InterCP on
+            # load. Sign-in starts only when the user presses the button.
         }

@@ -148,9 +148,11 @@ def test_login_options_offer_only_intercp(intercp, data_fixture):
     options = auth_provider_type_registry.get_all_available_login_options()
 
     assert list(options) == ["intercp"]
-    assert options["intercp"]["default_redirect_url"] == (
+    assert options["intercp"]["items"][0]["redirect_url"] == (
         FRONTEND + reverse("api:intercp_auth:login")
     )
+    # Without it the login page waits for the user to press the button.
+    assert "default_redirect_url" not in options["intercp"]
 
 
 @pytest.mark.django_db
