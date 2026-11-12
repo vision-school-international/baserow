@@ -1,5 +1,5 @@
 <template>
-  <Logo height="14" :alt="$config.public.brandName || 'Baserow'" />
+  <Logo height="24.5":alt="$config.public.brandName || 'Baserow'" />
 </template>
 
 <script>
