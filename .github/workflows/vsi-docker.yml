@@ -26,8 +26,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            # The tag minus its "v", so retries like v0.0.8x2 publish 0.0.8x2.
+            type=match,pattern=v(.*),group=1
             type=raw,value=latest
       # Targets and context match docker-compose.build.yml.
       - uses: docker/build-push-action@v7
