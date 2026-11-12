@@ -49,20 +49,6 @@
         </li>
       </nuxt-link>
 
-      <li class="tree__item">
-        <div class="tree__action sidebar__action">
-          <a class="tree__link" @click="$refs.templateModal.show()">
-            <i class="tree__icon iconoir-page"></i>
-            <span class="tree__link-text">
-              <span class="sidebar__item-name">{{
-                $t('sidebar.templates')
-              }}</span>
-            </span>
-          </a>
-          <TemplateModal ref="templateModal"></TemplateModal>
-        </div>
-      </li>
-
       <component
         :is="component"
         v-for="(component, index) in sidebarAllWorkspacesComponents"
@@ -86,13 +72,11 @@
 
 <script>
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
-import TemplateModal from '@baserow/modules/core/components/template/TemplateModalSwitch'
 
 export default {
   name: 'SidebarAllWorkspacesMenu',
   components: {
     TrashModal,
-    TemplateModal,
   },
   computed: {
     sidebarAllWorkspacesComponents() {

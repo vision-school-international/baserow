@@ -80,30 +80,6 @@
         <div class="dashboard__extras">
           <div class="dashboard__resources">
             <div class="dashboard__resources-wrapper">
-              <a
-                v-if="canCreateCreateApplication"
-                class="dashboard__resource"
-                role="button"
-                tabindex="0"
-                @click="$refs.templateModal.show()"
-                @keydown.enter.prevent="$refs.templateModal.show()"
-                @keydown.space.prevent="$refs.templateModal.show()"
-              >
-                <div class="dashboard__resource-inner">
-                  <span class="dashboard__resource-icon">
-                    <i class="iconoir-page"></i
-                  ></span>
-
-                  <div class="dashboard__resource-content">
-                    <h4 class="dashboard__resource-title">
-                      {{ $t('dashboard.templates') }}
-                    </h4>
-                    <p class="dashboard__resource-text">
-                      {{ $t('dashboard.templatesMessage') }}
-                    </p>
-                  </div>
-                </div>
-              </a>
               <component
                 :is="component"
                 v-for="(component, index) in resourceLinksComponents"
@@ -182,10 +158,6 @@
       v-for="(component, index) in dashboardHelpComponents"
       :key="index"
     ></component>
-    <TemplateModal
-      ref="templateModal"
-      :workspace="selectedWorkspace"
-    ></TemplateModal>
   </div>
 </template>
 
@@ -201,7 +173,6 @@ import WorkspaceContext from '@baserow/modules/core/components/workspace/Workspa
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
-import TemplateModal from '@baserow/modules/core/components/template/TemplateModalSwitch'
 
 definePageMeta({
   layout: 'app',
@@ -241,7 +212,6 @@ const createApplicationContext = ref(null)
 const workspaceContextLink = ref(null)
 const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
-const templateModal = ref(null)
 
 /**
  * Selects the workspace. The ref below is hydrated from it.

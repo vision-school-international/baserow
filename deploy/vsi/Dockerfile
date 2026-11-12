@@ -10,6 +10,10 @@ ENV BASEROW_OSS_ONLY=true
 # Read by the backend and remapped for the frontend (web-frontend/env-remap.mjs).
 ENV BRAND_NAME="Vision School"
 
+# No Baserow templates. With no template files, the template sync that runs after
+# migrations deletes the templates it installed before. The theme zips stay.
+RUN rm -f /baserow/backend/templates/*.json
+
 # Backend only: the prod frontend cannot be rebuilt here, so plugin frontends are compiled
 # into the web-frontend image (see web-frontend/Dockerfile, builder-prod).
 COPY plugins/intercp_auth/baserow_plugin_info.json /baserow/vsi-plugins/intercp_auth/

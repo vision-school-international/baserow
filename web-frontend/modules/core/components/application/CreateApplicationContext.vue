@@ -48,29 +48,6 @@
           @created="hide"
         ></CreateApplicationModal>
       </li>
-      <li class="context__menu-item">
-        <a
-          class="context__menu-item-link context__menu-item-link--with-desc"
-          :class="{
-            disabled: !canCreateCreateApplication,
-          }"
-          @click="openTemplateModal()"
-        >
-          <span class="context__menu-item-title">
-            <i class="context__menu-item-icon iconoir-page"></i>
-            {{ $t('createApplicationContext.fromTemplate') }}</span
-          >
-          <div
-            class="context__menu-item-description context__menu-item-description--offset"
-          >
-            {{ $t('createApplicationContext.fromTemplateDesc') }}
-          </div>
-        </a>
-        <TemplateModal
-          ref="templateModal"
-          :workspace="workspace"
-        ></TemplateModal>
-      </li>
       <li v-if="canImportWorkspace" class="context__menu-item">
         <a
           class="context__menu-item-link context__menu-item-link--with-desc"
@@ -98,7 +75,6 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
-import TemplateModal from '@baserow/modules/core/components/template/TemplateModalSwitch'
 import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
 import context from '@baserow/modules/core/mixins/context'
 import DevelopmentBadge from '@baserow/modules/core/components/DevelopmentBadge'
@@ -109,7 +85,6 @@ export default {
     DevelopmentBadge,
     CreateApplicationModal,
     ImportWorkspaceModal,
-    TemplateModal,
   },
   mixins: [context],
   props: {
@@ -150,14 +125,6 @@ export default {
         this.hide()
         notifyIf(error, 'workspace')
       }
-    },
-    openTemplateModal() {
-      if (!this.canCreateCreateApplication) {
-        return
-      }
-
-      this.$refs.templateModal.show()
-      this.hide()
     },
     openImportWorkspaceModal() {
       if (!this.canImportWorkspace) {
