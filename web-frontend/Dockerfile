@@ -86,6 +86,15 @@ RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
 USER $UID:$GID
 WORKDIR /baserow/web-frontend
 
+# VSI: the prod image ships only .output, so our plugins' frontend modules are compiled
+# in here (nuxt.config.base.ts reads ADDITIONAL_MODULES). Plugins resolve packages from
+# the core node_modules.
+COPY --chown=$UID:$GID ./plugins /baserow/vsi-plugins/
+RUN for d in /baserow/vsi-plugins/*/web-frontend; do \
+      if [ -d "$d" ]; then ln -s /baserow/web-frontend/node_modules "$d/node_modules"; fi; \
+    done
+ARG ADDITIONAL_MODULES=""
+
 # Build, then clean reinstall production only
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
     yarn run build

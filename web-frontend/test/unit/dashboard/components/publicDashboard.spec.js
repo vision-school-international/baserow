@@ -16,7 +16,6 @@ function mountPublicDashboard({
         id: 1,
         name: 'Conversion compass',
         description: 'Tracking conversion rates at every stage.',
-        show_logo: true,
         workspace: { id: 0 },
         ...dashboard,
       },
@@ -42,9 +41,6 @@ function mountPublicDashboard({
         },
         DashboardWidgetGridLoading: {
           template: '<div data-testid="widget-grid-loading"></div>',
-        },
-        ExternalLinkBaserowLogo: {
-          template: '<a data-testid="baserow-logo"></a>',
         },
         ReportAbuseModal: {
           props: ['resourceType', 'identifier', 'requestConfig'],
@@ -72,7 +68,7 @@ function mountPublicDashboard({
 }
 
 describe('PublicDashboard', () => {
-  test('shows the name, the description, the widgets and the Baserow logo', () => {
+  test('shows the name, the description and the widgets', () => {
     const wrapper = mountPublicDashboard()
 
     expect(wrapper.get('.dashboard-app__title').text()).toBe(
@@ -82,16 +78,9 @@ describe('PublicDashboard', () => {
       'Tracking conversion rates at every stage.'
     )
     expect(wrapper.find('[data-testid="widget-board"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="baserow-logo"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="widget-grid-loading"]').exists()).toBe(
       false
     )
-  })
-
-  test('hides the Baserow logo when the owner switched it off', () => {
-    const wrapper = mountPublicDashboard({ dashboard: { show_logo: false } })
-
-    expect(wrapper.find('[data-testid="baserow-logo"]').exists()).toBe(false)
   })
 
   test('leaves out an empty description', () => {
@@ -144,14 +133,6 @@ describe('PublicDashboard', () => {
     ).toBe('JWT secret-token')
   })
 
-  test('keeps the report link when the logo is hidden', () => {
-    const wrapper = mountPublicDashboard({ dashboard: { show_logo: false } })
-
-    expect(wrapper.find('.public-dashboard__footer').exists()).toBe(true)
-    expect(wrapper.find('.public-dashboard__report-abuse').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="baserow-logo"]').exists()).toBe(false)
-  })
-
   test('hides the report link when reporting is disabled instance wide', () => {
     const wrapper = mountPublicDashboard({
       settings: { allow_reporting_abuse: false },
@@ -161,15 +142,6 @@ describe('PublicDashboard', () => {
     expect(wrapper.find('[data-testid="report-abuse-modal"]').exists()).toBe(
       false
     )
-    expect(wrapper.find('[data-testid="baserow-logo"]').exists()).toBe(true)
-  })
-
-  test('renders no footer when the logo is hidden and reporting is disabled', () => {
-    const wrapper = mountPublicDashboard({
-      dashboard: { show_logo: false },
-      settings: { allow_reporting_abuse: false },
-    })
-
     expect(wrapper.find('.public-dashboard__footer').exists()).toBe(false)
   })
 })

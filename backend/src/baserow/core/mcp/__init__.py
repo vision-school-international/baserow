@@ -49,13 +49,14 @@ class BaserowMCPServer:
     """
 
     def __init__(self):
+        from django.conf import settings
         from mcp.server.lowlevel.server import Server
         from mcp.server.lowlevel.server import lifespan as default_lifespan
 
         self._mcp_server = Server(
-            name="Baserow MCP",
+            name=f"{settings.BRAND_NAME} MCP",
             instructions="Handles all the actions, operations, mutations, and tools "
-            "related to Baserow.",
+            f"related to {settings.BRAND_NAME}.",
             lifespan=default_lifespan,
         )
 

@@ -14,7 +14,6 @@ import MockAdapter from 'axios-mock-adapter'
 import _ from 'lodash'
 import { MockServer } from '@baserow/test/fixtures/mockServer'
 import flushPromises from 'flush-promises'
-import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
 
 import { fail, vi } from 'vitest'
 
@@ -51,9 +50,6 @@ function _createBaserowStoreAndRegistry(app, vueContext, extraPluginSetupFunc) {
   setupDatabasePlugin(setupContext)
   setupIntegrationPlugin(setupContext)
   setupBuilderPlugin(setupContext)
-  setupHasFeaturePlugin(setupContext, (name, dep) => {
-    app[`$${name}`] = dep
-  })
   if (extraPluginSetupFunc) {
     extraPluginSetupFunc(setupContext)
   }
@@ -313,11 +309,6 @@ export const UIHelpers = {
   getSidebarItemNames(sidebarComponent) {
     return sidebarComponent
       .findAll('.sidebar__nav .tree__action')
-      .wrappers.map((t) => t.text())
-  },
-  getDisabledSidebarItemNames(sidebarComponent) {
-    return sidebarComponent
-      .findAll('.sidebar__nav .tree__action--deactivated')
       .wrappers.map((t) => t.text())
   },
   async selectSidebarItem(sidebarComponent, itemName) {

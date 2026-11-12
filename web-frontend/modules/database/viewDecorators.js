@@ -23,25 +23,6 @@ export class ViewDecoratorType extends Registerable {
   }
 
   /**
-   * If the decorator type is disabled, this text will be visible explaining why.
-   */
-  getDeactivatedText({ view }) {}
-
-  /**
-   * When the deactivated view decorator is clicked, this modal will be shown.
-   */
-  getDeactivatedClickModal() {
-    return null
-  }
-
-  /**
-   * Indicates if the decorator type is disabled.
-   */
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  /**
    * Returns whether or not the user can add a new instance of this decorator.
    * A decorator might be disabled if, for example, there is already one occurrence
    * of the same type for the view.

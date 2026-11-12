@@ -12,7 +12,6 @@
       :roles="roles"
       :workspace="workspace"
       role-value-column="role_uid"
-      :show-commercial-info="false"
       @update-role="roleUpdate($event)"
     />
   </div>

@@ -37,9 +37,6 @@ const workflowActionType = {
   image: null,
   group: coreGroup,
   getType: () => 'notification',
-  isDeactivated: () => false,
-  isDeactivatedReason: () => null,
-  getDeactivatedClickModal: () => null,
 }
 
 const localBaserowGroup = {
@@ -56,9 +53,6 @@ const createRowWorkflowActionType = {
   image: null,
   group: localBaserowGroup,
   getType: () => 'create_row',
-  isDeactivated: () => false,
-  isDeactivatedReason: () => null,
-  getDeactivatedClickModal: () => null,
 }
 
 describe('Event', () => {

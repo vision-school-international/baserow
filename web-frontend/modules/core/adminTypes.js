@@ -82,20 +82,6 @@ export class AdminType extends Registerable {
   }
 
   /**
-   * Indicates if the admin type is disabled.
-   */
-  isDeactivated() {
-    return false
-  }
-
-  /**
-   * Opens this modal if the user clicks on the item in the menu when it's disabled.
-   */
-  getDeactivatedModal() {
-    return null
-  }
-
-  /**
    * The number shown in a badge next to the admin type in the sidebar, which
    * hides it when it's null or 0.
    */

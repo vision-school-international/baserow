@@ -5,54 +5,31 @@ import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/Wo
 
 const workspace = { id: 12 }
 const roles = [
-  {
-    uid: 'MEMBER',
-    name: 'Member',
-    isDeactivated: false,
-    isBillable: false,
-    showIsBillable: true,
-  },
-  {
-    uid: 'ADMIN',
-    name: 'Admin',
-    isDeactivated: false,
-    isBillable: true,
-    showIsBillable: true,
-  },
+  { uid: 'MEMBER', name: 'Member' },
+  { uid: 'ADMIN', name: 'Admin' },
 ]
 
-const mountSelector = (showCommercialInfo) =>
-  mountSuspended(WorkspaceRoleSelector, {
-    props: {
-      modelValue: 'MEMBER',
-      workspace,
-      roles,
-      showCommercialInfo,
-    },
-    global: {
-      mocks: {
-        $registry: { getAll: () => ({}) },
-        $t: (key) => key,
-      },
-      stubs: {
-        Dropdown: { template: '<div><slot /></div>' },
-        DropdownItem: { template: '<div class="dropdown-item"><slot /></div>' },
-        Badge: { template: '<span class="badge"><slot /></span>' },
-      },
-    },
-  })
-
 describe('WorkspaceRoleSelector', () => {
-  test('shows commercial role information by default', async () => {
-    const wrapper = await mountSelector(undefined)
+  test('lists every role', async () => {
+    const wrapper = await mountSuspended(WorkspaceRoleSelector, {
+      props: {
+        modelValue: 'MEMBER',
+        workspace,
+        roles,
+      },
+      global: {
+        stubs: {
+          Dropdown: { template: '<div><slot /></div>' },
+          DropdownItem: {
+            template: '<div class="dropdown-item"><slot /></div>',
+          },
+        },
+      },
+    })
 
-    expect(wrapper.html()).toMatchSnapshot()
-  })
-
-  test('can hide all commercial role information', async () => {
-    const wrapper = await mountSelector(false)
-
-    expect(wrapper.html()).toMatchSnapshot()
+    expect(
+      wrapper.findAll('.dropdown-item').map((item) => item.text())
+    ).toEqual(['Member', 'Admin'])
   })
 })
 

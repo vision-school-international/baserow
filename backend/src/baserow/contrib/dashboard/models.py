@@ -49,12 +49,6 @@ class Dashboard(Application):
         db_default="",
         help_text="The hashed password required to access the public dashboard URL.",
     )
-    show_logo = models.BooleanField(
-        default=True,
-        db_default=True,
-        help_text="Indicates whether the Baserow logo is shown on the public "
-        "dashboard.",
-    )
 
     def get_parent(self):
         # Parent is the Application here even if it's at the "same" level

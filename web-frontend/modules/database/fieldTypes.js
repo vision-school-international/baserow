@@ -1104,48 +1104,12 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Indicates whether it's possible to select the field type when creating or updating the field.
-   */
-  isEnabled(workspace) {
-    return true
-  }
-
-  /**
    * Indicates whether the field type is listed at all in the field type
-   * dropdown. Unlike `isEnabled`, a hidden type is not rendered, not even in
-   * a disabled state. Existing fields of a hidden type keep working.
+   * dropdown. A hidden type is not rendered. Existing fields of a hidden type
+   * keep working.
    */
   isVisibleInDropdown(workspace) {
     return true
-  }
-
-  /**
-   * Can return a modal vue component that's opened when the user clicks in this
-   * field type, but `isEnabled` is false. Should return [component, props as {}]
-   */
-  getDisabledClickModal(workspace) {
-    return null
-  }
-
-  /**
-   * Can return a tooltip text that's shown on hover when the `isEnabled` is False.
-   */
-  getDisabledTooltip(workspace) {
-    return null
-  }
-
-  /**
-   * Indicates whether the field is visible, but in a deactivated state.
-   */
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  /**
-   * The modal that must be shown when a deactivated field is clicked.
-   */
-  getDeactivatedClickModal(workspaceId) {
-    return null
   }
 
   /**

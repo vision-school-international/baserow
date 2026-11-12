@@ -434,7 +434,6 @@ class ViewSerializer(serializers.ModelSerializer):
     default_row_values = ViewDefaultValueSerializer(
         many=True, source="view_default_values", required=False
     )
-    show_logo = serializers.BooleanField(required=False)
     ownership_type = serializers.CharField()
     owned_by_id = serializers.IntegerField(required=False)
 
@@ -456,8 +455,6 @@ class ViewSerializer(serializers.ModelSerializer):
             "default_row_values",
             "filters_disabled",
             "public_view_has_password",
-            "show_logo",
-            "allow_public_export",
             "ownership_type",
             "owned_by_id",
         )
@@ -724,7 +721,6 @@ class PublicViewSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     sortings = serializers.SerializerMethodField()
     group_bys = serializers.SerializerMethodField()
-    show_logo = serializers.BooleanField(required=False)
     ownership_type = serializers.SerializerMethodField()
 
     @extend_schema_field(PublicViewSortSerializer(many=True))
@@ -772,8 +768,6 @@ class PublicViewSerializer(serializers.ModelSerializer):
             "group_bys",
             "public",
             "slug",
-            "show_logo",
-            "allow_public_export",
             "ownership_type",
         )
         extra_kwargs = {

@@ -29,7 +29,7 @@
     @include elevation($elevation-medium);
 
     // Centered on the track, which `align-items: center` keeps in the middle
-    // even when the label is taller than the track (e.g. a deactivated badge).
+    // even when the label is taller than the track.
     @include absolute(calc(50% - 10px), auto, auto, 2px);
   }
 
@@ -124,13 +124,6 @@
 
   i {
     font-size: 16px;
-  }
-
-  // A deactivated (paid feature) badge after the text keeps its own icon size
-  // and gets some air from the text.
-  .deactivated-label {
-    margin-left: 4px;
-    font-size: 14px;
   }
 
   .switch--active & {

@@ -41,7 +41,6 @@ describe('ShareDashboardLink', () => {
       public: false,
       slug: 'dashboard-slug',
       public_has_password: false,
-      show_logo: true,
       ...values,
     })
     return store.getters['application/get'](DASHBOARD_ID)

@@ -17,14 +17,6 @@ PROVIDER_VARIABLES = tuple(
     )
     if name
 )
-KUMA_VARIABLES = (
-    "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL",
-    "UDSPY_LM_MODEL",
-    "UDSPY_LM_API_KEY",
-    "UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL",
-)
-
-
 @pytest.fixture
 def deprecation_messages():
     messages = []
@@ -43,7 +35,7 @@ def test_unconfigured_ai_provider_environment_does_not_warn(
     monkeypatch, deprecation_messages, value
 ):
     if value is not None:
-        for name in (*PROVIDER_VARIABLES, *KUMA_VARIABLES):
+        for name in PROVIDER_VARIABLES:
             monkeypatch.setenv(name, value)
 
     log_ai_provider_env_deprecations()
@@ -52,13 +44,12 @@ def test_unconfigured_ai_provider_environment_does_not_warn(
 
 
 @pytest.mark.parametrize("name", PROVIDER_VARIABLES)
-def test_provider_environment_warns_without_enterprise(
+def test_provider_environment_warns(
     monkeypatch, deprecation_messages, name
 ):
     monkeypatch.setenv(name, "private-value")
 
-    with patch("baserow.config.helpers.apps.is_installed", return_value=False):
-        log_ai_provider_env_deprecations()
+    log_ai_provider_env_deprecations()
 
     assert len(deprecation_messages) == 1
     message = deprecation_messages[0]
@@ -67,65 +58,29 @@ def test_provider_environment_warns_without_enterprise(
     assert "migrate_ai_provider_settings --scope instance" in message
 
 
-@pytest.mark.parametrize("name", KUMA_VARIABLES)
-def test_kuma_environment_warns_when_enterprise_is_installed(
-    monkeypatch, deprecation_messages, name
-):
-    monkeypatch.setenv(name, "private-value")
-
-    with patch("baserow.config.helpers.apps.is_installed", return_value=True):
-        log_ai_provider_env_deprecations()
-
-    assert len(deprecation_messages) == 1
-    message = deprecation_messages[0]
-    assert name in message
-    assert "private-value" not in message
-    assert "select it for Kuma under AI features" in message
-
-
-def test_kuma_environment_does_not_warn_without_enterprise(
-    monkeypatch, deprecation_messages
-):
-    for name in KUMA_VARIABLES:
-        monkeypatch.setenv(name, "private-value")
-
-    with patch("baserow.config.helpers.apps.is_installed", return_value=False):
-        log_ai_provider_env_deprecations()
-
-    assert deprecation_messages == []
-
-
-def test_ai_provider_environment_logs_only_names_once_per_group(
+def test_ai_provider_environment_logs_only_names_once(
     monkeypatch, deprecation_messages
 ):
     values = {
         name: f"private-value-{index}"
-        for index, name in enumerate((*PROVIDER_VARIABLES, *KUMA_VARIABLES))
+        for index, name in enumerate(PROVIDER_VARIABLES)
     }
     values.update(
         BASEROW_OPENAI_API_KEY="private-api-key",
         BASEROW_OPENAI_BASE_URL="https://private.invalid/openai",
         BASEROW_OPENAI_MODELS="private-model-one,private-model-two",
-        BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="openai:private-kuma-model",
-        UDSPY_LM_API_KEY="private-kuma-api-key",
-        UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL="https://private.invalid/kuma",
     )
     for name, value in values.items():
         monkeypatch.setenv(name, value)
 
-    with patch("baserow.config.helpers.apps.is_installed", return_value=True):
-        log_ai_provider_env_deprecations()
+    log_ai_provider_env_deprecations()
 
-    assert len(deprecation_messages) == 2
+    assert len(deprecation_messages) == 1
     for name in PROVIDER_VARIABLES:
         assert name in deprecation_messages[0]
-    for name in KUMA_VARIABLES:
-        assert name in deprecation_messages[1]
     output = "\n".join(deprecation_messages)
     for value in values.values():
         assert value not in output
-    assert "does not migrate Kuma selectors or SDK credentials" in output
-    assert "Keep the environment fallback" in output
     assert all(os.environ[name] == value for name, value in values.items())
 
 

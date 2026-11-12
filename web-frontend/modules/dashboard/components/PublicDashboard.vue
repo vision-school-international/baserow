@@ -22,26 +22,20 @@
         </div>
         <WidgetBoard v-else :dashboard="dashboard" />
       </div>
-      <div
-        v-if="dashboard.show_logo || showReportLink"
-        class="public-dashboard__footer"
-      >
-        <template v-if="showReportLink">
-          <a
-            class="public-dashboard__report-abuse"
-            href="#"
-            @click.prevent="reportAbuseModal.show()"
-          >
-            {{ $t('publicDashboard.reportAbuse') }}
-          </a>
-          <ReportAbuseModal
-            ref="reportAbuseModal"
-            resource-type="dashboard"
-            :identifier="publicSlug"
-            :request-config="reportRequestConfig"
-          ></ReportAbuseModal>
-        </template>
-        <ExternalLinkBaserowLogo v-if="dashboard.show_logo" />
+      <div v-if="showReportLink" class="public-dashboard__footer">
+        <a
+          class="public-dashboard__report-abuse"
+          href="#"
+          @click.prevent="reportAbuseModal.show()"
+        >
+          {{ $t('publicDashboard.reportAbuse') }}
+        </a>
+        <ReportAbuseModal
+          ref="reportAbuseModal"
+          resource-type="dashboard"
+          :identifier="publicSlug"
+          :request-config="reportRequestConfig"
+        ></ReportAbuseModal>
       </div>
     </div>
   </div>
@@ -50,7 +44,6 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useStore } from 'vuex'
-import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import ReportAbuseModal from '@baserow/modules/core/components/abuseReport/ReportAbuseModal'
 import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 import WidgetBoard from '@baserow/modules/dashboard/components/WidgetBoard'

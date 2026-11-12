@@ -31,13 +31,6 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
-   * Every registered plugin can have a component displaying a badge with the highest license type
-   */
-  getHighestLicenseTypeBadge() {
-    return null
-  }
-
-  /**
    * Every registered plugin can display an additional item in the sidebar within
    * the workspace context.
    */
@@ -82,18 +75,6 @@ export class BaserowPlugin extends Registerable {
    */
   getDashboardTopComponents(workspace) {
     return []
-  }
-
-  /*
-   * Every registered plugin can display a component in the `DashboardWorkspace`
-   * component directly after the workspace name.
-   */
-  getDashboardWorkspacePlanBadge() {
-    return null
-  }
-
-  getDashboardWorkspaceRowUsageComponent() {
-    return null
   }
 
   /**
@@ -163,14 +144,6 @@ export class BaserowPlugin extends Registerable {
    * which will be visible on the share public view context.
    */
   getAdditionalShareLinkOptions() {
-    return []
-  }
-
-  /**
-   * Every registered plugin can display multiple additional options in the share
-   * dashboard context, below the public link of the dashboard.
-   */
-  getAdditionalDashboardShareLinkOptions() {
     return []
   }
 
@@ -305,16 +278,6 @@ export class BaserowPlugin extends Registerable {
    */
   getExtraImportWorkspaceModalComponents(workspace) {
     return null
-  }
-
-  /**
-   * Some features are optionally enabled, this function will be called when the
-   * $hasFeature directive is called on each plugin to check if any of the plugins
-   * enable the particular feature.
-   * @returns {boolean}
-   */
-  hasFeature(feature, forSpecificWorkspace) {
-    return false
   }
 
   /**

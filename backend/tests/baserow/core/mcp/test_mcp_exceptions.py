@@ -32,12 +32,6 @@ def test_to_mcp_error_returns_message_of_error_code_detail():
     assert to_mcp_error(error) == "From the API."
 
 
-def test_to_mcp_error_says_a_licence_is_missing():
-    error = PaymentRequired("ERROR_FEATURE_NOT_AVAILABLE")
-
-    assert "needs a licence" in to_mcp_error(error)
-
-
 def test_to_mcp_error_reports_improperly_configured_service():
     assert to_mcp_error(ServiceImproperlyConfiguredDispatchException("No field.")) == (
         "Invalid value. No field."

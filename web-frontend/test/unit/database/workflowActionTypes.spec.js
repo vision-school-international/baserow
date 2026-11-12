@@ -700,12 +700,6 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
       'host'
     )
   })
-
-  test('the type itself is never offered disabled', () => {
-    withInstanceSmtp({ available: false, unavailable_reason: 'no_server' })
-
-    expect(emailType().isDeactivatedReason({ workspace: { id: 1 } })).toBeNull()
-  })
 })
 
 describe('row actions writing to a trashed field', () => {

@@ -718,7 +718,7 @@ export function utf8ByteSize(str) {
  * available one that is capable of displaying the provided row data if required.
  * If no view is available that can display the row data, return undefined.
  */
-export function getDefaultView(app, store, workspaceId, showRowModal) {
+export function getDefaultView(app, store, showRowModal) {
   // Put the most recently visited one first in the list.
   const defaultView = store.getters['view/default']
   const allViews = store.getters['view/getAllOrdered']
@@ -726,9 +726,6 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
 
   return views.find((view) => {
     const viewType = app.$registry.get('view', view.type)
-    if (viewType.isDeactivated(workspaceId)) {
-      return false
-    }
     // Ensure that the view can display the row data if required.
     return showRowModal ? viewType.canShowRowModal() : true
   })

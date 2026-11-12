@@ -79,11 +79,7 @@ export default {
   emits: ['changed'],
   computed: {
     decoratorCount() {
-      return this.view.decorations.filter(({ type }) => {
-        return !this.$registry
-          .get('viewDecorator', type)
-          .isDeactivated(this.database.workspace.id)
-      }).length
+      return this.view.decorations.length
     },
     contextWarning() {
       const viewType = this.$registry.get('view', this.view.type)

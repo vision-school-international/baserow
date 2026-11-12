@@ -399,18 +399,6 @@ export class WorkflowActionServiceType extends WorkflowActionType {
   get serviceType() {
     throw new Error('This method must be implemented')
   }
-
-  isDeactivatedReason({ workspace }) {
-    const serviceReason = this.serviceType.isDeactivatedReason({ workspace })
-    if (serviceReason) {
-      return serviceReason
-    }
-    return null
-  }
-
-  getDeactivatedClickModal({ workspace }) {
-    return this.serviceType.getDeactivatedClickModal({ workspace })
-  }
 }
 
 /**

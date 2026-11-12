@@ -41,7 +41,6 @@ from .exceptions import (
 )
 from .file_writer import PaginatedExportJobFileWriter
 from .registries import TableExporter, table_exporter_registry
-from .utils import view_is_publicly_exportable
 
 User = get_user_model()
 tracer = trace.get_tracer(__name__)
@@ -52,18 +51,12 @@ class ExportHandler:
     def _raise_if_no_export_permissions(
         user: Optional[User], table: Table, view: Optional[View]
     ):
-        if view_is_publicly_exportable(user, view):
-            # No need to do the permission check if no user is provided, the view is
-            # public, and allowed to export from publicly shared view because this
-            # can be initiated by an anonymous user.
-            pass
-        else:
-            CoreHandler().check_permissions(
-                user,
-                ExportTableOperationType.type,
-                workspace=table.database.workspace,
-                context=table,
-            )
+        CoreHandler().check_permissions(
+            user,
+            ExportTableOperationType.type,
+            workspace=table.database.workspace,
+            context=table,
+        )
 
     @staticmethod
     def create_and_start_new_job(

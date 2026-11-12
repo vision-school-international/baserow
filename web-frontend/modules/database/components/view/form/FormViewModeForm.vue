@@ -34,7 +34,6 @@
       ></FormPageField>
       <div class="form-view__actions">
         <FormViewFooterLinks
-          :show-logo="showLogo"
           show-report-abuse
           :identifier="$route.params.slug"
         ></FormViewFooterLinks>
@@ -55,7 +54,6 @@
       :is-redirect="isRedirect"
       :submit-action-redirect-url="submitActionRedirectUrl"
       :submit-action-message="submitActionMessage"
-      :show-logo="showLogo"
     ></FormViewSubmitted>
   </div>
 </template>

@@ -69,7 +69,8 @@ class BaseEmailMessage(EmailMultiAlternatives):
         if not from_email:
             from_email = self.get_from_email()
 
-        subject = self.get_subject()
+        # Every subject ends in or names "Baserow" (core/emails.py, user/emails.py).
+        subject = self.get_subject().replace("Baserow", settings.BRAND_NAME)
         template_name = self.get_template_name()
         context = self.get_context()
         html_content = render_to_string(template_name, context)

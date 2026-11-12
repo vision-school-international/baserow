@@ -23,7 +23,6 @@
       </a>
       <FormViewModeContext
         ref="modeContext"
-        :database="database"
         :view="view"
       ></FormViewModeContext>
     </li>

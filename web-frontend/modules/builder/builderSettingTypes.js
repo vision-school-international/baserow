@@ -59,18 +59,6 @@ export class BuilderSettingType extends Registerable {
   isInError(application) {
     return Boolean(this.getErrorMessage(application))
   }
-
-  isDeactivated({ workspace }) {
-    return !!this.isDeactivatedReason({ workspace })
-  }
-
-  isDeactivatedReason({ workspace }) {
-    return null
-  }
-
-  getDeactivatedModal({ workspace }) {
-    return null
-  }
 }
 
 export class GeneralBuilderSettingsType extends BuilderSettingType {

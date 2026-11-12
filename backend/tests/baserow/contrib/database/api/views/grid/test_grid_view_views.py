@@ -3482,8 +3482,6 @@ def test_get_public_grid_view(api_client, data_fixture):
             "row_height_size": grid_view.row_height_size,
             "frozen_column_count": 1,
             "group_by_layout": grid_view.group_by_layout,
-            "show_logo": True,
-            "allow_public_export": False,
             "ownership_type": "collaborative",
         },
     }

@@ -130,14 +130,12 @@ def test_undo_update_dashboard_sharing_only_restores_the_provided_fields(
 ):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
-    dashboard = data_fixture.create_dashboard_application(
-        user=user, public=True, show_logo=True
-    )
+    dashboard = data_fixture.create_dashboard_application(user=user, public=True)
 
     action_type_registry.get_by_type(UpdateDashboardSharingActionType).do(
-        user, dashboard.id, show_logo=False
+        user, dashboard.id, public_password=Dashboard.make_password("secret")
     )
-    # A change made in between must survive the undo of the logo change.
+    # A change made in between must survive the undo of the password change.
     dashboard.refresh_from_db()
     dashboard.public = False
     dashboard.save()
@@ -147,7 +145,7 @@ def test_undo_update_dashboard_sharing_only_restores_the_provided_fields(
     )
 
     dashboard.refresh_from_db()
-    assert dashboard.show_logo is True
+    assert dashboard.public_password == ""
     assert dashboard.public is False
 
 
@@ -200,8 +198,6 @@ OTHER_HASH = Dashboard.make_password("other-password")
             "password changed",
         ),
         ({"public_password": HASH}, {"public_password": HASH}, "nothing changed"),
-        ({"show_logo": False}, {"show_logo": True}, "Baserow logo hidden"),
-        ({"show_logo": True}, {"show_logo": False}, "Baserow logo shown"),
         ({"public": True}, {"public": True}, "nothing changed"),
         ({}, {}, "nothing changed"),
     ],

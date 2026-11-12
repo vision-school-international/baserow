@@ -4,7 +4,6 @@ import {
   DomainsBuilderSettingsType,
   IntegrationsBuilderSettingsType,
   ThemeBuilderSettingsType,
-  UserSourcesBuilderSettingsType,
 } from '@baserow/modules/builder/builderSettingTypes'
 
 import pageStore from '@baserow/modules/builder/store/page'
@@ -185,7 +184,6 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('builderDataProvider')
     $registry.registerNamespace('themeConfigBlock')
     $registry.registerNamespace('fontFamily')
-    $registry.registerNamespace('builderPageDecorator')
     $registry.registerNamespace('pageSidePanel')
     $registry.registerNamespace('queryParamType')
     $registry.registerNamespace('pageAction')
@@ -216,12 +214,7 @@ export default defineNuxtPlugin({
       'builderSettings',
       new DomainsBuilderSettingsType(context)
     )
-
-    $registry.register(
-      'builderSettings',
-      new UserSourcesBuilderSettingsType(context)
-    )
-
+    // The Users tab is not registered: core has no user source type to add.
     $registry.register('errorPage', new PublicSiteErrorPageType(context))
 
     $registry.register('element', new HeadingElementType(context))

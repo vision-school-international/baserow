@@ -8,8 +8,8 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
+from baserow.core.services.types import DispatchResult
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
-from baserow_premium.integrations.local_baserow.service_types import DispatchResult
 
 
 @pytest.mark.django_db

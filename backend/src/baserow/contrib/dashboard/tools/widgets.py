@@ -409,8 +409,6 @@ def create_widget(ctx: ToolContext, dashboard_id: int, spec: WidgetCreate) -> Wi
     :raises DRFValidationError: When the view or a field doesn't belong to the
         table.
     :raises DjangoValidationError: When an aggregation doesn't fit its field.
-    :raises FeaturesNotAvailableError: When the widget type needs a licence the
-        user doesn't have.
     """
 
     tool_type = widget_tool_type_registry.get(spec.type)
@@ -447,10 +445,8 @@ def create_widgets(
 ) -> dict[str, Any]:
     """
     Add widgets to a dashboard. A summary shows one figure: a field of a table
-    aggregated over its rows, like the sum of Amount. With premium, a chart (BAR
-    or LINE) or pie_chart (PIE or DOUGHNUT) shows one or more series, optionally
-    by the values of group_by_field_id. Pass view_id to
-    aggregate only the rows a view shows. Each widget is saved on its own: a
+    aggregated over its rows, like the sum of Amount. Pass view_id to aggregate
+    only the rows a view shows. Each widget is saved on its own: a
     widget that fails is listed in errors with its index and the others are
     kept. An aggregation that doesn't fit a field is reported with the ones that
     do. Returns the created widgets as list_widgets describes them.

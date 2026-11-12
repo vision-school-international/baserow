@@ -19,7 +19,7 @@ from .exceptions import DashboardDoesNotExist, NoAuthorizationToPublicDashboard
 
 # The fields that make up the public sharing state of a dashboard. The slug is
 # left out on purpose, it can only be rotated.
-DASHBOARD_SHARING_FIELDS = ["public", "public_password", "show_logo"]
+DASHBOARD_SHARING_FIELDS = ["public", "public_password"]
 
 
 @dataclass

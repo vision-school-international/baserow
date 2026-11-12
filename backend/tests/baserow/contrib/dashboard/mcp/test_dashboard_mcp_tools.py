@@ -145,36 +145,6 @@ def test_dashboard_tools_over_mcp(data_fixture, amount_table):
 
 
 @pytest.mark.django_db
-def test_chart_without_licence_reports_licence_over_mcp(data_fixture, amount_table):
-    endpoint = data_fixture.create_mcp_endpoint(allowed_tools=ALL_TOOLS)
-    dashboard = data_fixture.create_dashboard_application(workspace=endpoint.workspace)
-    table, amount = amount_table(endpoint.workspace)
-
-    result = _json(
-        _call(
-            endpoint,
-            "create_widgets",
-            {
-                "dashboard_id": dashboard.id,
-                "widgets": [
-                    {
-                        "type": "chart",
-                        "title": "Chart",
-                        "table_id": table.id,
-                        "series": [{"field_id": amount.id, "aggregation_type": "sum"}],
-                    }
-                ],
-            },
-        )
-    )
-
-    assert result["created"] == []
-    error = result["errors"][0]["error"]
-    assert error != "Internal error."
-    assert "licen" in error.lower() or "feature" in error.lower()
-
-
-@pytest.mark.django_db
 def test_dashboard_tools_over_mcp_hide_other_workspaces(data_fixture, amount_table):
     endpoint = data_fixture.create_mcp_endpoint(allowed_tools=ALL_TOOLS)
     elsewhere = data_fixture.create_workspace(user=endpoint.user)

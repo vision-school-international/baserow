@@ -1,6 +1,7 @@
 import base64
 import json
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpx2
@@ -16,7 +17,6 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     ZaiGenerativeAIModelType,
 )
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
-from baserow_premium.fields.ai_file import AIFile
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 ZAI_SETTINGS = {"api_key": "zai-key", "models": ["glm-5.2"]}
@@ -63,12 +63,16 @@ def zai_api(monkeypatch: pytest.MonkeyPatch) -> FakeZaiApi:
     return api
 
 
-def _make_ai_file(name: str, mime_type: str, content_bytes: bytes) -> AIFile:
-    ai_file = AIFile(
-        name=name, original_name=name, size=len(content_bytes), mime_type=mime_type
+def _make_ai_file(name: str, mime_type: str, content_bytes: bytes) -> SimpleNamespace:
+    return SimpleNamespace(
+        name=name,
+        original_name=name,
+        size=len(content_bytes),
+        mime_type=mime_type,
+        content=None,
+        provider_file_id=None,
+        read_content=lambda: content_bytes,
     )
-    ai_file.read_content = lambda: content_bytes  # type: ignore[assignment]
-    return ai_file
 
 
 def _chat_completion(message: dict, finish_reason: str = "stop") -> dict:

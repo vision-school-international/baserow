@@ -100,7 +100,7 @@ describe('MenuList', () => {
           label: 'Disabled action',
           value: 'disabled',
           disabled: true,
-          disabledReason: 'Upgrade required',
+          disabledReason: 'Not configured',
         },
       ],
     })

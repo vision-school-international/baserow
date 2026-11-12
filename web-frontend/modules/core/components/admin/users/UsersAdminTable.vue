@@ -51,11 +51,8 @@ export default {
       const { search } = this.$route.query
       return search ? String(search) : null
     },
-    membersPagePlugins() {
-      return Object.values(this.$registry.getAll('membersPagePlugins'))
-    },
     columns() {
-      let columns = [
+      return [
         new CrudTableColumn(
           'username',
           () => this.$t('usersAdminTable.username'),
@@ -99,14 +96,6 @@ export default {
         ),
         new CrudTableColumn('more', '', MoreField, false, false, true),
       ]
-      for (const plugin of this.membersPagePlugins) {
-        if (!plugin.isDeactivated()) {
-          columns = plugin.mutateAdminUsersTableColumns(columns, {
-            client: this.$client,
-          })
-        }
-      }
-      return columns
     },
   },
   methods: {

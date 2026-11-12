@@ -15,9 +15,6 @@
         height="12px"
       ></SkeletonBlock>
       <ul v-if="!tableLoading" class="header__filter">
-        <li v-if="showLogo" class="header__filter-item">
-          <ExternalLinkBaserowLogo class="header__filter-logo" />
-        </li>
         <li class="header__filter-item header__filter-item--grids">
           <a
             ref="viewsSelectToggle"
@@ -275,7 +272,6 @@ import ViewDecoratorMenu from '@baserow/modules/database/components/view/ViewDec
 import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 import EditableViewName from '@baserow/modules/database/components/view/EditableViewName'
 import ShareViewLink from '@baserow/modules/database/components/view/ShareViewLink'
-import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import ViewGroupBy from '@baserow/modules/database/components/view/ViewGroupBy'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
 import { TaskQueue } from '@baserow/modules/core/utils/queue'
@@ -289,7 +285,6 @@ export default {
   components: {
     DefaultErrorPage,
     ViewGroupBy,
-    ExternalLinkBaserowLogo,
     ShareViewLink,
     EditableViewName,
     ViewsContext,
@@ -409,9 +404,6 @@ export default {
           .getOrderedList('viewDecorator')
           .some((deco) => deco.isCompatible(this.view))
       )
-    },
-    showLogo() {
-      return this.view?.show_logo && this.isPublic
     },
     showViewContext() {
       return (

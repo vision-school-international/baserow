@@ -58,7 +58,6 @@
               :key="instance.type"
               :active="chosenType === instance.type"
               :data-sync-type="instance"
-              :database="database"
               :disabled="importInProgress"
               @selected="!importInProgress && setChosenType(instance.type)"
             ></DataSyncTypeChoice>

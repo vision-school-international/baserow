@@ -117,7 +117,6 @@ const serviceType = {
   isDataSource: true,
   formComponent: null,
   getType: () => 'local_baserow_get_row',
-  isDeactivatedReason: () => null,
 }
 
 const httpGroup = {
@@ -143,7 +142,6 @@ const httpServiceType = {
   canBeTested: true,
   formComponent: ServiceFormStub,
   getType: () => 'http_get',
-  isDeactivatedReason: () => null,
 }
 
 const hiddenServiceType = {
@@ -157,7 +155,6 @@ const hiddenServiceType = {
   hiddenInDataSourcePicker: true,
   formComponent: null,
   getType: () => 'csv_file_reader',
-  isDeactivatedReason: () => null,
 }
 
 async function mountComponent({
@@ -241,8 +238,6 @@ describe('DataSourceForm', () => {
             icon: 'iconoir-pin',
             iconColor: 'darker-blue',
             description: 'Reads a row from a Baserow table.',
-            disabled: false,
-            disabledReason: null,
           },
         ],
       },
@@ -288,8 +283,6 @@ describe('DataSourceForm', () => {
           icon: 'iconoir-globe',
           iconColor: 'muted-cyan',
           description: 'Fetches data from a URL.',
-          disabled: false,
-          disabledReason: null,
         },
       ],
     })

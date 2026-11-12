@@ -733,7 +733,7 @@ def create_element(
     try:
         element_type = element_type_registry.get(element_create.type)
     except element_type_registry.does_not_exist_exception_class:
-        # auth_form comes from enterprise, which an instance can run without.
+        # An element type that isn't registered on this instance.
         raise ToolInputError(
             f"This instance has no {element_create.type} element, so it wasn't created."
         )

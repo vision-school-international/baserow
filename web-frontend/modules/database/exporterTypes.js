@@ -70,25 +70,6 @@ export class TableExporterType extends Registerable {
       supportedViews: this.supportedViews,
     }
   }
-
-  /**
-   * If the exporter type is disabled, this text will be visible explaining why.
-   */
-  getDeactivatedText() {}
-
-  /**
-   * When the disabled exporter is clicked, this modal will be shown.
-   */
-  getDeactivatedClickModal() {
-    return null
-  }
-
-  /**
-   * Indicates if the exporter type is disabled.
-   */
-  isDeactivated(workspaceId) {
-    return false
-  }
 }
 
 export class CSVTableExporterType extends TableExporterType {

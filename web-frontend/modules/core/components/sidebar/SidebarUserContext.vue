@@ -69,13 +69,6 @@
         <span class="sidebar__user-email">
           {{ email }}
         </span>
-
-        <component
-          :is="component"
-          v-for="(component, index) in highestLicenceTypeBadge"
-          :key="index"
-          class="sidebar__user-license"
-        ></component>
       </div>
 
       <ul class="context__menu margin-bottom-0">
@@ -169,11 +162,6 @@ export default {
     }
   },
   computed: {
-    highestLicenceTypeBadge() {
-      return Object.values(this.$registry.getAll('plugin'))
-        .map((plugin) => plugin.getHighestLicenseTypeBadge())
-        .filter((component) => component !== null)
-    },
     adminTypes() {
       return this.$registry.getAll('admin')
     },
@@ -239,11 +227,8 @@ export default {
       await this.$nextTick()
 
       this.$emit('toggle-admin', true)
-      const activatedAdminTypes = this.sortedAdminTypes.filter(
-        (adminType) => !adminType.isDeactivated()
-      )
       try {
-        await this.$router.push({ name: activatedAdminTypes[0].routeName })
+        await this.$router.push({ name: this.sortedAdminTypes[0].routeName })
         await pageFinished(this.nuxtApp)
         await nextTick()
       } catch {}

@@ -1,30 +1,21 @@
 """
 Tools that change how a view shows its rows, shared by the clients that act for a
-user: sorts, hidden fields, row colours, and deleting views and filters.
+user: sorts, hidden fields, and deleting views and filters.
 """
 
 from typing import Annotated, Any, Callable, Literal
-from uuid import uuid4
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
-from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.contrib.database.tools.views import (
-    ViewFilterItemCreate,
-    field_options_of,
-    get_view,
-    resolve_view_filter,
-)
+from baserow.contrib.database.tools.views import field_options_of, get_view
 from baserow.contrib.database.views.actions import (
-    CreateDecorationActionType,
     CreateViewSortActionType,
-    DeleteDecorationActionType,
     DeleteViewActionType,
     DeleteViewFilterActionType,
     DeleteViewSortActionType,
@@ -32,22 +23,12 @@ from baserow.contrib.database.views.actions import (
     UpdateViewSortActionType,
 )
 from baserow.contrib.database.views.exceptions import (
-    ViewDecorationNotSupported,
     ViewSortFieldNotSupported,
     ViewSortNotSupported,
 )
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import (
-    View,
-    ViewDecoration,
-    ViewFilter,
-    ViewSort,
-)
-from baserow.contrib.database.views.operations import (
-    CreateViewDecorationOperationType,
-)
+from baserow.contrib.database.views.models import View, ViewFilter, ViewSort
 from baserow.contrib.database.views.registries import view_type_registry
-from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError, item_error_message
 
@@ -66,60 +47,6 @@ class FieldVisibility(BaseModel):
 
     field_id: int = Field(..., description="The ID of the field.")
     hidden: bool = Field(..., description="True to hide the field in the view.")
-
-
-class ConditionalColour(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    color: str = Field(
-        ...,
-        # A row takes its colour from a CSS class per palette name.
-        pattern=r"^((light|dark|darker)-)?"
-        r"(blue|green|cyan|orange|yellow|red|brown|purple|pink|gray)$",
-        description=(
-            "One of blue, green, cyan, orange, yellow, red, brown, purple, pink or "
-            "gray, optionally prefixed by light-, dark- or darker-."
-        ),
-    )
-    filters: list[ViewFilterItemCreate] = Field(
-        ...,
-        description=(
-            "The conditions a row must meet to get the colour, in the format of view "
-            "filters. Empty to match every row."
-        ),
-    )
-    operator: Literal["AND", "OR"] = Field(
-        "AND", description="AND when a row must meet every condition, OR for any."
-    )
-
-
-class RowColour(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    style: Literal["left_border_color", "background_color"] = Field(
-        ..., description="Colour the left border of a row, or its background."
-    )
-    by: Literal["single_select_color", "conditional_color"] = Field(
-        ...,
-        description=(
-            "single_select_color takes the colour of a select option and needs "
-            "field_id. conditional_color takes the first colour whose conditions the "
-            "row meets and needs colours."
-        ),
-    )
-    field_id: int | None = Field(None, description="The ID of a single select field.")
-    colours: list[ConditionalColour] | None = Field(
-        None, description="The colours and their conditions, first match wins."
-    )
-
-    @model_validator(mode="after")
-    def _has_the_input_of_its_kind(self):
-        if self.by == "single_select_color":
-            if self.field_id is None or self.colours is not None:
-                raise ValueError("single_select_color needs field_id and no colours.")
-        elif not self.colours or self.field_id is not None:
-            raise ValueError("conditional_color needs colours and no field_id.")
-        return self
 
 
 def _fields_of(view: View) -> dict[int, Any]:
@@ -317,100 +244,3 @@ def delete_view_filters(
 
     ctx.update_status(_("Deleting filters..."))
     return _delete_each(filter_ids, "filter_id", "deleted_filters", delete)
-
-
-def _colour_filter(item: ViewFilterItemCreate, fields, timezone) -> dict[str, Any]:
-    field, filter_type, filter_value = resolve_view_filter(fields, item, timezone)
-    return {
-        "id": uuid4().hex,
-        "field": field.id,
-        "type": filter_type,
-        "value": filter_value,
-    }
-
-
-def _colour_conf(ctx: ToolContext, view: View, colour: RowColour) -> dict[str, Any]:
-    fields = _fields_of(view)
-
-    if colour.by == "single_select_color":
-        field = _get_field(fields, colour.field_id)
-        field_type = field_type_registry.get_by_model(field.specific_class).type
-        if field_type != "single_select":
-            raise ToolInputError(f"The field '{field.name}' isn't a single select.")
-        return {"field_id": field.id}
-
-    return {
-        "colors": [
-            {
-                "id": uuid4().hex,
-                "color": item.color,
-                "operator": item.operator,
-                "filters": [
-                    _colour_filter(view_filter, fields, ctx.timezone)
-                    for view_filter in item.filters
-                ],
-            }
-            for item in colour.colours
-        ]
-    }
-
-
-def add_row_colours(
-    ctx: ToolContext,
-    view_id: Annotated[int, Field(description="The ID of the view.")],
-    colour: Annotated[RowColour, Field(description="How to colour the rows.")],
-) -> dict[str, Any]:
-    """
-    Colour the rows of a view, by a single select field or by conditions. A form view
-    has no rows to colour. Adds to the colours the view already has, which list_views
-    shows. Needs a premium licence.
-    """
-
-    view = get_view(ctx, view_id)
-    ctx.update_status(_("Colouring %(view_name)s...") % {"view_name": view.name})
-    # Before reading the fields, as an error about a field names it.
-    CoreHandler().check_permissions(
-        ctx.user,
-        CreateViewDecorationOperationType.type,
-        workspace=ctx.workspace,
-        context=view,
-    )
-
-    try:
-        with transaction.atomic():
-            decoration = CreateDecorationActionType.do(
-                view, colour.style, colour.by, _colour_conf(ctx, view, colour), ctx.user
-            )
-    except ViewDecorationNotSupported as exc:
-        raise ToolInputError("This type of view can't colour its rows.") from exc
-
-    return {"decoration_id": decoration.id}
-
-
-def delete_row_colours(
-    ctx: ToolContext,
-    decoration_ids: Annotated[
-        list[int],
-        Field(description="The IDs of the row colours to delete, as list_views shows."),
-    ],
-) -> dict[str, Any]:
-    """
-    Remove row colours from views. A colour that fails is reported in errors and the
-    others are still removed.
-    """
-
-    tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
-    decorations = ViewDecoration.objects.filter(
-        view__table__in=tables, view__trashed=False
-    )
-
-    def delete(decoration_id: int) -> None:
-        DeleteDecorationActionType.do(
-            ViewHandler().get_decoration(
-                ctx.user, decoration_id, base_queryset=decorations
-            ),
-            ctx.user,
-        )
-
-    ctx.update_status(_("Removing row colours..."))
-    return _delete_each(decoration_ids, "decoration_id", "deleted_row_colours", delete)

@@ -536,7 +536,7 @@ def test_dashboard_export_import_does_not_carry_the_sharing_state(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     dashboard = data_fixture.create_dashboard_application(
-        workspace=workspace, name="Dashboard 1", public=True, show_logo=False
+        workspace=workspace, name="Dashboard 1", public=True
     )
     dashboard.set_password("secret-password")
     dashboard.save()
@@ -545,7 +545,7 @@ def test_dashboard_export_import_does_not_carry_the_sharing_state(data_fixture):
     serialized = DashboardApplicationType().export_serialized(dashboard, config)
     serialized = json.loads(json.dumps(serialized))
 
-    for key in ("public", "slug", "public_password", "show_logo"):
+    for key in ("public", "slug", "public_password"):
         assert key not in serialized
 
     imported = DashboardApplicationType().import_serialized(
@@ -557,7 +557,6 @@ def test_dashboard_export_import_does_not_carry_the_sharing_state(data_fixture):
     assert imported.slug
     assert imported.slug != dashboard.slug
     assert imported.public_password == ""
-    assert imported.show_logo is True
 
 
 @pytest.mark.django_db

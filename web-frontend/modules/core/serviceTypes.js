@@ -96,12 +96,6 @@ export class ServiceType extends Registerable {
    * @returns {String} - The error message
    */
   getErrorMessage({ service, workspace = null, application = null }) {
-    const deactivatedReason =
-      workspace && this.isDeactivatedReason({ workspace })
-    if (deactivatedReason) {
-      return deactivatedReason
-    }
-
     if (application && service?.integration_id) {
       const integration = this.app.$store.getters[
         'integration/getIntegrationById'
@@ -190,18 +184,6 @@ export class ServiceType extends Registerable {
    */
   get returnsList() {
     return false
-  }
-
-  isDeactivatedReason({ workspace }) {
-    return null
-  }
-
-  isDeactivated({ workspace }) {
-    return !!this.isDeactivatedReason({ workspace })
-  }
-
-  getDeactivatedClickModal({ workspace }) {
-    return null
   }
 
   getOrder() {

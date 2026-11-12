@@ -33,9 +33,8 @@ class DashboardApplicationType(ApplicationType):
         "public",
         "slug",
         "public_has_password",
-        "show_logo",
     ]
-    # The sharing state (`public`, `public_password`, `show_logo`) is left out on
+    # The sharing state (`public`, `public_password`) is left out on
     # purpose: it is changed through the dedicated sharing endpoints and
     # `UpdateDashboardSharingActionType`, so the audit log describes what changed
     # instead of reporting a rename.

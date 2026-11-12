@@ -6,60 +6,49 @@ import EditRoleContext from '@baserow/modules/core/components/settings/members/E
 const workspace = { id: 12 }
 const subject = { id: 34, role_uid: 'MEMBER' }
 const roles = [
-  {
-    uid: 'MEMBER',
-    name: 'Member',
-    isVisible: true,
-    isDeactivated: false,
-    isBillable: false,
-    showIsBillable: true,
-  },
-  {
-    uid: 'ADMIN',
-    name: 'Admin',
-    isVisible: true,
-    isDeactivated: false,
-    isBillable: true,
-    showIsBillable: true,
-  },
+  { uid: 'MEMBER', name: 'Member', isVisible: true },
+  { uid: 'ADMIN', name: 'Admin', isVisible: true },
+  { uid: 'HIDDEN', name: 'Hidden', isVisible: false },
 ]
 
-const registeredRoles = roles.map((role) => ({
-  getUid: () => role.uid,
-  getDeactivatedClickModal: () => null,
-}))
-
-const mountContext = (showCommercialInfo) =>
+const mountContext = () =>
   mountSuspended(EditRoleContext, {
     props: {
       workspace,
       subject,
       roles,
       roleValueColumn: 'role_uid',
-      showCommercialInfo,
     },
     global: {
       mocks: {
-        $registry: { getAll: () => registeredRoles },
         $t: (key) => key,
       },
       stubs: {
         Context: { template: '<div><slot /></div>' },
-        Badge: { template: '<span class="badge"><slot /></span>' },
       },
     },
   })
 
 describe('EditRoleContext', () => {
-  test('shows commercial role information by default', async () => {
-    const wrapper = await mountContext(undefined)
+  test('lists the visible roles and marks the current one', async () => {
+    const wrapper = await mountContext()
 
-    expect(wrapper.html()).toMatchSnapshot()
+    const titles = wrapper
+      .findAll('.context__menu-item-title')
+      .map((title) => title.text())
+    expect(titles).toEqual(['Member', 'Admin'])
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links[0].classes()).toContain('active')
+    expect(links[1].classes()).not.toContain('active')
   })
 
-  test('can hide all commercial role information', async () => {
-    const wrapper = await mountContext(false)
+  test('emits the new role when another role is clicked', async () => {
+    const wrapper = await mountContext()
 
-    expect(wrapper.html()).toMatchSnapshot()
+    await wrapper.findAll('.context__menu-item-link')[1].trigger('click')
+
+    expect(wrapper.emitted('update-role')).toEqual([
+      [{ uid: 'ADMIN', subject }],
+    ])
   })
 })

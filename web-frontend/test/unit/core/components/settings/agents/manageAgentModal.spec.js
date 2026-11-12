@@ -11,14 +11,9 @@ const WorkspaceRoleSelectorStub = {
   name: 'WorkspaceRoleSelector',
   props: {
     modelValue: { type: String, required: true },
-    showCommercialInfo: { type: Boolean, default: true },
   },
   emits: ['update:modelValue'],
-  template: `
-    <div class="workspace-role-selector">
-      <span v-if="showCommercialInfo" class="commercial-info" />
-    </div>
-  `,
+  template: '<div class="workspace-role-selector"></div>',
 }
 
 const ButtonStub = {
@@ -56,60 +51,50 @@ describe('ManageAgentModal', () => {
     `,
   }
 
-  test.each([
-    [true, 'MEMBER'],
-    [false, 'NO_ACCESS'],
-  ])(
-    'when No access is deactivated=%s, defaults to %s',
-    async (isDeactivated, expectedRole) => {
-      const wrapper = await mountSuspended(
-        {
-          components: { ManageAgentModal },
-          data: () => ({
-            workspace: {
-              id: 12,
-              _: {
-                roles: [
-                  { uid: 'MEMBER', isVisible: true },
-                  { uid: 'NO_ACCESS', isVisible: true, isDeactivated },
-                ],
-              },
+  test('defaults to the Member role', async () => {
+    const wrapper = await mountSuspended(
+      {
+        components: { ManageAgentModal },
+        data: () => ({
+          workspace: {
+            id: 12,
+            _: {
+              roles: [{ uid: 'MEMBER', isVisible: true }],
             },
-          }),
-          template:
-            '<ManageAgentModal ref="agentModal" :workspace="workspace" />',
-          mounted() {
-            this.$refs.agentModal.show()
+          },
+        }),
+        template: '<ManageAgentModal ref="agentModal" :workspace="workspace" />',
+        mounted() {
+          this.$refs.agentModal.show()
+        },
+      },
+      {
+        global: {
+          mocks: {
+            $registry: { getOrderedList: () => [generalSetting] },
+            $t: (key) => key,
+          },
+          stubs: {
+            Modal: modalStub,
+            Error: true,
+            FormGroup: { template: '<div><slot /></div>' },
+            FormInput: {
+              template: '<input />',
+              methods: { focus() {} },
+            },
+            Button: ButtonStub,
+            WorkspaceRoleSelector: {
+              ...WorkspaceRoleSelectorStub,
+              template: '<div class="selected-role">{{ modelValue }}</div>',
+            },
           },
         },
-        {
-          global: {
-            mocks: {
-              $registry: { getOrderedList: () => [generalSetting] },
-              $t: (key) => key,
-            },
-            stubs: {
-              Modal: modalStub,
-              Error: true,
-              FormGroup: { template: '<div><slot /></div>' },
-              FormInput: {
-                template: '<input />',
-                methods: { focus() {} },
-              },
-              Button: ButtonStub,
-              WorkspaceRoleSelector: {
-                ...WorkspaceRoleSelectorStub,
-                template: '<div class="selected-role">{{ modelValue }}</div>',
-              },
-            },
-          },
-        }
-      )
+      }
+    )
 
-      expect(wrapper.find('.selected-role').text()).toBe(expectedRole)
-      wrapper.unmount()
-    }
-  )
+    expect(wrapper.find('.selected-role').text()).toBe('MEMBER')
+    wrapper.unmount()
+  })
 
   test('saves pages independently, retains drafts on failure, and stays open', async () => {
     const dispatch = vi.fn().mockResolvedValue({ id: 42 })
@@ -363,30 +348,6 @@ describe('ManageAgentModal', () => {
     } finally {
       wrapper.unmount()
     }
-  })
-
-  test('hides commercial information in its role selector', async () => {
-    const wrapper = await mountSuspended(ManageAgentModal, {
-      props: {
-        workspace: { id: 12, _: { roles: [] } },
-      },
-      global: {
-        mocks: {
-          $registry: { getOrderedList: () => [generalSetting] },
-          $t: (key) => key,
-        },
-        stubs: {
-          Modal: modalStub,
-          Error: true,
-          FormGroup: { template: '<div><slot /></div>' },
-          FormInput: true,
-          Button: ButtonStub,
-          WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
-        },
-      },
-    })
-
-    expect(wrapper.html()).toMatchSnapshot()
   })
 
   test('shows registered settings in a sidebar when editing', async () => {

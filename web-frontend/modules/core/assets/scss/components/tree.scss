@@ -88,10 +88,6 @@
 
   @include flex-align-items(8px);
 
-  .tree__action--deactivated & {
-    color: $palette-neutral-500;
-  }
-
   &:hover {
     text-decoration: none;
   }

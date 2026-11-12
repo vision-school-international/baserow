@@ -82,8 +82,7 @@ class DashboardSharingView(APIView):
     """
     Changes the public sharing state of a dashboard. It has its own endpoint and
     action, instead of the generic application update, so the audit log can
-    describe what changed. Hiding the Baserow logo is a premium attribute with
-    its own endpoint.
+    describe what changed.
     """
 
     permission_classes = (IsAuthenticated,)

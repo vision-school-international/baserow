@@ -180,8 +180,8 @@ describe('CopyViewConfigurationModal', () => {
     await selectSourceView(wrapper, 'Gallery')
 
     // The gallery source doesn't support column widths, row height and
-    // groups, and the premium decorators are deactivated without a license,
-    // so those switches stay disabled and unchecked.
+    // groups, and no view decorator is registered, so those switches stay
+    // disabled and unchecked.
     expect(activeSwitchLabels(wrapper)).toEqual([
       label('fieldVisibility'),
       label('fieldOrder'),

@@ -43,15 +43,11 @@
         {{ $t('publicDashboardAuth.continue') }}
       </Button>
     </form>
-    <div v-if="showLogo" class="public-dashboard-auth__footer">
-      <ExternalLinkBaserowLogo />
-    </div>
   </div>
 </template>
 
 <script setup>
 import {
-  computed,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -65,7 +61,6 @@ import { useVuelidate } from '@vuelidate/core'
 import { helpers, required } from '@vuelidate/validators'
 
 import Error from '@baserow/modules/core/components/Error'
-import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import PublicDashboardService from '@baserow/modules/dashboard/services/publicDashboard'
 import { isRelativeUrl } from '@baserow/modules/core/utils/url'
 
@@ -91,20 +86,22 @@ const detectedLocale = useState('public-dashboard-auth-detected-locale', () => {
 $i18n.locale.value = detectedLocale.value
 await $i18n.loadLocaleMessages(detectedLocale.value)
 
-// The owner may have hidden the Baserow logo on the shared dashboard, which
-// applies to its password page as well.
-const { data: authInfo, error: authInfoError } = await useAsyncData(
+// An unknown or private dashboard shows the not found page instead of a password
+// form. Without a token a password protected dashboard answers with a 401.
+const { error: infoError } = await useAsyncData(
   `dashboard-public-auth-${slug}`,
   async () => {
     const { $client } = useNuxtApp()
 
     try {
-      const { data } = await PublicDashboardService($client).fetchAuthInfo(slug)
-      return data
+      await PublicDashboardService($client).fetchInfo(slug)
+      return true
     } catch (e) {
       const statusCode = e.response?.status
 
-      if (statusCode === 404) {
+      if (statusCode === 401) {
+        return true
+      } else if (statusCode === 404) {
         throw createError({
           statusCode: 404,
           message: 'Dashboard not found.',
@@ -124,19 +121,11 @@ const { data: authInfo, error: authInfoError } = await useAsyncData(
   }
 )
 
-if (authInfoError.value) {
-  throw authInfoError.value
+if (infoError.value) {
+  throw infoError.value
 }
 
-const showLogo = computed(() => authInfo.value?.show_logo !== false)
-
-useHead(() => {
-  const head = { title: $i18n.t('publicDashboardAuth.title') }
-  if (!showLogo.value) {
-    head.titleTemplate = '%s'
-  }
-  return head
-})
+useHead(() => ({ title: $i18n.t('publicDashboardAuth.title') }))
 
 const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })

@@ -65,14 +65,6 @@ export class WidgetType extends Registerable {
   get showHeaderBorder() {
     return true
   }
-
-  isAvailable() {
-    return true
-  }
-
-  getDeactivatedModal() {
-    return null
-  }
 }
 
 export class DataSourceWidgetType extends WidgetType {

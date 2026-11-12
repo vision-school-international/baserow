@@ -1,6 +1,5 @@
 <template>
   <li
-    v-tooltip="deactivated ? deactivatedText : null"
     class="select__item"
     :class="{
       active: view._.selected,
@@ -17,26 +16,12 @@
         <span class="select__item-name-text"
           ><EditableViewName ref="rename" :view="view"></EditableViewName
         ></span>
-        <div
-          v-if="deactivated || viewOwnershipDeactivated"
-          class="deactivated-label"
-        >
-          <i class="iconoir-lock"></i>
-        </div>
       </div>
     </a>
     <i
       v-if="view._.selected"
       class="select__item-active-icon iconoir-check"
     ></i>
-    <component
-      :is="deactivatedClickModal[0]"
-      v-if="deactivatedClickModal !== null"
-      ref="deactivatedClickModal"
-      v-bind="deactivatedClickModal[1]"
-      :name="viewType.getName()"
-      :workspace="database.workspace"
-    ></component>
     <template v-if="!readOnly && showViewContext">
       <a
         ref="contextLink"
@@ -92,39 +77,6 @@ export default {
   },
   emits: ['selected'],
   computed: {
-    viewType() {
-      return this.$registry.get('view', this.view.type)
-    },
-    viewOwnershipType() {
-      return this.$registry.get('viewOwnershipType', this.view.ownership_type)
-    },
-    deactivated() {
-      return (
-        !this.readOnly &&
-        this.viewType.isDeactivated(this.database.workspace.id)
-      )
-    },
-    viewOwnershipDeactivated() {
-      return this.viewOwnershipType.isDeactivated(this.database.workspace.id)
-    },
-    deactivatedText() {
-      if (this.deactivated) {
-        return this.viewType.getDeactivatedText({ view: this.view })
-      }
-      if (this.viewOwnershipDeactivated) {
-        return this.viewOwnershipType.getDeactivatedText()
-      }
-      return null
-    },
-    deactivatedClickModal() {
-      if (this.deactivated) {
-        return this.viewType.getDeactivatedClickModal()
-      }
-      if (this.viewOwnershipDeactivated) {
-        return this.viewOwnershipType.getDeactivatedModal()
-      }
-      return null
-    },
     showViewContext() {
       return (
         this.$hasPermission(
@@ -165,10 +117,6 @@ export default {
       this.$refs.rename.edit()
     },
     select(view) {
-      if (this.deactivated || this.viewOwnershipDeactivated) {
-        this.$refs.deactivatedClickModal.show()
-        return
-      }
       this.$emit('selected', view)
     },
   },

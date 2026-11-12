@@ -58,22 +58,6 @@ export default {
         true
       ),
       new CrudTableColumn(
-        'free_users',
-        () => this.$t('workspacesAdminTable.freeUsers'),
-        SimpleField
-      ),
-      new CrudTableColumn(
-        'seats_taken',
-        () => this.$t('workspacesAdminTable.seatsTaken'),
-        SimpleField,
-        false,
-        false,
-        false,
-        {},
-        '',
-        this.$t('workspacesAdminTable.usageHelpText')
-      ),
-      new CrudTableColumn(
         'row_count',
         () => this.$t('workspacesAdminTable.rowCount'),
         SimpleField,

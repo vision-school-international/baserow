@@ -1,15 +1,13 @@
 <template>
   <div>
     <BuilderToasts />
-    <RecursiveWrapper :components="builderPageDecorators">
-      <PageContent
-        v-if="canViewPage"
-        :path="path"
-        :params="params"
-        :elements="elements"
-        :shared-elements="sharedElements"
-      />
-    </RecursiveWrapper>
+    <PageContent
+      v-if="canViewPage"
+      :path="path"
+      :params="params"
+      :elements="elements"
+      :shared-elements="sharedElements"
+    />
   </div>
 </template>
 
@@ -31,7 +29,6 @@ import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
 import { resolveSafeNextPath } from '@baserow/modules/builder/utils/routing'
 
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
-import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 import { useRoute, useRouter } from '#imports'
 
@@ -85,16 +82,6 @@ provide(
 
 const elements = computed(() => {
   return store.getters['element/getRootElements'](props.page)
-})
-
-const builderPageDecorators = computed(() => {
-  // Get available page decorators from registry
-  return Object.values($registry.getAll('builderPageDecorator') || {})
-    .filter((decorator) => decorator.isDecorationAllowed(props.workspace))
-    .map((decorator) => ({
-      component: decorator.component,
-      props: decorator.getProps(),
-    }))
 })
 
 const applicationContext = computed(() => ({

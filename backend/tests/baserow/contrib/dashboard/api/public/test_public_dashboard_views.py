@@ -113,7 +113,6 @@ def test_get_public_dashboard_info(api_client, data_fixture):
         "id": dashboard.id,
         "name": "Sales",
         "description": "Numbers of the quarter",
-        "show_logo": True,
     }
 
     assert len(response_json["widgets"]) == 1
@@ -151,12 +150,7 @@ def test_get_public_dashboard_info_never_exposes_the_sharing_or_service_config(
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert set(response_json["dashboard"].keys()) == {
-        "id",
-        "name",
-        "description",
-        "show_logo",
-    }
+    assert set(response_json["dashboard"].keys()) == {"id", "name", "description"}
     assert "slug" not in response.content.decode()
     assert dashboard.public_password not in response.content.decode()
 
@@ -412,44 +406,6 @@ def test_public_dashboard_auth_of_a_private_dashboard(api_client, data_fixture):
     response = api_client.post(
         public_auth_url(dashboard.slug), {"password": PASSWORD}, format="json"
     )
-
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_DASHBOARD_DOES_NOT_EXIST"
-
-
-@pytest.mark.django_db
-def test_get_public_dashboard_auth_info(api_client, data_fixture):
-    user = data_fixture.create_user()
-    dashboard, _, _ = create_shared_dashboard(data_fixture, user, public=True)
-    protect_with_password(dashboard)
-
-    # The password page follows the logo choice of the owner, without a token.
-    response = api_client.get(public_auth_url(dashboard.slug), format="json")
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {"show_logo": True}
-
-    dashboard.show_logo = False
-    dashboard.save()
-
-    response = api_client.get(public_auth_url(dashboard.slug), format="json")
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {"show_logo": False}
-
-
-@pytest.mark.django_db
-def test_get_public_dashboard_auth_info_of_a_private_dashboard(
-    api_client, data_fixture
-):
-    user = data_fixture.create_user()
-    dashboard, _, _ = create_shared_dashboard(data_fixture, user, public=False)
-    protect_with_password(dashboard)
-
-    response = api_client.get(public_auth_url(dashboard.slug), format="json")
-
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_DASHBOARD_DOES_NOT_EXIST"
-
-    response = api_client.get(public_auth_url("unknown-slug"), format="json")
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_DASHBOARD_DOES_NOT_EXIST"

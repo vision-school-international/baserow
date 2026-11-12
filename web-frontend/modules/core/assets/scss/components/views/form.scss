@@ -615,11 +615,6 @@
   gap: 14px;
 }
 
-.form-view__powered-by-baserow {
-  display: flex;
-  align-items: center;
-}
-
 .form-view__report-abuse {
   @extend %ellipsis;
 
@@ -646,11 +641,6 @@
   &:focus {
     box-shadow: none;
   }
-}
-
-.form-view__powered-by-logo {
-  max-width: 92px;
-  margin-left: 8px;
 }
 
 .form-view__meta-email {

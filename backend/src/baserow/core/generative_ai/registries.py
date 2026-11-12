@@ -33,7 +33,8 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ThinkingLevel
 
-    from baserow_premium.fields.ai_file import AIFile
+# A file handed to a model. The module that sends files defines its class.
+AIFile = Any
 
 
 def call_with_supported_kwargs(method: Any, **kwargs) -> Any:

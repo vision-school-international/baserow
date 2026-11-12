@@ -12,7 +12,6 @@
     <!-- prettier-ignore -->
     <div v-else class="form-view__submitted-message whitespace-pre-wrap">{{ submitActionMessageOrDefault }}</div>
     <FormViewFooterLinks
-      :show-logo="showLogo"
       show-report-abuse
       :identifier="$route.params.slug"
     ></FormViewFooterLinks>
@@ -38,10 +37,6 @@ export default {
     },
     submitActionMessage: {
       type: String,
-      required: true,
-    },
-    showLogo: {
-      type: Boolean,
       required: true,
     },
   },

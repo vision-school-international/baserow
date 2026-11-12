@@ -69,8 +69,6 @@
                 :image="actionType.image"
                 :name="actionType.label"
                 :value="actionType.getType()"
-                :description="deactivatedReasonFor(actionType)"
-                :disabled="Boolean(deactivatedReasonFor(actionType))"
               >
                 <i
                   v-if="actionType.icon"
@@ -306,14 +304,6 @@ export default {
           actionType,
         })
       )
-    },
-    /**
-     * Why this installation cannot run a type at all, shown on the option
-     * rather than found out by saving. Nothing to do with how an action is
-     * configured, which is what `errorFor` covers.
-     */
-    deactivatedReasonFor(actionType) {
-      return actionType.isDeactivatedReason({ workspace: this.workspace })
     },
     errorFor(action) {
       const key = this.actionKey(action)

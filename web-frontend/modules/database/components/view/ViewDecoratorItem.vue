@@ -4,9 +4,6 @@
     <div class="decorator-item__content">
       <div class="decorator-item__title">
         {{ decoratorType.getName() }}
-        <div v-if="deactivated" class="deactivated-label">
-          <i class="iconoir-lock"></i>
-        </div>
       </div>
       <div class="decorator-item__description">
         {{ decoratorType.getDescription() }}
@@ -22,11 +19,6 @@ export default {
     decoratorType: {
       type: Object,
       required: true,
-    },
-    deactivated: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
   },
 }

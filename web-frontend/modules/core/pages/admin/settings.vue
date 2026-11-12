@@ -6,33 +6,6 @@
         <div class="admin-settings__item">
           <div class="admin-settings__label">
             <div class="admin-settings__name">
-              {{ $t('settings.baserowInstanceId') }}
-            </div>
-            <div class="admin-settings__description">
-              {{ $t('settings.instanceIdDescription') }}
-            </div>
-          </div>
-          <div class="admin-settings__control">
-            <SkeletonBlock
-              v-if="instanceIdLoading"
-              width="240px"
-              height="14px"
-            ></SkeletonBlock>
-            <template v-else>
-              {{ instanceId }}
-              <a
-                class="licenses__instance-id-copy"
-                @click.prevent="handleCopy()"
-              >
-                {{ $t('action.copy') }}
-                <Copied ref="instanceIdCopied" />
-              </a>
-            </template>
-          </div>
-        </div>
-        <div class="admin-settings__item">
-          <div class="admin-settings__label">
-            <div class="admin-settings__name">
               {{ $t('settings.baserowVersion') }}
             </div>
             <div class="admin-settings__description">
@@ -282,7 +255,6 @@
 </template>
 <script setup>
 import {
-  ref,
   reactive,
   computed,
   watch,
@@ -290,14 +262,11 @@ import {
   onMounted,
 } from 'vue'
 import { useNuxtApp, useHead } from '#app'
-import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { useStore } from 'vuex'
 import { useVuelidate } from '@vuelidate/core'
 import { required, integer, between, helpers } from '@vuelidate/validators'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import SettingsService from '@baserow/modules/core/services/settings'
-import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 import {
   FF_RBAC_IMPROVEMENTS,
@@ -309,14 +278,12 @@ definePageMeta({
   middleware: 'staff',
 })
 
-const { $registry, $client, $baserowVersion, $i18n, $featureFlagIsEnabled } =
+const { $registry, $baserowVersion, $i18n, $featureFlagIsEnabled } =
   useNuxtApp()
 const { t: $t } = useI18n()
 const store = useStore()
 
 useHead({ title: $i18n.t('settings.settingsTitle') })
-
-const instanceIdCopied = ref(null)
 
 const values = reactive({
   account_deletion_grace_delay: null,
@@ -366,15 +333,6 @@ const rules = computed(() => {
 
 const v$ = useVuelidate(rules, { values }, { $lazy: true })
 
-// The instance id is the only thing on this page that has to be fetched.
-const { data: instanceData, loading: instanceIdLoading } =
-  await usePageAsyncData('instance-id', async () => {
-    const { data } = await SettingsService($client).getInstanceID()
-    return data
-  })
-
-const instanceId = computed(() => instanceData.value?.instance_id ?? '')
-
 const additionalSettingsComponents = computed(() => {
   return Object.values($registry.getAll('plugin'))
     .reduce(
@@ -386,11 +344,6 @@ const additionalSettingsComponents = computed(() => {
 })
 
 const baserowVersion = computed(() => $baserowVersion)
-
-function handleCopy() {
-  copyToClipboard(instanceId.value)
-  instanceIdCopied.value?.show()
-}
 
 async function updateSettings(payload) {
   v$.value.$touch()

@@ -36,7 +36,6 @@ export function createPublicGridView(
     public: true,
     slug: viewSlug,
     sortings,
-    show_logo: true,
     ownership_type: 'collaborative',
   }
   mock

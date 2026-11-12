@@ -7,7 +7,6 @@ export const DASHBOARD_SHARING_FIELDS = [
   'public',
   'slug',
   'public_has_password',
-  'show_logo',
 ]
 
 /**

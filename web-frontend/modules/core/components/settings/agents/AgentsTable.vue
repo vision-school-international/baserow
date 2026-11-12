@@ -7,20 +7,8 @@
     :columns="columns"
     row-id-key="id"
     :search-placeholder="$t('identities.search')"
-    :row-expandable="rowExpansion?.isExpandable"
-    :expand-column-key="rowExpansion?.columnKey"
     @row-context="openContext"
   >
-    <template v-if="rowExpansion" #row-expansion-toggle="{ row }">
-      {{ rowExpansion.getToggleLabel(row) }}
-    </template>
-    <template v-if="rowExpansion" #expanded-row="slotProps">
-      <component
-        :is="rowExpansion.component"
-        v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
-        :workspace="workspace"
-      />
-    </template>
     <template #title="{ count }">{{
       $t('identities.title', { count, workspace: workspace.name })
     }}</template>
@@ -90,29 +78,9 @@ export default {
       const layout = getManagementTableLayout(this.columns, 'role_uid')
       layout.columnWidths.name = 'max(200px, 40cqw)'
       layout.columnWidths.role_uid = 'auto'
-      layout.columnWidths.teams = 'clamp(80px, 10cqw, 120px)'
       layout.columnWidths.last_active = 'clamp(96px, 10cqw, 160px)'
       layout.minTableWidth = '800px'
       return layout
-    },
-    /**
-     * How an agent's row expands into more rows, as given by the first active
-     * extension offering it, or null.
-     */
-    rowExpansion() {
-      for (const extension of Object.values(
-        this.$registry.getAll('agentExtension')
-      )) {
-        if (extension.isActive(this.workspace)) {
-          const expansion = extension.getRowExpansion({
-            workspace: this.workspace,
-          })
-          if (expansion) {
-            return expansion
-          }
-        }
-      }
-      return null
     },
     focusedAgent() {
       // Resolve the selection by ID so realtime updates reach the editor prop.
@@ -164,7 +132,7 @@ export default {
       )
     },
     columns() {
-      let columns = [
+      const columns = [
         new CrudTableColumn(
           'name',
           this.$t('identities.name'),
@@ -190,15 +158,6 @@ export default {
           }
         ),
       ]
-      for (const extension of Object.values(
-        this.$registry.getAll('agentExtension')
-      )) {
-        if (extension.isActive(this.workspace)) {
-          columns = extension.mutateColumns(columns, {
-            workspace: this.workspace,
-          })
-        }
-      }
       columns.push(
         new CrudTableColumn(
           'last_active',

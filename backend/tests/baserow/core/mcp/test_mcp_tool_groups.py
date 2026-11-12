@@ -70,10 +70,8 @@ def test_core_database_tool_groups():
     assert groups["delete_fields"] == GROUP_DATABASE_DELETE
     assert groups["set_view_sorts"] == GROUP_DATABASE_EDIT
     assert groups["set_field_visibility"] == GROUP_DATABASE_EDIT
-    assert groups["add_row_colours"] == GROUP_DATABASE_EDIT
     assert groups["delete_views"] == GROUP_DATABASE_DELETE
     assert groups["delete_view_filters"] == GROUP_DATABASE_DELETE
-    assert groups["delete_row_colours"] == GROUP_DATABASE_DELETE
     assert groups["create_database"] == GROUP_DATABASE_EDIT
     assert groups["update_database"] == GROUP_DATABASE_EDIT
     assert "create_table" not in groups

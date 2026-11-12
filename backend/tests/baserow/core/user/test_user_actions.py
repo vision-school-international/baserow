@@ -18,7 +18,6 @@ from baserow.core.user.actions import (
 )
 from baserow.core.user.handler import UserHandler
 from baserow.throttling.types import RateLimit
-from baserow_enterprise.audit_log.models import AuditLogEntry
 
 
 @pytest.mark.django_db
@@ -32,7 +31,7 @@ def test_create_user_action_type():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_create_user_action_type_describes_invitation_link_signup(data_fixture):
+def test_create_user_action_type_joins_invitation_link_workspace(data_fixture):
     data_fixture.create_password_provider()
     invitation_link = data_fixture.create_workspace_invitation_link()
 
@@ -45,10 +44,6 @@ def test_create_user_action_type_describes_invitation_link_signup(data_fixture):
             workspace_invitation_link_slug=invitation_link.slug,
         )
 
-    entry = AuditLogEntry.objects.get(action_type=CreateUserActionType.type)
-    assert entry.description.endswith(
-        "auth provider (invitation: False, invitation link: True)"
-    )
     assert user.workspaceuser_set.get().workspace_id == invitation_link.workspace_id
 
 
@@ -142,7 +137,6 @@ def test_sign_in_user_action_type_action_log_limit(settings, data_fixture):
     user.refresh_from_db()
     assert str(user.last_login) == "2020-01-01 12:01:20+00:00"
     assert UserLogEntry.objects.count() == 2
-    assert AuditLogEntry.objects.filter(action_type="sign_in_user").count() == 2
 
 
 @pytest.mark.django_db

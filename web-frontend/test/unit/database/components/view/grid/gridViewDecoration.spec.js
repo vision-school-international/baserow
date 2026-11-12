@@ -13,10 +13,6 @@ export class FakeDecoratorType extends ViewDecoratorType {
     return 'first_cell'
   }
 
-  isDeactivated(workspaceId) {
-    return false
-  }
-
   getComponent() {
     return (props) => h('div', `fake_decoration: ${props.value}`)
   }
@@ -202,36 +198,6 @@ describe('GridView component with decoration', () => {
         },
       }
     }
-
-    store.$registry.register('viewDecorator', fakeDecorator)
-    store.$registry.register('decoratorValueProvider', fakeValueProvider)
-
-    const wrapper1 = await mountComponent({
-      database: application,
-      table,
-      view,
-      fields,
-      readOnly: false,
-      storePrefix: 'page/',
-      row: null,
-    })
-
-    expect(wrapper1.element).toMatchSnapshot()
-  })
-
-  test('Default component with unavailable decoration', async () => {
-    const { application, table, fields, view } = await populateStore([
-      {
-        type: 'fake_decorator',
-        value_provider_type: 'fake_value_provider_type',
-        value_provider_conf: {},
-      },
-    ])
-
-    const fakeDecorator = new FakeDecoratorType({ app: testApp })
-    const fakeValueProvider = new FakeValueProviderType({ app: testApp })
-
-    fakeDecorator.isDeactivated = () => true
 
     store.$registry.register('viewDecorator', fakeDecorator)
     store.$registry.register('decoratorValueProvider', fakeValueProvider)

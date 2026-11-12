@@ -97,9 +97,8 @@ class UpdateDashboardSharingActionType(UndoableActionType):
     @classmethod
     def do(cls, user: AbstractUser, dashboard_id: int, **values) -> Dashboard:
         """
-        Updates the public sharing state of the dashboard: `public`,
-        `public_password` (already hashed, an empty string removes it) and
-        `show_logo`. Undoing restores the original values of the provided fields,
+        Updates the public sharing state of the dashboard: `public` and
+        `public_password` (already hashed, an empty string removes it). Undoing restores the original values of the provided fields,
         redoing applies the new values again.
 
         :param user: The user on whose behalf the sharing state is updated.
@@ -186,13 +185,6 @@ class UpdateDashboardSharingActionType(UndoableActionType):
                 and data["public_password"] != original_data["public_password"]
             ):
                 changes.append(_("password changed"))
-
-        if "show_logo" in data and data["show_logo"] != original_data.get("show_logo"):
-            changes.append(
-                _("Baserow logo shown")
-                if data["show_logo"]
-                else _("Baserow logo hidden")
-            )
 
         if not changes:
             changes.append(_("nothing changed"))

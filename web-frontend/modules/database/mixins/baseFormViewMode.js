@@ -54,10 +54,6 @@ export default {
       type: Array,
       required: true,
     },
-    showLogo: {
-      type: Boolean,
-      required: true,
-    },
   },
   emits: ['submit', 'update:modelValue'],
   data() {

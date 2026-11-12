@@ -132,7 +132,7 @@ def create_element_actions(
     Create workflow actions on elements of a page, by element ID from list_elements:
     show a notification, open a page of this application, create, update or delete a
     row, refresh a data source, or log out. Use event "click" for a button or link,
-    "submit" for a form_container, "after_login" for an auth_form. For a table button
+    "submit" for a form_container. For a table button
     column use "<column name>_click" or "<uid>_click", with the column's uid from
     list_elements. A ref only works inside the call that creates it, so here use IDs.
 

@@ -17,16 +17,6 @@ class RoleType extends Registerable {
     return null
   }
 
-  // Indicates weather to show the role as billable/non-billable or show nothing.
-  showIsBillable(workspaceId) {
-    return false
-  }
-
-  // Indicates whether the role is billable.
-  getIsBillable() {
-    return false
-  }
-
   // Whether this role should be selected initially when inviting someone.
   getIsDefaultForInvitations(workspaceId) {
     return false
@@ -40,16 +30,6 @@ class RoleType extends Registerable {
   // Indicates whether the role should be visible in the list.
   isVisible(workspaceId) {
     return true
-  }
-
-  // Indicates whether the role is visible, but in a deactivated state.
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  // The modal component that must be shown when a deactivated role is clicked.
-  getDeactivatedClickModal(workspaceId) {
-    return null
   }
 
   // `null` equals all scope types.

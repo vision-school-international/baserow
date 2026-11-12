@@ -54,15 +54,6 @@ class SetFieldVisibilityMcpTool(FunctionMCPTool):
     function = view_config.set_field_visibility
 
 
-class AddRowColoursMcpTool(FunctionMCPTool):
-    type = "add_row_colours"
-    group = GROUP_DATABASE_EDIT
-    title = "Add row colours"
-    read_only = False
-    destructive = False
-    function = view_config.add_row_colours
-
-
 class DeleteViewsMcpTool(FunctionMCPTool):
     type = "delete_views"
     group = GROUP_DATABASE_DELETE
@@ -79,12 +70,3 @@ class DeleteViewFiltersMcpTool(FunctionMCPTool):
     read_only = False
     destructive = True
     function = view_config.delete_view_filters
-
-
-class DeleteRowColoursMcpTool(FunctionMCPTool):
-    type = "delete_row_colours"
-    group = GROUP_DATABASE_DELETE
-    title = "Delete row colours"
-    read_only = False
-    destructive = True
-    function = view_config.delete_row_colours

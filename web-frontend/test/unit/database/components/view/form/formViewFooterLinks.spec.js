@@ -16,11 +16,10 @@ describe('FormViewFooterLinks', () => {
     return await testApp.mount(FormViewFooterLinks, { propsData })
   }
 
-  test('does not show the report link by default', async () => {
+  test('renders nothing when reporting is not requested', async () => {
     const wrapper = await mountFooter()
 
-    expect(wrapper.find('.form-view__report-abuse').exists()).toBe(false)
-    expect(wrapper.find('.form-view__powered-by-baserow').exists()).toBe(true)
+    expect(wrapper.find('.form-view__footer-links').exists()).toBe(false)
   })
 
   test('shows the report link when requested', async () => {
@@ -30,23 +29,6 @@ describe('FormViewFooterLinks', () => {
     })
 
     expect(wrapper.find('.form-view__report-abuse').exists()).toBe(true)
-  })
-
-  test('shows the report link when the logo is hidden', async () => {
-    const wrapper = await mountFooter({
-      showLogo: false,
-      showReportAbuse: true,
-      identifier: 'test-slug',
-    })
-
-    expect(wrapper.find('.form-view__report-abuse').exists()).toBe(true)
-    expect(wrapper.find('.form-view__powered-by-baserow').exists()).toBe(false)
-  })
-
-  test('renders nothing when the logo is hidden and reporting is not requested', async () => {
-    const wrapper = await mountFooter({ showLogo: false })
-
-    expect(wrapper.find('.form-view__footer-links').exists()).toBe(false)
   })
 
   test('does not show the report link when reporting is disabled instance wide', async () => {

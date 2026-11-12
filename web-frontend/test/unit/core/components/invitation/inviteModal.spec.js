@@ -17,9 +17,6 @@ const workspace = {
         name: 'Admin',
         description: '',
         isVisible: true,
-        isDeactivated: false,
-        isBillable: false,
-        showIsBillable: false,
       },
     ],
   },
@@ -507,9 +504,6 @@ describe('InviteModal', () => {
             name: 'Fake viewer',
             description: '',
             isVisible: true,
-            isDeactivated: false,
-            isBillable: false,
-            showIsBillable: false,
           },
         ]
       }

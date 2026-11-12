@@ -149,7 +149,7 @@ describe('PublicPage', () => {
     const builder = {
       id: 42,
       user_sources: [],
-      workspace: { id: 3, licenses: [] },
+      workspace: { id: 3 },
     }
     store.getters['application/getSelected'] = builder
     store.getters['userSourceUser/isAuthenticated'] = () => true

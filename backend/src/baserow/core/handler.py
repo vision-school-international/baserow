@@ -206,9 +206,7 @@ class CoreHandler:
             return cached
 
         try:
-            instance = (
-                Settings.objects.all().select_related("co_branding_logo")[:1].get()
-            )
+            instance = Settings.objects.all()[:1].get()
         except Settings.DoesNotExist:
             instance = Settings.objects.create()
 
@@ -246,7 +244,6 @@ class CoreHandler:
                 "account_deletion_grace_delay",
                 "track_workspace_usage",
                 "show_baserow_help_request",
-                "co_branding_logo",
                 "email_verification",
                 "verify_import_signature",
                 "allow_reporting_abuse",

@@ -1,7 +1,6 @@
 <template>
   <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <ViewDecoratorList
-      :database="database"
       :view="view"
       @select="$emit('select', $event)"
     />

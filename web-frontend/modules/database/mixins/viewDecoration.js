@@ -55,10 +55,6 @@ export default {
 
           return deco
         })
-        .filter(
-          ({ decoratorType }) =>
-            !decoratorType.isDeactivated(this.database.workspace.id)
-        )
     },
     decorationsByPlace() {
       return this.activeDecorations

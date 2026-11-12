@@ -19,19 +19,6 @@
           </div>
           <i class="dashboard__workspace-name-icon iconoir-nav-arrow-down"></i>
         </h1>
-        <SkeletonBlock
-          v-if="loading && dashboardWorkspacePlanBadge.length > 0"
-          width="80px"
-          height="20px"
-        ></SkeletonBlock>
-        <component
-          :is="component"
-          v-for="(component, index) in dashboardWorkspacePlanBadge"
-          v-else
-          :key="index"
-          :workspace="selectedWorkspace"
-          :component-arguments="workspaceComponentArguments"
-        ></component>
       </div>
       <WorkspaceContext
         ref="context"
@@ -39,20 +26,6 @@
         @rename="enableRename()"
       ></WorkspaceContext>
       <div class="dashboard__header-right">
-        <SkeletonBlock
-          v-if="loading && dashboardWorkspaceRowUsageComponent.length > 0"
-          width="140px"
-          height="20px"
-        ></SkeletonBlock>
-        <component
-          :is="component"
-          v-for="(component, index) in dashboardWorkspaceRowUsageComponent"
-          v-else
-          :key="index"
-          :workspace="selectedWorkspace"
-          :component-arguments="workspaceComponentArguments"
-          @workspace-updated="workspaceUpdated($event)"
-        ></component>
         <div class="dashboard__header-actions">
           <SkeletonBlock
             v-if="!permissionsLoaded"
@@ -325,7 +298,6 @@ const selectedWorkspace = ref(
     (workspace) => workspace.id === parseInt(route.params.workspaceId, 10)
   ) || null
 )
-const workspaceComponentArguments = ref({})
 
 // refs used in template
 const context = ref(null)
@@ -336,30 +308,10 @@ const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
 const templateModal = ref(null)
 
-async function fetchWorkspaceExtraData(workspace) {
-  const plugins = Object.values($registry.getAll('plugin'))
-  let mergedData = {
-    selectedWorkspace: workspace,
-    workspaceComponentArguments: { usageData: [] },
-  }
-
-  for (const p of plugins) {
-    const workspaceData = await p.fetchAsyncDashboardData(nuxtApp, workspace.id)
-
-    if (workspaceData) {
-      mergedData = p.mergeDashboardData(mergedData, workspaceData)
-    }
-  }
-
-  return mergedData
-}
-
 /**
- * Fetches the workspace data the plugins contribute (usage, plan) and the
- * invitations. The refs below are hydrated from it, because `workspaceUpdated`
- * has to be able to replace them later.
+ * Selects the workspace. The ref below is hydrated from it.
  */
-const { data: dashboardData, loading } = await usePageAsyncData(
+const { data: dashboardData } = await usePageAsyncData(
   `current-workspace-${route.params.workspaceId}`,
   async () => {
     const workspaceId = parseInt(route.params.workspaceId, 10)
@@ -390,31 +342,17 @@ const { data: dashboardData, loading } = await usePageAsyncData(
       })
     }
 
-    try {
-      return await fetchWorkspaceExtraData(workspace)
-    } catch {
-      throw createError({
-        statusCode: 400,
-        message: 'Error loading dashboard.',
-        data: {
-          report: false,
-        },
-        fatal: true,
-      })
-    }
+    return { selectedWorkspace: workspace }
   }
 )
 
 /**
- * Hydrate local refs from the async data.
- * Keeps your existing `selectedWorkspace` and `workspaceComponentArguments`
- * reactive and writable for later updates (e.g. `workspaceUpdated`).
+ * Hydrate the local ref from the async data, keeping `selectedWorkspace`
+ * reactive and writable.
  */
 watchEffect(() => {
   if (!dashboardData.value) return
   selectedWorkspace.value = dashboardData.value.selectedWorkspace
-  workspaceComponentArguments.value =
-    dashboardData.value.workspaceComponentArguments
 })
 
 useHead(() => ({
@@ -431,18 +369,6 @@ const dashboardHelpComponents = computed(() =>
         components.concat(plugin.getDashboardHelpComponents()),
       []
     )
-    .filter((c) => c !== null)
-)
-
-const dashboardWorkspaceRowUsageComponent = computed(() =>
-  Object.values($registry.getAll('plugin'))
-    .map((p) => p.getDashboardWorkspaceRowUsageComponent())
-    .filter((c) => c !== null)
-)
-
-const dashboardWorkspacePlanBadge = computed(() =>
-  Object.values($registry.getAll('plugin'))
-    .map((p) => p.getDashboardWorkspacePlanBadge())
     .filter((c) => c !== null)
 )
 
@@ -500,12 +426,4 @@ const workspaceExists = computed(() => {
     (w) => w.id === selectedWorkspace.value.id
   )
 })
-
-// ----------------------------------------------------------------------------
-// METHODS
-// ----------------------------------------------------------------------------
-async function workspaceUpdated(workspace) {
-  const extraData = await fetchWorkspaceExtraData(workspace)
-  workspaceComponentArguments.value = extraData.workspaceComponentArguments
-}
 </script>

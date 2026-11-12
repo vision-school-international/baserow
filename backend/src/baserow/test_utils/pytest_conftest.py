@@ -438,15 +438,6 @@ def mutable_service_type_registry():
 
 
 @pytest.fixture()
-def mutable_code_runner_type_registry():
-    from baserow.core.code_runner.registries import code_runner_type_registry
-
-    before = code_runner_type_registry.registry.copy()
-    yield code_runner_type_registry
-    code_runner_type_registry.registry = before
-
-
-@pytest.fixture()
 def mutable_job_type_registry():
     with patch.object(job_type_registry, "registry", {}):
         job_type_registry.get_for_class.cache_clear()

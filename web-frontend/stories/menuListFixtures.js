@@ -18,7 +18,7 @@ export const menuListItems = [
     icon: 'iconoir-plus',
     description: 'Add a new record to a table.',
     aliases: ['insert'],
-    meta: { badge: 'Free' },
+    meta: { badge: 'Core' },
   },
   {
     id: 'get-row',
@@ -27,7 +27,7 @@ export const menuListItems = [
     icon: 'iconoir-pin',
     description: 'Retrieve a single record from a table.',
     aliases: ['find', 'read'],
-    meta: { badge: 'Free' },
+    meta: { badge: 'Core' },
   },
   {
     id: 'update-row',
@@ -36,7 +36,7 @@ export const menuListItems = [
     icon: 'iconoir-edit-pencil',
     description: 'Change the values of an existing record.',
     aliases: ['edit'],
-    meta: { badge: 'Free' },
+    meta: { badge: 'Core' },
   },
   {
     id: 'delete-row',
@@ -45,7 +45,7 @@ export const menuListItems = [
     icon: 'iconoir-bin',
     description: 'Remove a record from a table.',
     aliases: ['remove'],
-    meta: { badge: 'Free' },
+    meta: { badge: 'Core' },
   },
   {
     id: 'send-email',
@@ -54,7 +54,7 @@ export const menuListItems = [
     icon: 'iconoir-mail',
     description: 'Send a transactional email.',
     aliases: ['message'],
-    meta: { badge: 'Premium' },
+    meta: { badge: 'Email' },
   },
   {
     id: 'execute-code',
@@ -63,8 +63,8 @@ export const menuListItems = [
     icon: 'iconoir-code-brackets',
     description: 'Run custom code as part of the flow.',
     disabled: true,
-    disabledReason: 'Available with an Advanced plan.',
-    meta: { badge: 'Advanced' },
+    disabledReason: 'Requires a configured code runner.',
+    meta: { badge: 'Beta' },
   },
 ]
 

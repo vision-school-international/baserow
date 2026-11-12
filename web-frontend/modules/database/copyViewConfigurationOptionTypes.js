@@ -55,7 +55,7 @@ export class CopyViewConfigurationOptionType extends Registerable {
   /**
    * Additional check on top of both view types declaring the option, for
    * constraints that depend on the concrete source and destination view or
-   * the workspace, a required license for example.
+   * the workspace, a required permission for example.
    */
   isEnabled(sourceView, destView, workspaceId) {
     return (
@@ -333,14 +333,10 @@ export class DecorationsCopyOptionType extends CopyViewConfigurationOptionType {
   }
 
   isEnabled(sourceView, destView, workspaceId) {
-    // Deactivated decorator types, because the workspace has no premium
-    // license for example, are excluded so that the copy can't fail on the
-    // backend's license check.
     return (
       super.isEnabled(sourceView, destView, workspaceId) &&
       Object.values(this.app.$registry.getAll('viewDecorator')).some(
         (decoratorType) =>
-          !decoratorType.isDeactivated(workspaceId) &&
           decoratorType.isCompatible(sourceView) &&
           decoratorType.isCompatible(destView)
       )

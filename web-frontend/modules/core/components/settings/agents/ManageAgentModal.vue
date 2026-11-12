@@ -152,11 +152,7 @@ export default {
     show(...args) {
       this.openingGeneration++
       this.loading = false
-      const defaultRole = this.roles.some(
-        (role) => role.uid === 'NO_ACCESS' && !role.isDeactivated
-      )
-        ? 'NO_ACCESS'
-        : 'MEMBER'
+      const defaultRole = 'MEMBER'
       this.values = {}
       for (const setting of this.registeredSettings) {
         Object.assign(

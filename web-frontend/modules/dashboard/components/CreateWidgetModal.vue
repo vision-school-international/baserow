@@ -7,9 +7,7 @@
       <CreateWidgetCard
         v-for="widgetVariation in widgetVariations"
         :key="widgetVariation.name"
-        :dashboard="dashboard"
         :disabled="loading"
-        :widget-type="widgetVariation.type"
         :variation="widgetVariation"
         @widget-variation-selected="widgetVariationSelected"
       >

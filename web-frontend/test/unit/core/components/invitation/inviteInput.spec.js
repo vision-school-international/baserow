@@ -5,8 +5,8 @@ import { expect, test, vi } from 'vitest'
 import InviteInput from '@baserow/modules/core/components/invitation/InviteInput'
 
 const roles = [
-  { uid: 'EDITOR', name: 'Editor', isVisible: true, isDeactivated: false },
-  { uid: 'VIEWER', name: 'Viewer', isVisible: true, isDeactivated: false },
+  { uid: 'EDITOR', name: 'Editor', isVisible: true },
+  { uid: 'VIEWER', name: 'Viewer', isVisible: true },
 ]
 const workspace = { id: 12, name: 'Widelab', _: { roles } }
 // Someone who can't be picked, with the reason the parent gives.
@@ -177,16 +177,6 @@ test.each([
       { uid: 'NO_ROLE_LOW_PRIORITY' },
     ],
     expectedRole: 'VIEWER',
-  },
-  {
-    name: 'basic workspace with inactive RBAC roles',
-    availableRoles: [
-      { uid: 'ADMIN' },
-      { uid: 'MEMBER', isDefaultForInvitations: true },
-      { uid: 'VIEWER', isDeactivated: true, isDefaultForInvitations: true },
-      { uid: 'NO_ACCESS', isDeactivated: true },
-    ],
-    expectedRole: 'MEMBER',
   },
   {
     name: 'target where Viewer cannot be used for invitations',
@@ -567,7 +557,6 @@ test('flags addresses while a role that cannot be used for invitations is chosen
     uid: 'NO_ACCESS',
     name: 'No access',
     isVisible: true,
-    isDeactivated: false,
   }
   const wrapper = await mountInput({
     roles: [...roles, noAccess],

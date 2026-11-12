@@ -14,14 +14,6 @@
     </div>
     <div v-if="loading" class="loading"></div>
     <span v-else class="add-element-card__label">{{ elementType.name }}</span>
-    <component
-      :is="disallowedClickModal[0]"
-      v-if="disallowedClickModal !== null"
-      ref="deactivatedClickModal"
-      v-bind="disallowedClickModal[1]"
-      :name="elementType.name"
-      :workspace="workspace"
-    ></component>
   </div>
 </template>
 
@@ -78,11 +70,6 @@ export default {
   },
   emits: ['click'],
   computed: {
-    disallowedClickModal() {
-      return this.elementType.getDeactivatedClickModal({
-        workspace: this.workspace,
-      })
-    },
     isDisallowedReason() {
       return this.elementType.isDisallowedReason({
         workspace: this.workspace,
@@ -101,9 +88,7 @@ export default {
   },
   methods: {
     onClick(event) {
-      if (this.disallowedClickModal !== null) {
-        this.$refs.deactivatedClickModal.show()
-      } else if (!this.disabled) {
+      if (!this.disabled) {
         this.$emit('click', event)
       }
     },

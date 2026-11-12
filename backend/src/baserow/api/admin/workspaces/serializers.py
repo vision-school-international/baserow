@@ -24,17 +24,8 @@ class WorkspacesAdminResponseSerializer(ModelSerializer):
     users = WorkspaceAdminUsersSerializer(source="workspaceuser_set", many=True)
     application_count = serializers.IntegerField()
     row_count = serializers.SerializerMethodField()
-    free_users = serializers.SerializerMethodField()
-    seats_taken = serializers.IntegerField()
 
     ROW_COUNT_ANNOTATION_NAME = "row_count"
-
-    @extend_schema_field(OpenApiTypes.INT)
-    def get_free_users(self, instance):
-        if instance.seats_taken:
-            return instance.workspaceuser_set.count() - instance.seats_taken
-        else:
-            return None
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_row_count(self, instance):
@@ -49,8 +40,6 @@ class WorkspacesAdminResponseSerializer(ModelSerializer):
             "application_count",
             "row_count",
             "storage_usage",
-            "seats_taken",
-            "free_users",
             "created_on",
         )
 

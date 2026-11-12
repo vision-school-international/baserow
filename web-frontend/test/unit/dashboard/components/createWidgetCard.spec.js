@@ -2,16 +2,9 @@ import { mount } from '@vue/test-utils'
 
 import CreateWidgetCard from '@baserow/modules/dashboard/components/CreateWidgetCard'
 
-const widgetType = {
-  isAvailable: () => true,
-  getDeactivatedModal: () => null,
-}
-
 function mountCreateWidgetCard(disabled) {
   return mount(CreateWidgetCard, {
     props: {
-      dashboard: { workspace: { id: 1 } },
-      widgetType,
       variation: {
         name: 'Summary',
         createWidgetImage: '',

@@ -458,14 +458,13 @@ export default {
   },
   methods: {
     /**
-     * Prefer the default declared by an active invitation role. When none is
-     * available, fall back to the last active invitation role.
+     * Prefer the default declared by an invitation role. When none is
+     * available, fall back to the last invitation role.
      */
     initialRoleUid(roles) {
       const active = roles.filter(
         (role) =>
-          !role.isDeactivated &&
-          (this.emailRoleUids === null || this.emailRoleUids.includes(role.uid))
+          this.emailRoleUids === null || this.emailRoleUids.includes(role.uid)
       )
       return (
         active.find((role) => role.isDefaultForInvitations)?.uid ??

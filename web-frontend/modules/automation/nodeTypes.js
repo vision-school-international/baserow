@@ -245,9 +245,6 @@ export class NodeType extends Registerable {
    * @returns {boolean} - Whether the properties are in-error.
    */
   isInError({ service, workspace = null, application = null }) {
-    if (workspace && this.isDeactivated({ workspace })) {
-      return true
-    }
     return this.serviceType.isInError({ service, workspace, application })
   }
 
@@ -263,11 +260,6 @@ export class NodeType extends Registerable {
    * @returns {string|null} The error message, or null when valid.
    */
   getErrorMessage({ service, node, workspace = null, application = null }) {
-    const deactivatedReason =
-      workspace && this.isDeactivatedReason({ workspace })
-    if (deactivatedReason) {
-      return deactivatedReason
-    }
     return this.serviceType.getErrorMessage({ service, workspace, application })
   }
 
@@ -393,30 +385,13 @@ export class NodeType extends Registerable {
   }
 
   /**
-   * Whether this node type is offered at all. Unlike `isDeactivated`, which
-   * keeps the entry in the add-node menu but disabled with a reason, a type
-   * that is not enabled is omitted from the menu entirely. Types that only make
-   * sense when the instance is configured for them override this.
+   * Whether this node type is offered at all. A type that is not enabled is
+   * omitted from the add-node menu entirely. Types that only make sense when
+   * the instance is configured for them override this.
    * @returns {boolean}
    */
   isEnabled() {
     return true
-  }
-
-  isDeactivatedReason({ workspace }) {
-    const serviceReason = this.serviceType.isDeactivatedReason({ workspace })
-    if (serviceReason) {
-      return serviceReason
-    }
-    return null
-  }
-
-  isDeactivated({ workspace }) {
-    return !!this.isDeactivatedReason({ workspace })
-  }
-
-  getDeactivatedClickModal({ workspace }) {
-    return this.serviceType.getDeactivatedClickModal({ workspace })
   }
 }
 

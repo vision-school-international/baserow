@@ -40,7 +40,7 @@
           </span>
           <Button
             :loading="loading"
-            :disabled="loading || fieldTypeDisabled"
+            :disabled="loading"
             @click="$refs.form.submit()"
           >
             {{ $t('action.save') }}
@@ -91,17 +91,6 @@ export default {
       // Whether the last save left action edits behind to be retried.
       actionsFailed: false,
     }
-  },
-  computed: {
-    // Return the reactive object that can be updated in runtime.
-    workspace() {
-      return this.$store.getters['workspace/get'](this.database.workspace.id)
-    },
-    fieldTypeDisabled() {
-      return !this.$registry
-        .get('field', this.field.type)
-        .isEnabled(this.workspace)
-    },
   },
   watch: {
     field() {

@@ -100,14 +100,6 @@
                   :dashboard="dashboard"
                 />
               </div>
-
-              <component
-                :is="component"
-                v-for="(component, i) in additionalShareLinkOptions"
-                :key="i"
-                :dashboard="dashboard"
-                @update-dashboard="forceUpdateDashboard"
-              />
             </div>
           </div>
 
@@ -151,7 +143,7 @@ const props = defineProps({
   },
 })
 
-const { $store, $registry, $config, $router, $client } = useNuxtApp()
+const { $store, $config, $router, $client } = useNuxtApp()
 
 const context = ref(null)
 const contextLink = ref(null)
@@ -169,12 +161,6 @@ const shareUrl = computed(() => {
       params: { slug: props.dashboard.slug },
     }).href
   )
-})
-
-const additionalShareLinkOptions = computed(() => {
-  return Object.values($registry.getAll('plugin'))
-    .flatMap((plugin) => plugin.getAdditionalDashboardShareLinkOptions())
-    .filter((component) => component !== null)
 })
 
 const passwordOptionText = computed(() => {
@@ -217,16 +203,5 @@ const updateDashboard = async (values) => {
     loading.value = false
     $store.dispatch('application/setItemLoading', { application, value: false })
   }
-}
-
-/**
- * Applies values that were already saved by another endpoint, like the premium
- * dashboard attributes, to the dashboard in the store.
- */
-const forceUpdateDashboard = (data) => {
-  $store.dispatch('application/forceUpdate', {
-    application: props.dashboard,
-    data,
-  })
 }
 </script>

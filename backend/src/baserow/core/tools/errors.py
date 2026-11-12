@@ -28,10 +28,6 @@ from baserow.core.services.exceptions import (
 PERMISSION_DENIED_MESSAGE = "You don't have permission to do this in this workspace."
 NOT_FOUND_MESSAGE = "Not found in this workspace."
 INTERNAL_ERROR_MESSAGE = "Internal error."
-LICENCE_REQUIRED_MESSAGE = (
-    "This needs a licence that this user doesn't have: a premium, advanced or "
-    "enterprise plan, depending on the feature."
-)
 
 
 class ToolInputError(Exception):
@@ -195,9 +191,6 @@ def classify_tool_error(exc: Exception) -> ToolError:
     if isinstance(exc, APIException) and exc.status_code < 500:
         detail = exc.detail
         if isinstance(detail, dict) and "detail" in detail:
-            # The REST message doesn't say a licence is what's missing.
-            if detail.get("error") == "ERROR_FEATURE_NOT_AVAILABLE":
-                return ToolError(ToolErrorCode.FAILED, LICENCE_REQUIRED_MESSAGE)
             detail = detail["detail"]
         return ToolError(ToolErrorCode.FAILED, "; ".join(flatten_error_detail(detail)))
     if isinstance(exc, ServiceImproperlyConfiguredDispatchException):

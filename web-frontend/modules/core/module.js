@@ -137,7 +137,6 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/bus.js'))
     addPlugin(resolve('plugins/realTimeHandler.js'))
     addPlugin(resolve('plugins/chatRuns.js'))
-    addPlugin(resolve('plugins/hasFeature.js'))
     addPlugin(resolve('plugins/featureFlags.js'))
     addPlugin(resolve('plugins/papa.js'))
     addPlugin(resolve('plugins/ensureRender.js'))

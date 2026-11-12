@@ -21,7 +21,6 @@
           v-model="values.exporter_type"
           :exporter-types="exporterTypes"
           :loading="loading"
-          :database="database"
           class="margin-bottom-2"
         ></ExporterTypeChoices>
         <div v-if="v$.values.exporter_type.$error" class="error">

@@ -106,7 +106,6 @@ class UsersAdminView(AdminListingView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_FEATURE_NOT_AVAILABLE",
                     "USER_ADMIN_ALREADY_EXISTS",
                 ]
             ),
@@ -155,7 +154,6 @@ class UserAdminView(APIView):
                     "USER_ADMIN_CANNOT_DEACTIVATE_SELF",
                     "USER_ADMIN_UNKNOWN_USER",
                     "USER_ADMIN_ALREADY_EXISTS",
-                    "ERROR_FEATURE_NOT_AVAILABLE",
                 ]
             ),
             401: None,
@@ -202,7 +200,6 @@ class UserAdminView(APIView):
                 [
                     "USER_ADMIN_CANNOT_DELETE_SELF",
                     "USER_ADMIN_UNKNOWN_USER",
-                    "ERROR_FEATURE_NOT_AVAILABLE",
                 ]
             ),
             401: None,

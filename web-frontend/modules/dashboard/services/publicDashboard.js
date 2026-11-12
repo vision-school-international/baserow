@@ -29,9 +29,6 @@ export default (client) => {
         withAuthToken(authToken)
       )
     },
-    fetchAuthInfo(slug) {
-      return client.get(`/dashboard/public/${slug}/auth/`)
-    },
     auth(slug, password) {
       return client.post(`/dashboard/public/${slug}/auth/`, { password })
     },

@@ -121,14 +121,12 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `create_view_filters` | `database_edit` | off | no | Add filters to views (shared with Kuma) |
 | `set_view_sorts` | `database_edit` | off | yes | Replace the sorts of a view (shared with Kuma) |
 | `set_field_visibility` | `database_edit` | off | no | Hide or show fields in a view (shared with Kuma) |
-| `add_row_colours` | `database_edit` | off | no | Colour rows by a single select field or by conditions. Needs premium (shared with Kuma) |
 | `update_table` | `database_edit` | disabled | yes | Rename a table |
 | `create_row_comments` | `database_edit` | off | no | Post plain text comments on rows. Needs premium (shared with Kuma) |
 | `delete_rows` | `database_delete` | on | yes | Delete rows by ID |
 | `delete_fields` | `database_delete` | off | yes | Delete (trash) fields (shared with Kuma) |
 | `delete_views` | `database_delete` | off | yes | Delete (trash) views (shared with Kuma) |
 | `delete_view_filters` | `database_delete` | off | yes | Delete filters from views (shared with Kuma) |
-| `delete_row_colours` | `database_delete` | off | yes | Remove row colours from views (shared with Kuma) |
 | `delete_table` | `database_delete` | disabled | yes | Delete (trash) a table |
 | `list_workflows` | `automation_read` | on | no | List the automations of the workspace and their workflows (shared with Kuma) |
 | `list_nodes` | `automation_read` | on | no | List a workflow's nodes in order, with their branches and output paths (shared with Kuma) |

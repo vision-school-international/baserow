@@ -1015,7 +1015,6 @@ class ViewType(
             "filter_type": view.filter_type,
             "filters_disabled": view.filters_disabled,
             "public_view_password": view.public_view_password,
-            "show_logo": view.show_logo,
         }
 
         allowed_attrs, m2m_fields = split_attrs_and_m2m_fields(

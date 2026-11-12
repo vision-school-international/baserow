@@ -38,22 +38,8 @@
           :search-placeholder="$t('event.searchActions')"
           :empty-text="$t('event.noActionsFound')"
           @select="onWorkflowActionMenuItemSelected"
-          @disabled-click="onWorkflowActionMenuItemSelected"
           @close="$refs.workflowActionAddContext.hide()"
         />
-        <template
-          v-for="workflowActionType in availableWorkflowActionTypes"
-          :key="workflowActionType.getType()"
-        >
-          <component
-            :is="getDeactivatedClickModal(workflowActionType)[0]"
-            v-if="getDeactivatedClickModal(workflowActionType) !== null"
-            :ref="`deactivatedClickModal_${workflowActionType.getType()}`"
-            v-bind="getDeactivatedClickModal(workflowActionType)[1]"
-            :name="workflowActionType.label"
-            :workspace="workspace"
-          />
-        </template>
       </Context>
     </div>
     <div>
@@ -150,12 +136,6 @@ export default {
           iconColor: workflowActionType.iconColor,
           image: workflowActionType.image,
           description: workflowActionType.description,
-          disabled: workflowActionType.isDeactivated({
-            workspace: this.workspace,
-          }),
-          disabledReason: workflowActionType.isDeactivatedReason({
-            workspace: this.workspace,
-          }),
           meta: workflowActionType,
         })
       })
@@ -195,17 +175,6 @@ export default {
       this.addWorkflowAction(item.meta)
     },
     async addWorkflowAction(workflowActionType) {
-      if (workflowActionType.isDeactivated({ workspace: this.workspace })) {
-        const deactivatedClickModal =
-          this.getDeactivatedClickModal(workflowActionType)
-        if (deactivatedClickModal !== null) {
-          this.$refs[
-            `deactivatedClickModal_${workflowActionType.getType()}`
-          ][0].show()
-        }
-        return
-      }
-
       this.addingAction = true
       this.$refs.workflowActionAddContext.hide()
       try {
@@ -242,11 +211,6 @@ export default {
       } catch (error) {
         notifyIf(error)
       }
-    },
-    getDeactivatedClickModal(workflowActionType) {
-      return workflowActionType.getDeactivatedClickModal({
-        workspace: this.workspace,
-      })
     },
   },
 }

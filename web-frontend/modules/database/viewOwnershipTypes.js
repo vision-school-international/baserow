@@ -17,36 +17,9 @@ export class ViewOwnershipType extends Registerable {
   }
 
   /**
-   * A human readable name of the feature it belongs to.
-   */
-  getFeatureName() {
-    return this.getName()
-  }
-  /**
    * The icon for the type in the form of CSS class.
    */
   getIconClass() {
-    return null
-  }
-
-  /**
-   * Indicates if the view ownership type is disabled.
-   */
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  /**
-   * Text description when deactivated.
-   */
-  getDeactivatedText() {
-    return null
-  }
-
-  /**
-   * Show deactivated modal when selecting.
-   */
-  getDeactivatedModal() {
     return null
   }
 

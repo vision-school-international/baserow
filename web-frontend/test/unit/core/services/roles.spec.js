@@ -11,7 +11,7 @@ test('exposes Member as the basic invitation default', () => {
       member: new MemberRoleType({ app }),
     }),
   }
-  const { data } = RolesService(null, null, registry).get({ id: 1 })
+  const { data } = RolesService(null, registry).get({ id: 1 })
 
   expect(
     data.filter((role) => role.isDefaultForInvitations).map(({ uid }) => uid)

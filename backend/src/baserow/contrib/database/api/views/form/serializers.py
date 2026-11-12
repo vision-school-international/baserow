@@ -160,7 +160,6 @@ class PublicFormViewSerializer(serializers.ModelSerializer):
     fields = PublicFormViewFieldOptionsSerializer(
         many=True, source="active_field_options"
     )
-    show_logo = serializers.BooleanField(required=False)
 
     class Meta:
         model = FormView
@@ -172,8 +171,6 @@ class PublicFormViewSerializer(serializers.ModelSerializer):
             "logo_image",
             "submit_text",
             "fields",
-            "show_logo",
-            "allow_public_export",
         )
 
 

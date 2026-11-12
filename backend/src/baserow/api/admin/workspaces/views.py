@@ -109,9 +109,7 @@ class WorkspaceAdminView(APIView):
         ],
         responses={
             204: None,
-            400: get_error_schema(
-                ["ERROR_GROUP_DOES_NOT_EXIST", "ERROR_FEATURE_NOT_AVAILABLE"]
-            ),
+            400: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
             401: None,
         },
     )

@@ -147,9 +147,7 @@ export default {
       )
     },
     appAuthProviderTypes() {
-      return this.$registry
-        .getOrderedList('appAuthProvider')
-        .filter((type) => !type.isDeactivated(this.builder.workspace.id))
+      return this.$registry.getOrderedList('appAuthProvider')
     },
     appAuthProviderPerTypes() {
       return Object.fromEntries(

@@ -1019,8 +1019,6 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "row_height_size": grid_view.row_height_size,
             "frozen_column_count": 1,
             "group_by_layout": grid_view.group_by_layout,
-            "show_logo": grid_view.show_logo,
-            "allow_public_export": grid_view.allow_public_export,
             "ownership_type": "collaborative",
         },
     }
@@ -1052,8 +1050,6 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "row_height_size": grid_view.row_height_size,
             "frozen_column_count": 1,
             "group_by_layout": grid_view.group_by_layout,
-            "show_logo": grid_view.show_logo,
-            "allow_public_export": grid_view.allow_public_export,
             "ownership_type": "collaborative",
         },
     }
@@ -1169,50 +1165,6 @@ def test_public_gallery_view_fields_include_cover_image(api_client, data_fixture
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["fields"]) == 1
-
-
-@pytest.mark.django_db
-def test_view_cant_update_show_logo(data_fixture, api_client):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    view = data_fixture.create_grid_view(user=user, table=table, show_logo=True)
-    data = {"show_logo": False}
-
-    response = api_client.patch(
-        reverse("api:database:views:item", kwargs={"view_id": view.id}),
-        data,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    view.refresh_from_db()
-    assert view.show_logo is True
-
-    response_data = response.json()
-    assert response_data["show_logo"] is True
-
-
-@pytest.mark.django_db
-def test_view_cant_update_allow_public_export(data_fixture, api_client):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    view = data_fixture.create_grid_view(
-        user=user, table=table, allow_public_export=False
-    )
-    data = {"allow_public_export": True}
-
-    response = api_client.patch(
-        reverse("api:database:views:item", kwargs={"view_id": view.id}),
-        data,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    view.refresh_from_db()
-    assert view.allow_public_export is False
-
-    response_data = response.json()
-    assert response_data["allow_public_export"] is False
 
 
 @pytest.mark.django_db(transaction=True)

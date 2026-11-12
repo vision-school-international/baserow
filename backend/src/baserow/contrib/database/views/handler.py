@@ -1421,8 +1421,6 @@ class ViewHandler:
             "filter_type",
             "filters_disabled",
             "public_view_password",
-            "show_logo",
-            "allow_public_export",
         ] + view_type.allowed_fields
 
         changed_allowed_keys = set(extract_allowed(view_values, allowed_fields).keys())

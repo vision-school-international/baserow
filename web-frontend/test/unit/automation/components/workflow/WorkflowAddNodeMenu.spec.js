@@ -57,9 +57,6 @@ function makeNodeType({
     getType: () => type,
     getOrder: () => order,
     isEnabled: () => isEnabled,
-    isDeactivated: () => false,
-    isDeactivatedReason: () => null,
-    getDeactivatedClickModal: () => null,
   }
 }
 

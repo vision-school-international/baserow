@@ -76,9 +76,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
                         "permissions": "MEMBER",
                     }
                 ],
-                "free_users": None,
                 "row_count": 0,
-                "seats_taken": None,
                 "storage_usage": None,
                 "application_count": 2,
                 "created_on": "2020-04-10T00:00:00Z",
@@ -93,9 +91,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
                         "permissions": "ADMIN",
                     }
                 ],
-                "free_users": None,
                 "row_count": 0,
-                "seats_taken": None,
                 "storage_usage": None,
                 "application_count": 0,
                 "created_on": "2020-04-10T00:00:00Z",
@@ -125,9 +121,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
                         "permissions": "MEMBER",
                     }
                 ],
-                "free_users": None,
                 "row_count": 0,
-                "seats_taken": None,
                 "storage_usage": None,
                 "application_count": 2,
                 "created_on": "2020-04-10T00:00:00Z",
@@ -157,9 +151,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
                         "permissions": "ADMIN",
                     }
                 ],
-                "free_users": None,
                 "row_count": 0,
-                "seats_taken": None,
                 "storage_usage": None,
                 "application_count": 0,
                 "created_on": "2020-04-10T00:00:00Z",
@@ -174,9 +166,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
                         "permissions": "MEMBER",
                     }
                 ],
-                "free_users": None,
                 "row_count": 0,
-                "seats_taken": None,
                 "storage_usage": None,
                 "application_count": 2,
                 "created_on": "2020-04-10T00:00:00Z",

@@ -11,6 +11,7 @@ from baserow.core.models import Workspace
 
 from .constants import WEB_SEARCH_MAX_PER_REPLY, ReasoningEffort
 from .registries import (
+    AIFile,
     EmbedKindLimit,
     FileHandler,
     GenerativeAIModelType,
@@ -20,8 +21,6 @@ from .registries import (
 if TYPE_CHECKING:
     from pydantic_ai import WebSearchTool
     from pydantic_ai.models import Model
-
-    from baserow_premium.fields.ai_file import AIFile
 
 
 _IMAGE_EXTENSIONS = {".gif", ".jpg", ".jpeg", ".png", ".webp"}

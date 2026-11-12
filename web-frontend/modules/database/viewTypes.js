@@ -429,25 +429,6 @@ export class ViewType extends Registerable {
   }
 
   /**
-   * If the view type is disabled, this text will be visible explaining why.
-   */
-  getDeactivatedText() {}
-
-  /**
-   * When the disabled view type is clicked, this modal will be shown.
-   */
-  getDeactivatedClickModal() {
-    return null
-  }
-
-  /**
-   * Indicates if the view type is disabled.
-   */
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  /**
    * Helper function to set a field value to null for all
    * views of the same type
    * Used when fields are converted or deleted and should no
@@ -519,18 +500,6 @@ export class ViewType extends Registerable {
      | [disalbe/enable sharing]  [..getAdditionalDisableSharedLinkOptions()] |
      +-----------------------------------------------------------------------+
    */
-
-  /**
-   * Every registered view can display multiple additional public share link options
-   * which will be visible on the share public view context. Those options are added
-   * to a default share link component only.
-   *
-   * Additional sharing sections (which may be visible even if default share link is not)
-   * can be returned from getAdditionalSharingSections
-   */
-  getAdditionalShareLinkOptions() {
-    return []
-  }
 
   /**
    * A view type can show additional options (links) in a create shared view

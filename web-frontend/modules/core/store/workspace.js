@@ -512,12 +512,12 @@ export const actions = {
     }
   },
   async forceRefreshRoles({ commit, getters }, workspace) {
-    const { $registry, $hasFeature, $client } = this
+    const { $registry, $client } = this
 
     commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: true })
 
     try {
-      const { data } = await RolesService($client, $hasFeature, $registry).get(
+      const { data } = await RolesService($client, $registry).get(
         workspace
       )
       const translatedRoles = appendRoleTranslations(data, $registry)

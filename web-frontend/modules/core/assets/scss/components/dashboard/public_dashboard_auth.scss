@@ -1,6 +1,6 @@
 /**
  Password page of a publicly shared dashboard, rendered in the `login` layout:
- a key icon, the title and text, the password form and the Baserow logo.
+ a key icon, the title and text and the password form.
  */
 
 .public-dashboard-auth {
@@ -42,10 +42,4 @@
 
 .public-dashboard-auth__form {
   text-align: left;
-}
-
-.public-dashboard-auth__footer {
-  display: flex;
-  justify-content: center;
-  margin-top: 48px;
 }

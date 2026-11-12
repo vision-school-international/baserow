@@ -6,7 +6,6 @@
       :search-placeholder="searchPlaceholder"
       :empty-text="$t('workflowNodeContext.noResults')"
       @select="onMenuItemSelected"
-      @disabled-click="onMenuItemSelected"
       @close="$emit('close')"
     >
       <template #item-meta="{ item }">
@@ -23,16 +22,6 @@
         </template>
       </template>
     </GroupedMenu>
-    <template v-for="nodeType in nodeTypes" :key="nodeType.getType()">
-      <component
-        :is="getDeactivatedClickModal(nodeType)[0]"
-        v-if="getDeactivatedClickModal(nodeType) !== null"
-        :ref="`deactivatedClickModal_${nodeType.getType()}`"
-        v-bind="getDeactivatedClickModal(nodeType)[1]"
-        :name="nodeType.name"
-        :workspace="resolvedWorkspace"
-      />
-    </template>
   </div>
 </template>
 
@@ -43,7 +32,7 @@ import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
 export default {
   name: 'WorkflowAddNodeMenu',
   components: { GroupedMenu },
-  inject: ['workspace', 'workflow', 'automation'],
+  inject: ['workflow', 'automation'],
   props: {
     node: {
       type: Object,
@@ -63,9 +52,6 @@ export default {
     },
     resolvedWorkflow() {
       return unref(this.workflow)
-    },
-    resolvedWorkspace() {
-      return unref(this.workspace)
     },
     editingTriggerNode() {
       return this.onlyTrigger
@@ -139,18 +125,12 @@ export default {
         image: nodeType.image,
         description: nodeType.description,
         aliases: nodeType.aliases,
-        disabled: nodeType.isDeactivated({
-          workspace: this.resolvedWorkspace,
-        }),
-        disabledReason: nodeType.isDeactivatedReason({
-          workspace: this.resolvedWorkspace,
-        }),
         meta: nodeType,
       }
     },
     /**
-     * Unlike node type items this carries no `meta`, so the item-meta slot and
-     * the deactivated modals above, which both expect a node type, skip it.
+     * Unlike node type items this carries no `meta`, so the item-meta slot,
+     * which expects a node type, skips it.
      */
     makeRecipeMenuItem(recipe) {
       return {
@@ -172,19 +152,7 @@ export default {
       this.onChange(item.meta)
     },
     onChange(nodeType) {
-      if (nodeType.isDeactivated({ workspace: this.resolvedWorkspace })) {
-        const deactivatedClickModal = this.getDeactivatedClickModal(nodeType)
-        if (deactivatedClickModal !== null) {
-          this.$refs[`deactivatedClickModal_${nodeType.getType()}`][0].show()
-        }
-        return
-      }
       this.$emit('change', nodeType.getType())
-    },
-    getDeactivatedClickModal(nodeType) {
-      return nodeType.getDeactivatedClickModal({
-        workspace: this.resolvedWorkspace,
-      })
     },
     getNodeContextNode(nodeType) {
       return {

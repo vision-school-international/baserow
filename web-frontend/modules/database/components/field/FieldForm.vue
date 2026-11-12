@@ -41,23 +41,11 @@
               <DropdownItem
                 v-for="(fieldType, type) in fieldTypes"
                 :key="type"
-                v-tooltip="
-                  !fieldType.isDeactivated(workspace.id) &&
-                  !fieldType.isEnabled(workspace)
-                    ? fieldType.getDisabledTooltip(workspace)
-                    : null
-                "
-                tooltip-position="top"
                 :icon="fieldType.iconClass"
                 :name="fieldType.getName()"
                 :alias="fieldType.getAlias()"
                 :value="fieldType.type"
-                :disabled="
-                  (primary && !fieldType.canBePrimaryField) ||
-                  !fieldType.isEnabled(workspace) ||
-                  fieldType.isDeactivated(workspace.id)
-                "
-                @click="clickOnItem($event, fieldType)"
+                :disabled="primary && !fieldType.canBePrimaryField"
               >
                 <i class="select__item-icon" :class="fieldType.iconClass" />
                 <span
@@ -65,46 +53,6 @@
                   :title="fieldType.getName()"
                   >{{ fieldType.getName() }}</span
                 >
-                <i
-                  v-if="fieldType.isDeactivated(workspace.id)"
-                  class="iconoir-lock"
-                ></i>
-                <component
-                  :is="
-                    fieldType.getDeactivatedClickModal(workspace.id)
-                      ? fieldType.getDeactivatedClickModal(workspace.id)[0]
-                      : null
-                  "
-                  :ref="'deactivatedClickModal-' + fieldType.type"
-                  :v-if="
-                    fieldType.isDeactivated(workspace.id) &&
-                    fieldType.getDeactivatedClickModal(workspace.id)
-                  "
-                  v-bind="
-                    fieldType.getDeactivatedClickModal(workspace.id)
-                      ? fieldType.getDeactivatedClickModal(workspace.id)[1]
-                      : null
-                  "
-                  :workspace="workspace"
-                ></component>
-                <component
-                  :is="
-                    fieldType.getDisabledClickModal(workspace)
-                      ? fieldType.getDisabledClickModal(workspace)[0]
-                      : null
-                  "
-                  :ref="'disabledClickModal-' + fieldType.type"
-                  :v-if="
-                    !fieldType.isEnabled(workspace) &&
-                    fieldType.getDisabledClickModal(workspace)
-                  "
-                  v-bind="
-                    fieldType.getDisabledClickModal(workspace)
-                      ? fieldType.getDisabledClickModal(workspace)[1]
-                      : null
-                  "
-                  :workspace="workspace"
-                ></component>
               </DropdownItem>
             </Dropdown>
 
@@ -429,10 +377,7 @@ export default {
       return !RESERVED_BASEROW_FIELD_NAMES.includes(param?.trim())
     },
     getFormComponent(type) {
-      const fieldType = this.$registry.get('field', type)
-      if (fieldType.isEnabled(this.workspace)) {
-        return fieldType.getFormComponent()
-      }
+      return this.$registry.get('field', type).getFormComponent()
     },
     showFieldTypesDropdown(target) {
       this.$refs.fieldTypesDropdown.show(target)
@@ -452,13 +397,6 @@ export default {
       event.preventDefault()
       this.$emit('keydown-enter')
       this.submit()
-    },
-    clickOnItem(event, fieldType) {
-      if (fieldType.isDeactivated(this.workspace.id)) {
-        this.$refs[`deactivatedClickModal-${fieldType.type}`][0].show()
-      } else if (!fieldType.isEnabled(this.workspace)) {
-        this.$refs[`disabledClickModal-${fieldType.type}`][0].show()
-      }
     },
     /**
      * This sets the showDescription flag to display description text editor, even

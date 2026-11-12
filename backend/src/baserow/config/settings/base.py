@@ -52,11 +52,10 @@ else:
     BASEROW_PLUGIN_FOLDERS = []
 
 BASEROW_BACKEND_PLUGIN_NAMES = [d.name for d in BASEROW_PLUGIN_FOLDERS]
-BASEROW_OSS_ONLY = bool(os.getenv("BASEROW_OSS_ONLY", ""))
-if BASEROW_OSS_ONLY:
-    BASEROW_BUILT_IN_PLUGINS = []
-else:
-    BASEROW_BUILT_IN_PLUGINS = ["baserow_premium", "baserow_enterprise"]
+# premium/ and enterprise/ are orphaned in this fork: core no longer has the code
+# they import, so they are never loaded.
+BASEROW_OSS_ONLY = True
+BASEROW_BUILT_IN_PLUGINS = []
 
 # SECURITY WARNING: keep the secret key used in production secret!
 if "SECRET_KEY" in os.environ:
@@ -194,7 +193,6 @@ REDIS_URL = os.getenv(
 BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(
     "BASEROW_GROUP_STORAGE_USAGE_QUEUE", "export"
 )
-BASEROW_ROLE_USAGE_QUEUE = os.getenv("BASEROW_GROUP_STORAGE_USAGE_QUEUE", "export")
 
 CELERY_BROKER_URL = REDIS_URL
 # Without these, a broker connection that is dropped silently (e.g. by a NAT or
@@ -664,8 +662,11 @@ SIMPLE_JWT = {
     "USER_AUTHENTICATION_RULE": lambda user: user is not None,
 }
 
+# The product name shown to users. Defaults to the current name.
+BRAND_NAME = os.getenv("BRAND_NAME", "Baserow")
+
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Baserow API spec",
+    "TITLE": f"{BRAND_NAME} API spec",
     "DESCRIPTION": "For more information about our REST API, please visit "
     "[this page](https://baserow.io/docs/apis%2Frest-api).\n\n"
     "For more information about our deprecation policy, please visit "
@@ -1235,9 +1236,6 @@ SEARCH_UPDATE_BATCH_SIZE = int(
     os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
 )  # How many rows to process per batch in search index updates.
 
-# Maximum count of records considered as a 'small table' during field rule operations.
-FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
-
 # Maximum count of records returned by local baserow data source
 INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
@@ -1465,11 +1463,6 @@ STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
 # of hours.
 BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS = 24
 
-ONE_AM_CRONTAB_STR = "0 1 * * *"
-BASEROW_SEAT_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTAB_STR
-)
-
 EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
 
 if os.getenv("EMAIL_SMTP", ""):
@@ -1605,13 +1598,6 @@ BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", Non
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
 
-
-# set max events to be returned by every ICal feed. Empty value means no limit.
-BASEROW_ICAL_VIEW_MAX_EVENTS = try_int(
-    os.getenv("BASEROW_ICAL_VIEW_MAX_EVENTS", None), None
-)
-
-
 # If you change this default please also update the default for the web-frontend found
 # in web-frontend/modules/core/module.js:55
 HOURS_UNTIL_TRASH_PERMANENTLY_DELETED = int(
@@ -1689,11 +1675,7 @@ BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
     int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
 )
 BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 5))
-BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
-    os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
-)
 
-OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
 
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
@@ -1721,7 +1703,7 @@ INTEGRATIONS_PERIODIC_MINUTE_MIN = int(
     os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN") or 1
 )
 
-TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "Baserow")
+TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", BRAND_NAME)
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1908,14 +1890,7 @@ BASEROW_NOWAIT_FOR_LOCKS = not bool(
     os.getenv("BASEROW_WAIT_INSTEAD_OF_409_CONFLICT_ERROR", False)
 )
 
-BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED = (
-    os.getenv("BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED", "viewer").strip().upper()
-)
-
-LICENSE_AUTHORITY_CHECK_TIMEOUT_SECONDS = 10
 ADDITIONAL_INFORMATION_TIMEOUT_SECONDS = 10
-
-MAX_NUMBER_CALENDAR_DAYS = 45
 
 MIGRATION_LOCK_ID = os.getenv("BASEROW_MIGRATION_LOCK_ID", 123456)
 DEFAULT_SEARCH_MODE = os.getenv("BASEROW_DEFAULT_SEARCH_MODE", "compat")
@@ -2113,13 +2088,6 @@ BASEROW_OLLAMA_MODELS = (
     BASEROW_OLLAMA_MODELS.split(",") if BASEROW_OLLAMA_MODELS else []
 )
 
-BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES = int(
-    os.getenv("BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES", "") or 8
-)
-BASEROW_TWO_WAY_SYNC_MAX_RETRIES = int(
-    os.getenv("BASEROW_TWO_WAY_SYNC_MAX_RETRIES", "") or 3
-)
-
 BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = str_to_bool(
     os.getenv("BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE", "true")
 )
@@ -2184,12 +2152,6 @@ else:
         "database_fieldependency",
         "database_linkrowfield",
         "database_selectoption",
-        "baserow_premium_license",
-        "baserow_premium_licenseuser",
-        "baserow_enterprise_role",
-        "baserow_enterprise_roleassignment",
-        "baserow_enterprise_team",
-        "baserow_enterprise_teamsubject",
     ]
 
 # This list will have priority over CACHALOT_ONLY_CACHABLE_TABLES.
@@ -2208,7 +2170,6 @@ CACHALOT_UNCACHABLE_TABLES = [
     "django_migrations",
     "core_action",
     "database_token",
-    "baserow_enterprise_auditlogentry",
 ]
 
 

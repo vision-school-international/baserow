@@ -10,8 +10,8 @@ export function patchIconoirStrokeWidth(css) {
 }
 
 /**
- * The directories of the Baserow modules, like core, premium, enterprise and the
- * ones added with `ADDITIONAL_MODULES`, which are registered as a path to their
+ * The directories of the Baserow modules, like core, database and the ones
+ * added with `ADDITIONAL_MODULES`, which are registered as a path to their
  * `module.js`.
  */
 export function getLocalModuleDirectories(options) {

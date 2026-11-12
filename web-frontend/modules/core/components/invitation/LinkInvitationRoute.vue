@@ -159,13 +159,12 @@ export default {
     },
     /**
      * The role of a new link: the default role for invitations, or else the last
-     * active one, which is the role with the least access.
+     * one, which is the role with the least access.
      */
     defaultRoleUid() {
-      const active = this.roles.filter((role) => !role.isDeactivated)
       return (
-        active.find((role) => role.isDefaultForInvitations)?.uid ??
-        active[active.length - 1]?.uid ??
+        this.roles.find((role) => role.isDefaultForInvitations)?.uid ??
+        this.roles[this.roles.length - 1]?.uid ??
         null
       )
     },

@@ -1,0 +1,8 @@
+{
+  "name": "brand",
+  "version": "0.1.0",
+  "description": "One place for the product brand: name, link, logo and favicons.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

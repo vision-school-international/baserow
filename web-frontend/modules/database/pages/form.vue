@@ -12,7 +12,6 @@
           </div>
         </div>
         <FormViewFooterLinks
-          :show-logo="showLogo"
           show-report-abuse
           :identifier="route.params.slug"
         ></FormViewFooterLinks>
@@ -34,7 +33,6 @@
         :is-redirect="isRedirect"
         :submit-action-redirect-url="submitActionRedirectUrl"
         :submit-action-message="submitActionMessage"
-        :show-logo="showLogo"
         @submit="submit"
       ></component>
     </div>
@@ -211,7 +209,6 @@ const { data, error } = await useAsyncData(
       submitText: responseData.submit_text,
       fields: responseData.fields,
       mode: responseData.mode,
-      showLogo: responseData.show_logo,
       values,
       publicAuthToken,
       editToken,
@@ -240,24 +237,17 @@ const logoImage = computed(() => data.value.logoImage)
 const submitText = computed(() => data.value.submitText)
 const fields = computed(() => data.value.fields || [])
 const mode = computed(() => data.value.mode)
-const showLogo = computed(() => data.value.showLogo)
 const publicAuthToken = computed(() => data.value.publicAuthToken)
 const editToken = computed(() => data.value.editToken || null)
 const isEditMode = computed(() => !!editToken.value)
 const values = ref(data.value.values)
 
-useHead(() => {
-  const head = {
-    title: title.value || 'Form',
-    bodyAttrs: {
-      class: ['background-white'],
-    },
-  }
-  if (!showLogo.value) {
-    head.titleTemplate = '%s'
-  }
-  return head
-})
+useHead(() => ({
+  title: title.value || 'Form',
+  bodyAttrs: {
+    class: ['background-white'],
+  },
+}))
 
 const isRedirect = computed(() => {
   return (

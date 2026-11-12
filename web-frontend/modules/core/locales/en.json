@@ -217,7 +217,6 @@
     "adminSettings": "Admin settings",
     "general": "General",
     "people": "People",
-    "licenses": "Licenses",
     "adminContentCategory": "Content"
   },
   "accountForm": {
@@ -1055,8 +1054,6 @@
   },
   "settings": {
     "settingsTitle": "Admin settings",
-    "baserowInstanceId": "Instance ID",
-    "instanceIdDescription": "The instance ID is the unique identifier of your Baserow copy.",
     "baserowVersion": "Baserow version",
     "baserowVersionDescription": "The version number of this instance.",
     "accountRestrictions": "Account restrictions",
@@ -1072,7 +1069,7 @@
     "settingAllowNonStaffCreateWorkspaceOperationDescription": "By default, everyone can create new workspaces. Disable this to only allow staff to create new workspaces.",
     "settingAllowNonStaffCreateWorkspaceOperationWarning": "New users will have a workspace automatically created for them where they are an Admin.",
     "settingTrackWorkspaceUsage": "Track workspace usage",
-    "settingTrackWorkspaceUsageDescription": "Enables a nightly job that counts row and file usage per workspace, displayed on the premium workspace admin page.",
+    "settingTrackWorkspaceUsageDescription": "Enables a nightly job that counts row and file usage per workspace, shown on the admin workspaces page.",
     "userSettings": "User",
     "settingUserDeletionGraceDelay": "Delete grace delay",
     "settingUserDeletionGraceDelayDescription": "This is the number of days without a login after which an account scheduled for deletion is permanently deleted.",
@@ -1244,13 +1241,6 @@
     "title": "Confirm removal from workspace",
     "confirmation": "Are you sure you want to remove {name} from {workspaceName}? This action cannot be undone.",
     "remove": "Remove"
-  },
-  "editRoleContext": {
-    "billableRolesLink": "Billable roles documentation",
-    "additionalRoles": "Additional roles"
-  },
-  "highestPaidRoleField": {
-    "billable": "Billable"
   },
   "integrationCreateEditModal": {
     "createTitle": "New integration",
@@ -1564,8 +1554,6 @@
     "applications": "Applications",
     "created": "Created",
     "rowCount": "Row count",
-    "freeUsers": "Free users",
-    "seatsTaken": "Seats taken",
     "storageUsage": "Storage Used (MB)",
     "usageHelpText": "Calculated nightly when the track workspace usage setting is enabled"
   },
@@ -1914,8 +1902,7 @@
     "search": "Search identities",
     "emptyTitle": "No identities yet",
     "emptyDescription": "Create an identity to connect AI tools to your workspace. Choose its role and teams to control what it can access.",
-    "new": "New",
-    "roleHelpText": "Start with No access, then grant access to specific databases, tables or views as needed."
+    "new": "New"
   },
   "managementPages": {
     "you": "You"

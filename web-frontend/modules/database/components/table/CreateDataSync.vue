@@ -90,29 +90,6 @@
         {{ $t('createDataSync.deleteUnmatchedRowsLabel') }}</SwitchInput
       >
     </FormGroup>
-    <FormGroup
-      v-if="twoWaySyncStrategy"
-      small-label
-      class="margin-top-2"
-      :helper-text="twoWaySyncStrategy.getDescription()"
-    >
-      <SwitchInput
-        v-model="twoWaySync"
-        class="margin-top-2"
-        small
-        :disabled="jobIsRunning || jobIsFinished || isTwoWaySyncDeactivated"
-        @click="clickTwoWaySync"
-      >
-        {{ $t('createDataSync.twoWaySyncLabel') }}
-        <i v-if="isTwoWaySyncDeactivated" class="iconoir-lock"></i>
-      </SwitchInput>
-    </FormGroup>
-    <component
-      :is="twoWaySyncDeactivatedModal[0]"
-      v-if="twoWaySyncDeactivatedModal !== null"
-      ref="twoWaySyncDeactivatedModal"
-      v-bind="twoWaySyncDeactivatedModal[1]"
-    ></component>
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
@@ -183,7 +160,6 @@ export default {
       createdTable: null,
       autoAddNewProperties: false,
       deleteUnmatchedRows: true,
-      twoWaySync: false,
     }
   },
   computed: {
@@ -198,21 +174,6 @@ export default {
     dataSyncComponent() {
       return this.dataSyncType ? this.dataSyncType.getFormComponent() : null
     },
-    twoWaySyncStrategy() {
-      if (!this.dataSyncType) return null
-      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
-      if (!strategy) {
-        return null
-      }
-
-      return this.$registry.get('twoWaySyncStrategy', strategy)
-    },
-    isTwoWaySyncDeactivated() {
-      if (!this.twoWaySyncStrategy) {
-        return true
-      }
-      return this.twoWaySyncStrategy.isDeactivated(this.database.workspace.id)
-    },
     syncInProgress() {
       return this.creatingTable || this.jobIsRunning
     },
@@ -220,12 +181,6 @@ export default {
     // Once created, the user can close the modal and the job will restore on reopen.
     uploadingBeforeJobCreated() {
       return this.creatingTable && this.job === null
-    },
-    twoWaySyncDeactivatedModal() {
-      if (!this.twoWaySyncStrategy) {
-        return null
-      }
-      return this.twoWaySyncStrategy.getDeactivatedClickModal()
     },
   },
   watch: {
@@ -294,7 +249,6 @@ export default {
       formValues.synced_properties = this.syncedProperties
       formValues.auto_add_new_properties = this.autoAddNewProperties
       formValues.delete_unmatched_rows = this.deleteUnmatchedRows
-      formValues.two_way_sync = this.twoWaySync
 
       this.creatingTable = true
       this.hideError()
@@ -355,11 +309,6 @@ export default {
 
       this.restoredFromStore = false
       this.job = null
-    },
-    clickTwoWaySync() {
-      if (this.isTwoWaySyncDeactivated) {
-        this.$refs.twoWaySyncDeactivatedModal.show()
-      }
     },
   },
 }

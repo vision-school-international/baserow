@@ -14,6 +14,7 @@ import {
   SortsCopyOptionType,
   ViewSettingsCopyOptionType,
 } from '@baserow/modules/database/copyViewConfigurationOptionTypes'
+import { ViewDecoratorType } from '@baserow/modules/database/viewDecorators'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
@@ -46,9 +47,8 @@ describe('getEnabledCopyOptionKeys', () => {
 
   const view = (type) => ({ id: 1, type })
 
-  // The TestApp registers the premium view decorators, but the test workspace
-  // has no premium license, so they are deactivated and the `decorations`
-  // option is disabled to prevent a copy that the backend would reject.
+  // No view decorator is registered in core, so the `decorations` option is
+  // only enabled once a decorator compatible with both views exists.
   test('grid to grid enables every option with an available decorator', () => {
     const registry = testApp.getRegistry()
     expect(
@@ -64,14 +64,26 @@ describe('getEnabledCopyOptionKeys', () => {
       'default_row_values',
     ])
 
-    const decorator = Object.values(registry.getAll('viewDecorator'))[0]
-    const isDeactivatedSpy = vi
-      .spyOn(Object.getPrototypeOf(decorator), 'isDeactivated')
-      .mockReturnValue(false)
-    expect(
-      getEnabledCopyOptionKeys(registry, view('grid'), view('grid'))
-    ).toContain('decorations')
-    isDeactivatedSpy.mockRestore()
+    class FakeDecoratorType extends ViewDecoratorType {
+      static getType() {
+        return 'fake_copy_decorator'
+      }
+
+      isCompatible() {
+        return true
+      }
+    }
+    registry.register(
+      'viewDecorator',
+      new FakeDecoratorType({ app: testApp.getApp() })
+    )
+    try {
+      expect(
+        getEnabledCopyOptionKeys(registry, view('grid'), view('grid'))
+      ).toContain('decorations')
+    } finally {
+      registry.unregister('viewDecorator', 'fake_copy_decorator')
+    }
   })
 
   test('grid to gallery disables grid specific options', () => {

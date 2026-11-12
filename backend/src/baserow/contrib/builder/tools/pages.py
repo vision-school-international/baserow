@@ -274,9 +274,8 @@ def setup_page(
 
     Refs link items inside this call: an element's data_source and parent_element, an
     action's element and data_source. Elements of every type can be created here.
-    An auth_form, on instances that have it, takes a user_source_id from
-    setup_user_source. A header or footer, and anything inside one, goes on the
-    shared page and shows on every page.
+    A header or footer, and anything inside one, goes on the shared page and shows
+    on every page.
 
     Give dynamic values as formulas in Baserow formula syntax. A formula needs real
     IDs, like get('form_data.<element id>'), which a ref can't give: to read an input

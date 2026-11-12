@@ -1,5 +1,6 @@
 import base64
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpx2
@@ -8,7 +9,6 @@ import pytest
 from baserow.core.generative_ai.generative_ai_model_types import (
     XaiGenerativeAIModelType,
 )
-from baserow_premium.fields.ai_file import AIFile
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
@@ -27,12 +27,16 @@ def ambient_provider_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(name, value)
 
 
-def _make_ai_file(name: str, mime_type: str, content_bytes: bytes) -> AIFile:
-    ai_file = AIFile(
-        name=name, original_name=name, size=len(content_bytes), mime_type=mime_type
+def _make_ai_file(name: str, mime_type: str, content_bytes: bytes) -> SimpleNamespace:
+    return SimpleNamespace(
+        name=name,
+        original_name=name,
+        size=len(content_bytes),
+        mime_type=mime_type,
+        content=None,
+        provider_file_id=None,
+        read_content=lambda: content_bytes,
     )
-    ai_file.read_content = lambda: content_bytes  # type: ignore[assignment]
-    return ai_file
 
 
 def _chat_completion(text: str) -> dict:

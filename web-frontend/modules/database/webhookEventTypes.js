@@ -66,22 +66,6 @@ export class WebhookEventType extends Registerable {
   getRelatedViewHelpText() {
     return null
   }
-
-  getDeactivatedText() {
-    return ''
-  }
-
-  getDeactivatedClickModal() {
-    return null
-  }
-
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  getFeatureName() {
-    return ''
-  }
 }
 
 export class RowsCreatedWebhookEventType extends WebhookEventType {
@@ -231,7 +215,6 @@ export const viewExample = {
   filter_type: 'AND',
   filters_disabled: false,
   public_view_has_password: false,
-  show_logo: true,
   ownership_type: 'collaborative',
   owned_by_id: null,
   row_identifier_type: 'id',

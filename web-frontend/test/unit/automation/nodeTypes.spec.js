@@ -40,7 +40,6 @@ describe('NodeType service validation context', () => {
     const workspace = { id: 2 }
     const application = { id: 3 }
     const serviceType = {
-      isDeactivatedReason: vi.fn(() => null),
       isInError: vi.fn(() => true),
       getErrorMessage: vi.fn(() => 'Unavailable model'),
     }

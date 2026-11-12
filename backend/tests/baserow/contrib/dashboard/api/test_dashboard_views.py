@@ -34,7 +34,6 @@ def test_update_dashboard_sharing_state(api_client, data_fixture):
     assert response_json["public"] is True
     assert response_json["slug"] == dashboard.slug
     assert response_json["public_has_password"] is False
-    assert response_json["show_logo"] is True
     assert "public_password" not in response_json
     dashboard.refresh_from_db()
     assert dashboard.public is True
@@ -125,7 +124,7 @@ def test_update_dashboard_public_flag_clears_the_password(api_client, data_fixtu
 
 
 @pytest.mark.django_db
-def test_update_dashboard_sharing_ignores_premium_and_read_only_fields(
+def test_update_dashboard_sharing_ignores_read_only_fields(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
@@ -136,7 +135,6 @@ def test_update_dashboard_sharing_ignores_premium_and_read_only_fields(
         sharing_url(dashboard.id),
         {
             "public": True,
-            "show_logo": False,
             "slug": "custom-slug",
             "public_has_password": True,
         },
@@ -147,7 +145,6 @@ def test_update_dashboard_sharing_ignores_premium_and_read_only_fields(
     assert response.status_code == HTTP_200_OK
     dashboard.refresh_from_db()
     assert dashboard.public is True
-    assert dashboard.show_logo is True
     assert dashboard.slug == original_slug
     assert dashboard.public_password == ""
 
@@ -157,10 +154,10 @@ def test_update_dashboard_sharing_requires_a_sharing_field(api_client, data_fixt
     user, token = data_fixture.create_user_and_token()
     dashboard = data_fixture.create_dashboard_application(user=user)
 
-    # Only the premium endpoint changes `show_logo`, so nothing is left to update.
+    # Read-only fields are ignored, so nothing is left to update.
     response = api_client.patch(
         sharing_url(dashboard.id),
-        {"show_logo": False},
+        {"public_has_password": True},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -169,8 +166,6 @@ def test_update_dashboard_sharing_requires_a_sharing_field(api_client, data_fixt
     response_json = response.json()
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert "non_field_errors" in response_json["detail"]
-    dashboard.refresh_from_db()
-    assert dashboard.show_logo is True
 
 
 @pytest.mark.django_db
@@ -221,7 +216,6 @@ def test_update_application_ignores_the_sharing_fields(api_client, data_fixture)
             "description": "Updated description",
             "public": True,
             "public_password": "secret-password",
-            "show_logo": False,
             "slug": "custom-slug",
             "public_has_password": True,
         },
@@ -237,7 +231,6 @@ def test_update_application_ignores_the_sharing_fields(api_client, data_fixture)
     assert dashboard.description == "Updated description"
     assert dashboard.public is False
     assert dashboard.public_password == ""
-    assert dashboard.show_logo is True
     assert dashboard.slug == original_slug
 
 

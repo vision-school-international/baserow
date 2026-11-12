@@ -185,61 +185,22 @@ def test_exporting_table_ignores_view_filters_sorts_hides(
 
 @pytest.mark.django_db
 @patch("baserow.core.storage.get_default_storage")
-def test_exporting_public_view_without_user_fails_if_not_publicly_shared_and_allowed(
+def test_exporting_view_without_user_fails_even_if_publicly_shared(
     get_storage_mock, data_fixture
 ):
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
     table = data_fixture.create_database_table()
-    text_field = data_fixture.create_text_field(table=table, name="text_field", order=1)
-    grid_view = data_fixture.create_grid_view(
-        table=table, public=False, allow_public_export=False
-    )
-    model = table.get_model()
-    model.objects.create(
-        **{
-            f"field_{text_field.id}": "hello",
-        },
-    )
+    grid_view = data_fixture.create_grid_view(table=table, public=False)
 
     with pytest.raises(PermissionDenied):
         run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
 
     grid_view.public = True
-    grid_view.allow_public_export = False
     grid_view.save()
 
     with pytest.raises(PermissionDenied):
         run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
-
-    grid_view.public = False
-    grid_view.allow_public_export = True
-    grid_view.save()
-
-    with pytest.raises(PermissionDenied):
-        run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
-
-
-@pytest.mark.django_db
-@patch("baserow.core.storage.get_default_storage")
-def test_exporting_public_view_without_user(get_storage_mock, data_fixture):
-    storage_mock = MagicMock()
-    get_storage_mock.return_value = storage_mock
-    table = data_fixture.create_database_table()
-    text_field = data_fixture.create_text_field(table=table, name="text_field", order=1)
-    grid_view = data_fixture.create_grid_view(
-        table=table, public=True, allow_public_export=True
-    )
-    model = table.get_model()
-    model.objects.create(
-        **{
-            f"field_{text_field.id}": "hello",
-        },
-    )
-    _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
-    bom = "\ufeff"
-    expected = bom + "id,text_field\r\n1,hello\r\n"
-    assert contents == expected
 
 
 @pytest.mark.django_db

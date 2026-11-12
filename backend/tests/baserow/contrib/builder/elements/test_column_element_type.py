@@ -5,7 +5,6 @@ from baserow.contrib.builder.elements.element_types import (
     ColumnElementType,
 )
 from baserow.core.graph.types import GraphPointPosition
-from baserow_enterprise.builder.elements.element_types import AuthFormElementType
 
 
 @pytest.mark.django_db
@@ -125,13 +124,6 @@ def test_column_element_type_can_have_children(data_fixture):
         position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_eleven = data_fixture.create_builder_element(
-        AuthFormElementType,
-        page=page,
-        reference_element=container,
-        position=GraphPointPosition.CHILD,
-        place_in_container="1",
-    )
 
     assert [instance.specific for instance in container.get_child_points()] == [
         element_inside_container_one,
@@ -144,7 +136,6 @@ def test_column_element_type_can_have_children(data_fixture):
         element_inside_container_eight,
         element_inside_container_nine,
         element_inside_container_ten,
-        element_inside_container_eleven,
     ]
     assert not container.is_nested_point
     assert element_inside_container_one.is_nested_point
@@ -159,5 +150,4 @@ def test_column_element_type_can_have_children(data_fixture):
         element_inside_container_eight,
         element_inside_container_nine,
         element_inside_container_ten,
-        element_inside_container_eleven,
     ]

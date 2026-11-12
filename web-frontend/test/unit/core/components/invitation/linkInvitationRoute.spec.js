@@ -18,7 +18,6 @@ const roles = [
     name: 'Admin',
     description: '',
     isVisible: true,
-    isDeactivated: false,
     isDefaultForInvitations: false,
   },
   {
@@ -26,7 +25,6 @@ const roles = [
     name: 'Member',
     description: '',
     isVisible: true,
-    isDeactivated: false,
     isDefaultForInvitations: true,
   },
 ]

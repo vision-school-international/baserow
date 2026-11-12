@@ -41,18 +41,6 @@ export class WorkspaceSettingsPageType extends Registerable {
     return true
   }
 
-  /**
-   * Responsible for returning whether the user has access to
-   * this page's features in this workspace.
-   */
-  isFeatureActive(workspace) {
-    return true
-  }
-
-  getFeatureDeactivatedModal(workspace) {
-    return null
-  }
-
   getRoute() {
     throw new Error('The `getRoute` method must be set.')
   }

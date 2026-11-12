@@ -1,33 +1,18 @@
 <template>
-  <div v-if="showLogo || showReportLink" class="form-view__footer-links">
-    <template v-if="showReportLink">
-      <a
-        class="form-view__report-abuse"
-        href="#"
-        @click.prevent="$refs.reportAbuseModal.show()"
-      >
-        {{ $t('formViewFooterLinks.reportAbuse') }}
-      </a>
-      <ReportAbuseModal
-        ref="reportAbuseModal"
-        resource-type="database_view"
-        :identifier="identifier"
-        :request-config="requestConfig"
-      ></ReportAbuseModal>
-    </template>
-    <div v-if="showLogo" class="form-view__powered-by-baserow">
-      Powered by
-      <a
-        href="https://baserow.io"
-        target="_blank"
-        title="Baserow - open source no-code platform and Airtable alternative"
-      >
-        <Logo
-          class="form-view__powered-by-logo"
-          alt="Baserow - open source no-code platform and Airtable alternative"
-        />
-      </a>
-    </div>
+  <div v-if="showReportLink" class="form-view__footer-links">
+    <a
+      class="form-view__report-abuse"
+      href="#"
+      @click.prevent="$refs.reportAbuseModal.show()"
+    >
+      {{ $t('formViewFooterLinks.reportAbuse') }}
+    </a>
+    <ReportAbuseModal
+      ref="reportAbuseModal"
+      resource-type="database_view"
+      :identifier="identifier"
+      :request-config="requestConfig"
+    ></ReportAbuseModal>
   </div>
 </template>
 
@@ -39,11 +24,6 @@ export default {
   name: 'FormViewFooterLinks',
   components: { ReportAbuseModal },
   props: {
-    showLogo: {
-      type: Boolean,
-      required: false,
-      default: true,
-    },
     showReportAbuse: {
       type: Boolean,
       required: false,

@@ -408,7 +408,6 @@ export default defineNuxtPlugin({
 
     $registry.registerNamespace('viewDecorator')
     $registry.registerNamespace('decoratorValueProvider')
-    $registry.registerNamespace('twoWaySyncStrategy')
     $registry.registerNamespace('viewFilter')
     $registry.registerNamespace('viewOwnershipType')
     $registry.registerNamespace('fieldConstraint')

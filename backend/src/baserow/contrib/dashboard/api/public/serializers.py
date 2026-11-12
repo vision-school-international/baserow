@@ -20,12 +20,11 @@ class PublicDashboardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Dashboard
-        fields = ("id", "name", "description", "show_logo")
+        fields = ("id", "name", "description")
         extra_kwargs = {
             "id": {"read_only": True},
             "name": {"read_only": True},
             "description": {"read_only": True},
-            "show_logo": {"read_only": True},
         }
 
 
@@ -131,19 +130,6 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
             for data_source in self.context["data_sources"]
             if data_source.service_id
         ]
-
-
-class PublicDashboardAuthInfoSerializer(serializers.Serializer):
-    """
-    What the password page of a publicly shared dashboard needs before the
-    visitor has entered the password. Nothing about the dashboard itself is
-    revealed.
-    """
-
-    show_logo = serializers.BooleanField(
-        help_text="Indicates whether the Baserow logo must be shown on the "
-        "password page of the publicly shared dashboard."
-    )
 
 
 class PublicDashboardAuthRequestSerializer(serializers.Serializer):

@@ -1,7 +1,7 @@
 """
 The widget types the shared dashboard tools can create, describe and change.
 Each widget type registers how its definition looks and maps to its data source,
-so a widget type added by another module (like premium's charts) brings its own.
+so a widget type added by another module brings its own.
 """
 
 from functools import cache

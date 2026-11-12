@@ -25,7 +25,6 @@ describe('PublicDashboard page', () => {
         id: 1,
         name: 'Conversion compass',
         description: 'Tracking conversion rates at every stage.',
-        show_logo: true,
       },
       widgets: [],
       data_sources: [],

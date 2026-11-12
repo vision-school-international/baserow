@@ -1,25 +1,14 @@
 <template>
   <div class="decorator-list">
     <div
-      v-for="(decoratorType, index) in viewDecoratorTypes"
+      v-for="decoratorType in viewDecoratorTypes"
       :key="decoratorType.getType()"
       v-tooltip="getTooltip(decoratorType)"
       class="decorator-list__item"
       :class="{ 'decorator-list__item--disabled': isDisabled(decoratorType) }"
-      @click="addDecoration(decoratorType, index)"
+      @click="addDecoration(decoratorType)"
     >
-      <ViewDecoratorItem
-        :deactivated="isDeactivated(decoratorType)"
-        :decorator-type="decoratorType"
-      />
-      <component
-        :is="decoratorType.getDeactivatedClickModal()[0]"
-        v-if="decoratorType.getDeactivatedClickModal() !== null"
-        :ref="'deactivatedClickModal' + index.toString()"
-        v-bind="decoratorType.getDeactivatedClickModal()[1]"
-        :name="decoratorType.getName()"
-        :workspace="database.workspace"
-      ></component>
+      <ViewDecoratorItem :decorator-type="decoratorType" />
     </div>
   </div>
 </template>
@@ -31,10 +20,6 @@ export default {
   name: 'ViewDecoratorList',
   components: { ViewDecoratorItem },
   props: {
-    database: {
-      type: Object,
-      required: true,
-    },
     view: {
       type: Object,
       required: true,
@@ -49,9 +34,6 @@ export default {
     },
   },
   methods: {
-    isDeactivated(decoratorType) {
-      return decoratorType.isDeactivated(this.database.workspace.id)
-    },
     isDisabled(decoratorType) {
       return !decoratorType.canAdd({ view: this.view })[0]
     },
@@ -60,18 +42,10 @@ export default {
       if (!canAdd) {
         return disabledReason
       }
-      if (this.isDeactivated(decoratorType)) {
-        return decoratorType.getDeactivatedText()
-      }
       return ''
     },
-    addDecoration(decoratorType, index) {
+    addDecoration(decoratorType) {
       if (this.isDisabled(decoratorType)) {
-        return
-      } else if (this.isDeactivated(decoratorType)) {
-        if (decoratorType.getDeactivatedClickModal() !== null) {
-          this.$refs['deactivatedClickModal' + index.toString()][0].show()
-        }
         return
       }
       this.$emit('select', decoratorType)

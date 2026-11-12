@@ -225,8 +225,5 @@ members = ["../premium/backend", "../enterprise/backend"]
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "baserow.config.settings.test"
 python_files = ["test_*.py", "*_test.py"]
-pythonpath = [
-    "tests",
-    "../premium/backend/tests",
-    "../enterprise/backend/tests",
-]
+# premium/ and enterprise/ are orphaned (never loaded), so their tests are not run.
+pythonpath = ["tests"]

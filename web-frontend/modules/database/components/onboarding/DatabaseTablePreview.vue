@@ -110,7 +110,6 @@ export default {
           decorations: [],
           filters_disabled: false,
           public_view_has_password: false,
-          show_logo: true,
           ownership_type: CollaborativeViewOwnershipType.getType(),
           owned_by_id: null,
           row_identifier_type: 'id',

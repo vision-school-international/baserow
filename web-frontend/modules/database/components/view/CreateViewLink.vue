@@ -12,9 +12,6 @@
   >
     <i class="select__footer-create-icon" :class="viewType.iconClass"></i>
     {{ viewType.getName() }}
-    <div v-if="deactivated" class="deactivated-label">
-      <i class="iconoir-lock"></i>
-    </div>
     <CreateViewModal
       ref="createModal"
       :table="table"
@@ -22,13 +19,6 @@
       :view-type="viewType"
       @created="$emit('created', $event)"
     ></CreateViewModal>
-    <component
-      :is="deactivatedClickModal[0]"
-      v-if="deactivatedClickModal !== null"
-      ref="deactivatedClickModal"
-      v-bind="deactivatedClickModal[1] || {}"
-      :workspace="database.workspace"
-    ></component>
     <i class="select__footer-create-link-icon iconoir-plus"></i>
   </a>
 </template>
@@ -60,20 +50,9 @@ export default {
     tooltipText() {
       if (!this.viewType.isCompatibleWithDataSync(this.table.data_sync)) {
         return this.$t('createViewLink.inCompatibleWithDataSync')
-      } else if (this.deactivated) {
-        return this.deactivatedText
       }
 
       return null
-    },
-    deactivatedText() {
-      return this.viewType.getDeactivatedText()
-    },
-    deactivated() {
-      return this.viewType.isDeactivated(this.database.workspace.id)
-    },
-    deactivatedClickModal() {
-      return this.viewType.getDeactivatedClickModal()
     },
   },
   methods: {
@@ -81,10 +60,8 @@ export default {
       if (!this.viewType.isCompatibleWithDataSync(this.table.data_sync)) {
         // Don't do anything in case the view type not compatible with a data sync
         // table.
-      } else if (!this.deactivated) {
+      } else {
         this.$refs.createModal.show(this.$refs.createViewLink)
-      } else if (this.deactivated && this.deactivatedClickModal) {
-        this.$refs.deactivatedClickModal.show()
       }
     },
   },

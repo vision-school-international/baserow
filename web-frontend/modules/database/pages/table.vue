@@ -102,12 +102,7 @@ const { data, loading: fetching } = await usePageAsyncData(
     // Without a view in the route params the default one must be opened. The
     // redirect is returned because it can only be done once the page is rendered.
     if (viewId === null) {
-      const defaultView = getDefaultView(
-        nuxtApp,
-        $store,
-        currentDatabase.workspace.id,
-        rowId !== null
-      )
+      const defaultView = getDefaultView(nuxtApp, $store, rowId !== null)
       if (defaultView) {
         result.redirect = {
           name: route.name,
@@ -152,14 +147,6 @@ const { data, loading: fetching } = await usePageAsyncData(
         const { view } = await $store.dispatch('view/selectById', viewId)
         const viewType = $registry.get('view', view.type)
         result.view = view
-
-        if (viewType.isDeactivated(currentDatabase.workspace.id)) {
-          result.error = {
-            statusCode: 400,
-            message: viewType.getDeactivatedText(),
-          }
-          return result
-        }
 
         const currentFields = $store.getters['field/getAll']
         await viewType.fetch(

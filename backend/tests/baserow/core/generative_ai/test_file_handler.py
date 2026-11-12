@@ -1,11 +1,18 @@
+from types import SimpleNamespace
+
 from baserow.core.generative_ai.registries import EmbedKindLimit, FileHandler
-from baserow_premium.fields.ai_file import AIFile
 
 
-def _make_ai_file(name: str, size: int, mime_type: str) -> AIFile:
-    ai_file = AIFile(name=name, original_name=name, size=size, mime_type=mime_type)
-    ai_file.read_content = lambda: b"content"  # type: ignore[assignment]
-    return ai_file
+def _make_ai_file(name: str, size: int, mime_type: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        name=name,
+        original_name=name,
+        size=size,
+        mime_type=mime_type,
+        content=None,
+        provider_file_id=None,
+        read_content=lambda: b"content",
+    )
 
 
 class _ImageLimitedFileHandler(FileHandler):
