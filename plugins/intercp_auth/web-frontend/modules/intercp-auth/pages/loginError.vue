@@ -19,7 +19,6 @@ const MESSAGES = {
   unverified_email: 'Your InterCP email address is not verified.',
   user_deactivated: 'Your account has been deactivated.',
   signup_disabled: 'New accounts are currently not allowed.',
-  different_provider: 'This account cannot sign in with InterCP.',
   invitation_invalid: 'The invitation is invalid or has expired.',
   invitation_email_mismatch:
     'The invitation was sent to a different email address.',

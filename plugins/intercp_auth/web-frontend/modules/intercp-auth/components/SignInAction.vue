@@ -18,6 +18,8 @@ import { isRelativeUrl } from '@baserow/modules/core/utils/url'
 // instance ever needs another language.
 export default {
   name: 'InterCPSignInAction',
+  // Core's LoginActions also passes `invitation`; the token is read from the route.
+  inheritAttrs: false,
   props: {
     // The login option the backend returned for this provider type.
     options: {

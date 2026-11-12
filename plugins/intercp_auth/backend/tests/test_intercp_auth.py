@@ -14,6 +14,7 @@ from intercp_auth.models import InterCPAuthProviderModel
 from intercp_auth.sync import enforce_single_sign_on
 
 from baserow.core.auth_provider.handler import PasswordProviderHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import auth_provider_type_registry
 
 ISSUER = "https://auth.example.test/application/o/baserow/"
@@ -87,7 +88,7 @@ def finish_flow(api_client, http, params, userinfo=None, **token_claims):
         TOKEN,
         json={
             "access_token": "access",
-            "id_token": id_token(nonce=params["nonce"][0], **token_claims),
+            "id_token": id_token(**{"nonce": params["nonce"][0], **token_claims}),
         },
     )
     http.get(
@@ -124,7 +125,8 @@ def test_enforce_single_sign_on(intercp, data_fixture):
     assert InterCPAuthProviderModel.objects.filter(enabled=True).count() == 1
     assert PasswordProviderHandler.get().enabled is False
     user.refresh_from_db()
-    assert user.has_usable_password() is False
+    assert user.password == ""
+    assert CoreHandler().get_settings().show_admin_signup_page is False
 
 
 @pytest.mark.django_db
@@ -178,7 +180,7 @@ def test_callback_creates_user_and_signs_in(intercp, api_client, data_fixture):
     query = parse_qs(url.query)
     assert query["token"] and query["user_session"]
     user = get_user_model().objects.get(email="nerdy_koala@visionschool.dev")
-    assert user.has_usable_password() is False
+    assert user.password == ""
     assert user.profile.email_verified is True
 
 

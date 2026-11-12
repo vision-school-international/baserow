@@ -3,6 +3,7 @@ from typing import Optional
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.signing import BadSignature
 from django.db import transaction
 from django.http import HttpResponseRedirect
@@ -13,10 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from baserow.core.auth_provider.exceptions import (
-    DifferentAuthProvider,
-    UnverifiedEmailFromProvider,
-)
+from baserow.core.auth_provider.exceptions import UnverifiedEmailFromProvider
 from baserow.core.auth_provider.types import UserInfo
 from baserow.core.exceptions import (
     FeatureDisabledException,
@@ -40,7 +38,6 @@ SIGN_IN_ERRORS = {
     UnverifiedEmailFromProvider: "unverified_email",
     DeactivatedUserException: "user_deactivated",
     DisabledSignupError: "signup_disabled",
-    DifferentAuthProvider: "different_provider",
     WorkspaceInvitationDoesNotExist: "invitation_invalid",
     WorkspaceInvitationEmailMismatch: "invitation_email_mismatch",
     WorkspaceInvitationLinkDoesNotExist: "invitation_invalid",
@@ -59,7 +56,7 @@ class LoginView(APIView):
     def get(self, request: Request) -> HttpResponseRedirect:
         try:
             auth = oidc.start(_callback_url())
-        except oidc.OIDCError as e:
+        except (oidc.OIDCError, ImproperlyConfigured) as e:
             logger.warning("InterCP sign-in could not start: {}", e)
             return _error_redirect("provider_error")
 
@@ -84,7 +81,10 @@ class CallbackView(APIView):
         # Pop first: a flow can only be completed once.
         flow = request.session.pop(SESSION_KEY, None)
         state = request.GET.get("state", "")
-        if flow is None or not secrets.compare_digest(state, flow["state"]):
+        # Bytes, so a non-ASCII `state` compares unequal instead of raising.
+        if flow is None or not secrets.compare_digest(
+            state.encode(), flow["state"].encode()
+        ):
             return _error_redirect("invalid_state")
 
         code = request.GET.get("code")

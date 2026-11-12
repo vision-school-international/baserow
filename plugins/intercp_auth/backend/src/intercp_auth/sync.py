@@ -1,11 +1,11 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import UNUSABLE_PASSWORD_PREFIX
 from django.db import transaction
 
 from baserow.core.auth_provider.handler import (
     AuthProviderHandler,
     PasswordProviderHandler,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import auth_provider_type_registry
 
 from . import oidc
@@ -18,7 +18,9 @@ def enforce_single_sign_on() -> None:
     Makes InterCP the only way in. Safe to run any number of times:
     - exactly one InterCP provider exists and is enabled,
     - the password provider is disabled,
-    - no account keeps a usable password.
+    - no account keeps a password,
+    - the first-run admin signup page is off (it only offers password signup; the
+      first InterCP user becomes staff anyway).
 
     Raises ImproperlyConfigured before changing anything if InterCP is not configured,
     so a missing setting cannot lock everyone out.
@@ -37,11 +39,11 @@ def enforce_single_sign_on() -> None:
     if password_provider.enabled:
         AuthProviderHandler.update_auth_provider(None, password_provider, enabled=False)
 
-    users_with_password = (
-        get_user_model()
-        .objects.exclude(password="")
-        .exclude(password__startswith=UNUSABLE_PASSWORD_PREFIX)
-    )
-    for user in users_with_password:
-        user.set_unusable_password()
-        user.save(update_fields=["password"])
+    # Core marks SSO-only accounts with an empty password (e.g. 2FA is refused for
+    # them), so use that rather than Django's unusable-password marker.
+    get_user_model().objects.exclude(password="").update(password="")
+
+    instance_settings = CoreHandler().get_settings()
+    if instance_settings.show_admin_signup_page:
+        instance_settings.show_admin_signup_page = False
+        instance_settings.save(update_fields=["show_admin_signup_page"])
