@@ -410,8 +410,7 @@ def test_install_user_template_job_max_locks_in_the_import(queued_install):
     assert job.error_code == "InstallTemplateMaxLocksExceededException"
     assert job.human_readable_error == (
         "Baserow attempted to install a template, but exceeded the maximum number "
-        "of PostgreSQL locks per transaction. Please read "
-        "https://baserow.io/docs/technical/postgresql-locks"
+        "of PostgreSQL locks per transaction."
     )
     _assert_nothing_installed(
         queued_install.target, queued_install.root, queued_install.counts

@@ -66,19 +66,6 @@
     <Radio v-model="selectedVisibility" :value="visibilityNotLogged">
       {{ $t('visibilityForm.notLoggedInVisitors') }}
     </Radio>
-    <Alert class="margin-bottom-2">
-      <template #title>{{ $t('visibilityForm.warningTitle') }}</template>
-      <i18n-t scope="global" keypath="visibilityForm.warningMessage" tag="p">
-        <template #link>
-          <a
-            href="https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api"
-            target="_blank"
-            >{{ $t('visibilityForm.documentationLink') }}</a
-          >
-        </template>
-      </i18n-t>
-    </Alert>
-
     <FormGroup
       small-label
       :label="$t('visibilityForm.visibilityCondition')"

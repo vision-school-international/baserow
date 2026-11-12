@@ -1,7 +1,7 @@
 <template>
   <div class="logo">
-    <!-- Served from the brand folder when it holds a logo.svg, else core's. -->
-    <img src="/img/logo.svg" :alt="$config.public.brandName" v-bind="$attrs" />
+    <!-- Served from the brand plugin's public/img folder. -->
+    <img src="/img/logo.png" :alt="$config.public.brandName" v-bind="$attrs" />
   </div>
 </template>
 

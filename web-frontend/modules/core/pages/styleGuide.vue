@@ -1576,7 +1576,7 @@
                 <div class="card__field-name">URL</div>
                 <div class="card__field-value">
                   <div class="card-text">
-                    <a href="#">http://baserow.io</a>
+                    <a href="#">https://example.com</a>
                   </div>
                 </div>
               </div>

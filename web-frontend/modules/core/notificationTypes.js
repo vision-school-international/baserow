@@ -6,7 +6,9 @@ import WorkspaceInvitationRejectedNotification from '@baserow/modules/core/compo
 import BaserowVersionUpgradeNotification from '@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification'
 import AbuseReportCreatedNotification from '@baserow/modules/core/components/notifications/AbuseReportCreatedNotification'
 import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
-import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
+
+// A public path, so the brand plugin's favicon replaces core's.
+const BaserowIcon = '/img/favicon_192.png'
 
 export class NotificationType extends Registerable {
   getIconComponent() {

@@ -170,7 +170,3 @@ $dashboard-resources-row-min-width: 1044px;
   margin: 0;
   font-size: 12px;
 }
-
-.dashboard__help {
-  @include absolute(auto, 32px, 0, auto);
-}

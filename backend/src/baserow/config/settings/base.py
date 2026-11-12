@@ -667,15 +667,8 @@ BRAND_NAME = os.getenv("BRAND_NAME", "Baserow")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": f"{BRAND_NAME} API spec",
-    "DESCRIPTION": "For more information about our REST API, please visit "
-    "[this page](https://baserow.io/docs/apis%2Frest-api).\n\n"
-    "For more information about our deprecation policy, please visit "
-    "[this page](https://baserow.io/docs/apis%2Fdeprecations).",
-    "CONTACT": {"url": "https://baserow.io/contact"},
-    "LICENSE": {
-        "name": "MIT",
-        "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
-    },
+    "DESCRIPTION": "",
+    "LICENSE": {"name": "MIT"},
     "VERSION": "2.4.2",
     "SERVE_INCLUDE_SCHEMA": False,
     # ReDoc 3 is incompatible with drf-spectacular's classic script template.

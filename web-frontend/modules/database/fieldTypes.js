@@ -3517,7 +3517,7 @@ export class URLFieldType extends FieldType {
   }
 
   getDocsRequestExample(field) {
-    return 'https://baserow.io'
+    return 'https://example.com'
   }
 
   getContainsFilterFunction() {
@@ -3816,15 +3816,15 @@ export class FileFieldType extends FieldType {
   getDocsResponseExample() {
     return [
       {
-        url: 'https://files.baserow.io/user_files/VXotniBOVm8tbstZkKsMKbj2Qg7KmPvn_39d354a76abe56baaf569ad87d0333f58ee4bf3eed368e3b9dc736fd18b09dfd.png',
+        url: 'https://example.com/user_files/VXotniBOVm8tbstZkKsMKbj2Qg7KmPvn_39d354a76abe56baaf569ad87d0333f58ee4bf3eed368e3b9dc736fd18b09dfd.png',
         thumbnails: {
           tiny: {
-            url: 'https://files.baserow.io/media/thumbnails/tiny/VXotniBOVm8tbstZkKsMKbj2Qg7KmPvn_39d354a76abe56baaf569ad87d0333f58ee4bf3eed368e3b9dc736fd18b09dfd.png',
+            url: 'https://example.com/media/thumbnails/tiny/VXotniBOVm8tbstZkKsMKbj2Qg7KmPvn_39d354a76abe56baaf569ad87d0333f58ee4bf3eed368e3b9dc736fd18b09dfd.png',
             width: 21,
             height: 21,
           },
           small: {
-            url: 'https://files.baserow.io/media/thumbnails/small/VXotniBOVm8tbstZkKsMKbj2Qg7KmPvn_39d354a76abe56baaf569ad87d0333f58ee4bf3eed368e3b9dc736fd18b09dfd.png',
+            url: 'https://example.com/media/thumbnails/small/VXotniBOVm8tbstZkKsMKbj2Qg7KmPvn_39d354a76abe56baaf569ad87d0333f58ee4bf3eed368e3b9dc736fd18b09dfd.png',
             width: 48,
             height: 48,
           },
@@ -5593,7 +5593,7 @@ export class FormViewEditRowFieldType extends FieldType {
   }
 
   getDocsRequestExample() {
-    return 'https://baserow.io/form/slug/?edit_token=...'
+    return 'https://example.com/form/slug/?edit_token=...'
   }
 
   toHumanReadableString(field, value) {

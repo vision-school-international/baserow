@@ -2,12 +2,6 @@
   <div>
     <h2>
       {{ $t('emailTester.title') }}
-
-      <a
-        href="https://baserow.io/docs/installation%2Fconfiguration#email-configuration"
-        target="_blank"
-        ><i class="iconoir-chat-bubble-question"
-      /></a>
     </h2>
     <Error :error="error" />
     <div v-if="testResult.succeeded != null">

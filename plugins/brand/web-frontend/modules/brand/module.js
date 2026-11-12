@@ -9,7 +9,7 @@ export default defineNuxtModule({
     nuxt.options.runtimeConfig.public.brandName ||=
       process.env.BRAND_NAME || 'Baserow'
     nuxt.options.runtimeConfig.public.brandUrl ||=
-      process.env.BRAND_URL || 'https://baserow.io'
+      process.env.BRAND_URL || ''
 
     // Core serves /img/* from its static folder (core/module.js). Nitro keeps the
     // first file it sees for a path, so putting this folder first lets a dropped-in

@@ -1,18 +1,13 @@
 <template>
-  <Button
-    tag="a"
-    :href="signInUrl"
-    target="_self"
-    type="primary"
-    full-width
-    size="large"
-  >
-    Sign in with {{ provider.name }}
-  </Button>
+  <a class="telegram-sign-in" :href="signInUrl">
+    <img class="telegram-sign-in__icon" :src="telegramIcon" alt="" />
+    Sign in with Telegram
+  </a>
 </template>
 
 <script>
 import { isRelativeUrl } from '@baserow/modules/core/utils/url'
+import telegramIcon from '../assets/telegram.svg?url'
 
 // shortcut: English-only copy, the plugin registers no locale files; add them if the
 // instance ever needs another language.
@@ -31,6 +26,9 @@ export default {
       required: false,
       default: null,
     },
+  },
+  data() {
+    return { telegramIcon }
   },
   computed: {
     provider() {

@@ -260,8 +260,7 @@ class MaxLocksPerTransactionExceededException(Exception):
     """
 
     message = (
-        "Baserow has exceeded the maximum number of PostgreSQL locks per transaction. "
-        "Please read https://baserow.io/docs/technical/postgresql-locks"
+        "Baserow has exceeded the maximum number of PostgreSQL locks per transaction."
     )
 
 
@@ -285,8 +284,7 @@ class DuplicateApplicationMaxLocksExceededException(
 
     message = (
         "Baserow attempted to duplicate an application, but exceeded the maximum "
-        "number of PostgreSQL locks per transaction. Please read "
-        "https://baserow.io/docs/technical/postgresql-locks"
+        "number of PostgreSQL locks per transaction."
     )
 
 
@@ -299,8 +297,7 @@ class InstallTemplateMaxLocksExceededException(MaxLocksPerTransactionExceededExc
 
     message = (
         "Baserow attempted to install a template, but exceeded the maximum "
-        "number of PostgreSQL locks per transaction. Please read "
-        "https://baserow.io/docs/technical/postgresql-locks"
+        "number of PostgreSQL locks per transaction."
     )
 
 

@@ -2,8 +2,10 @@ import { addPlugin, createResolver, defineNuxtModule, extendPages } from 'nuxt/k
 
 export default defineNuxtModule({
   meta: { name: 'intercp-auth' },
-  setup() {
+  setup(moduleOptions, nuxt) {
     const { resolve } = createResolver(import.meta.url)
+
+    nuxt.options.css.push(resolve('./assets/scss/telegram-sign-in.scss'))
 
     extendPages((pages) => {
       // Child of core's `login-pages` route, so it gets the login layout.
