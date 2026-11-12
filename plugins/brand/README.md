@@ -7,6 +7,6 @@ The product brand lives in one place. To swap it:
    `Baserow`. The logo never links anywhere.
 2. Replace the files in `web-frontend/modules/brand/public/img/`: `logo.png` (app and
    email logo), `favicon_16.png`, `favicon_32.png`, `favicon_48.png`,
-   `favicon_192.png`.
+   `favicon_192.png`; and `web-frontend/modules/brand/public/favicon.ico`.
 
 Rebuild the image after changing files; env changes only need a restart.
