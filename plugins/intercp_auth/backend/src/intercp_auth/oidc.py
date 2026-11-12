@@ -87,7 +87,14 @@ def _discover(issuer: str, client_id: str, client_secret: str) -> Provider:
             authorization_endpoint=document["authorization_endpoint"],
             token_endpoint=document["token_endpoint"],
             userinfo_endpoint=document["userinfo_endpoint"],
-            jwks=jwt.PyJWKClient(document["jwks_uri"], timeout=HTTP_TIMEOUT_SECONDS),
+            # PyJWKClient fetches with urllib's "Python-urllib" user agent, which
+            # Cloudflare in front of Authentik rejects with 403 (error 1010); the
+            # requests user agent used for every other call here is accepted.
+            jwks=jwt.PyJWKClient(
+                document["jwks_uri"],
+                timeout=HTTP_TIMEOUT_SECONDS,
+                headers={"User-Agent": requests.utils.default_user_agent()},
+            ),
         )
     except KeyError as e:
         raise OIDCError(f"Discovery document is missing {e}.") from e
