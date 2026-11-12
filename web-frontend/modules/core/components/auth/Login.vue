@@ -163,7 +163,8 @@ export default {
         const { workspaceInvitationToken } = this.$route.query
         const url = addQueryParamsToRedirectUrl(this.defaultRedirectUrl, {
           original: this.computedOriginal,
-          workspaceInvitationToken,
+          // addQueryParamsToRedirectUrl reads `invitationToken`.
+          invitationToken: workspaceInvitationToken,
         })
         window.location = url
       }
