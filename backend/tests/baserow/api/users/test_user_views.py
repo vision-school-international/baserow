@@ -877,8 +877,9 @@ def test_send_reset_password_email_password_auth_disabled_staff(
         format="json",
     )
 
-    assert response.status_code == HTTP_204_NO_CONTENT
-    assert len(mailoutbox) == 1
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_AUTH_PROVIDER_DISABLED"
+    assert len(mailoutbox) == 0
 
 
 @pytest.mark.django_db
@@ -1185,9 +1186,10 @@ def test_change_password_auth_disabled_staff(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_204_NO_CONTENT
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_AUTH_PROVIDER_DISABLED"
     user.refresh_from_db()
-    assert user.check_password(valid_new_password)
+    assert user.check_password(valid_old_password)
 
 
 @pytest.mark.django_db

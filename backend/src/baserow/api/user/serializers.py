@@ -357,14 +357,13 @@ def check_user_can_log_in_with_password(user):
     Raises if the user isn't allowed to sign in with the password provider.
 
     :param user: The user that wants to sign in.
-    :raises AuthProviderDisabled: When the password provider is disabled and the
-        user isn't staff.
+    :raises AuthProviderDisabled: When the password provider is disabled.
     :raises DeactivatedUserException: When the user is deactivated.
     :return: The password provider.
     """
 
     password_provider = PasswordProviderHandler.get()
-    if not password_provider.enabled and user.is_staff is False:
+    if not password_provider.enabled:
         raise AuthProviderDisabled()
     if not user.is_active:
         raise DeactivatedUserException()

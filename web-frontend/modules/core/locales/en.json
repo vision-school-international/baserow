@@ -995,7 +995,6 @@
     "forgotPassword": "Forgot?",
     "signUpText": "New to Baserow?",
     "signUp": "Sign up",
-    "displayPasswordLogin": "Log in using email and password",
     "redirecting": "Redirecting to authentication provider..."
   },
   "resetPassword": {

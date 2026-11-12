@@ -306,7 +306,7 @@ def test_token_auth_2fa_required(api_client, data_fixture):
 @pytest.mark.django_db
 def test_token_password_auth_disabled_superadmin(api_client, data_fixture):
     data_fixture.create_password_provider(enabled=False)
-    user, token = data_fixture.create_user_and_token(
+    data_fixture.create_user_and_token(
         email="test@localhost", password="test", is_staff=True
     )
 
@@ -316,13 +316,8 @@ def test_token_password_auth_disabled_superadmin(api_client, data_fixture):
         format="json",
     )
 
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert "access_token" in response_json
-    assert "refresh_token" in response_json
-    assert "user" in response_json
-    assert response_json["user"]["id"] == user.id
-    assert response_json["user"]["is_staff"] is True
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_AUTH_PROVIDER_DISABLED"
 
 
 @pytest.mark.django_db

@@ -58,13 +58,7 @@
           @email-not-verified="emailNotVerified"
         />
 
-        <LoginActions :invitation="invitation" :original="original">
-          <li v-if="passwordLoginHidden" class="auth__action-link">
-            <a @click="passwordLoginHiddenIfDisabled = false">
-              {{ $t('login.displayPasswordLogin') }}
-            </a>
-          </li>
-        </LoginActions>
+        <LoginActions :invitation="invitation" :original="original" />
       </div>
     </template>
   </div>
@@ -134,7 +128,6 @@ export default {
   },
   data() {
     return {
-      passwordLoginHiddenIfDisabled: true,
       displayEmailNotVerified: false,
       emailToVerify: null,
       twoFactorComponent: null,
@@ -158,7 +151,7 @@ export default {
       return original
     },
     passwordLoginHidden() {
-      return this.passwordLoginHiddenIfDisabled && !this.passwordLoginEnabled
+      return !this.passwordLoginEnabled
     },
     defaultRedirectUrl() {
       return this.$store.getters['authProvider/getDefaultRedirectUrl']

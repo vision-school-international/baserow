@@ -436,7 +436,7 @@ class SendResetPasswordEmailView(APIView):
 
         try:
             user = handler.get_active_user(email=data["email"])
-            if not PasswordProviderHandler.get().enabled and user.is_staff is False:
+            if not PasswordProviderHandler.get().enabled:
                 raise AuthProviderDisabled()
 
             set_user_session_data_from_request(user, request)
@@ -528,7 +528,7 @@ class ChangePasswordView(APIView):
     def post(self, request, data):
         """Changes the authenticated user's password if the old password is correct."""
 
-        if not PasswordProviderHandler.get().enabled and request.user.is_staff is False:
+        if not PasswordProviderHandler.get().enabled:
             raise AuthProviderDisabled()
         action_type_registry.get(ChangeUserPasswordActionType.type).do(
             request.user, data["old_password"], data["new_password"]
