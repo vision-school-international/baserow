@@ -3,7 +3,8 @@ import { InterCPAuthProviderType } from './authProviderTypes'
 
 export default defineNuxtPlugin({
   name: 'intercp-auth',
-  dependsOn: ['registry'],
+  // core/plugin.js:169 registers the 'authProvider' namespace.
+  dependsOn: ['core'],
   setup(nuxtApp) {
     nuxtApp.$registry.register(
       'authProvider',
