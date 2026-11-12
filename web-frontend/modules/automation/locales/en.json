@@ -26,10 +26,6 @@
     "title": "Control workflow state",
     "content": "From here, you can pause or resume your workflow at any time. You're always in control of whether it's active or disabled."
   },
-  "automationDocsGuidedTourStep": {
-    "title": "Explore the documentation",
-    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in Baserow."
-  },
   "sidebarComponentAutomation": {
     "createAutomationWorkflow": "New workflow"
   },

@@ -1003,6 +1003,8 @@
     "member": "{prefix} member"
   },
   "visibilityForm": {
+    "warningTitle": "This is a security feature",
+    "warningMessage": "Hiding an element only hides it on the page. Data loaded for a hidden element can still be read through the API, so don't rely on visibility alone to protect data.",
     "allVisitors": "All visitors",
     "loggedInVisitors": "Logged-in visitors",
     "notLoggedInVisitors": "Logged-out visitors",

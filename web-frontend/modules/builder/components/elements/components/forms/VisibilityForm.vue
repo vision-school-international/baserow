@@ -66,6 +66,11 @@
     <Radio v-model="selectedVisibility" :value="visibilityNotLogged">
       {{ $t('visibilityForm.notLoggedInVisitors') }}
     </Radio>
+
+    <Alert class="margin-bottom-2">
+      <template #title>{{ $t('visibilityForm.warningTitle') }}</template>
+      <p>{{ $t('visibilityForm.warningMessage') }}</p>
+    </Alert>
     <FormGroup
       small-label
       :label="$t('visibilityForm.visibilityCondition')"

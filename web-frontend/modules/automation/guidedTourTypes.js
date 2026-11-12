@@ -131,24 +131,6 @@ class StateGuidedTourStep extends GuidedTourStep {
   }
 }
 
-class DocsGuidedTourStep extends GuidedTourStep {
-  get title() {
-    return this.app.$i18n.t('automationDocsGuidedTourStep.title')
-  }
-
-  get content() {
-    return this.app.$i18n.t('automationDocsGuidedTourStep.content')
-  }
-
-  get selectors() {
-    return ['[data-highlight="automation-docs"]']
-  }
-
-  get position() {
-    return 'bottom-left'
-  }
-}
-
 export class AutomationGuidedTourType extends GuidedTourType {
   static getType() {
     return 'automation'
@@ -162,7 +144,6 @@ export class AutomationGuidedTourType extends GuidedTourType {
       new TestRunGuidedTourStep(this.app),
       new PublishGuidedTourStep(this.app),
       new StateGuidedTourStep(this.app),
-      new DocsGuidedTourStep(this.app),
     ]
   }
 
