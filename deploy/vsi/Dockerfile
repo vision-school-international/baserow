@@ -10,7 +10,7 @@ ENV BASEROW_OSS_ONLY=true
 # Read by the backend and remapped for the frontend (web-frontend/env-remap.mjs).
 ENV BRAND_NAME="Vision School"
 # Backend reads it directly; the frontend through env-remap.mjs.
-ENV FEATURE_FLAGS="agent-builder"
+ENV FEATURE_FLAGS="agent-builder,agents,rbac_improvements,user_templates,semantic_search"
 
 # No Baserow templates. The builder's theme files (ab_*_theme.json) stay: the builder
 # loads themes from them (contrib/builder/tools/themes.py). A pattern that matches
