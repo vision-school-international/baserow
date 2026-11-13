@@ -21,16 +21,16 @@ const AIPromptFieldTypeMixin = (Base, baseType) =>
     }
 
     // Filters and the backend use the core type's (field_types.py).
-    getCompatibleFilterFieldType(field) {
+    getCompatibleFilterFieldType() {
       return this.app.$registry.get('field', baseType)
     }
 
-    getGridViewContextItemsOnCellsSelection(field) {
+    getGridViewContextItemsOnCellsSelection() {
       return [GenerateSelectedValuesContextItem]
     }
 
     // The model writes the cell, so it isn't asked for in forms.
-    getFormViewFieldComponents(field) {
+    getFormViewFieldComponents() {
       return {}
     }
 
