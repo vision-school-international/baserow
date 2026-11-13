@@ -126,9 +126,10 @@ FieldType = Literal[
     "file",
     "formula",
     "lookup",
-    # From the field_patterns plugin (PatternTextFieldType); without it, creating
-    # one fails as an unknown type.
+    # From the field_patterns plugin (PatternTextFieldType and
+    # InternationalPhoneFieldType); without it, creating one fails as an unknown type.
     "pattern_text",
+    "international_phone",
 ]
 
 PatternCase = Literal["none", "lower", "upper"]
@@ -221,6 +222,11 @@ _FIELD_EXAMPLES: dict[str, dict] = {
         "type": "pattern_text",
         "pattern": "@[A-Za-z0-9_]{5,32}",
         "pattern_error_message": "Enter a Telegram username like @name.",
+    },
+    "international_phone": {
+        "name": "Phone",
+        "type": "international_phone",
+        "phone_default_country": "US",
     },
 }
 
@@ -349,6 +355,10 @@ def _pattern_text_to_orm(f, table, user):
     }
 
 
+def _international_phone_to_orm(f, table, user):
+    return {"name": f.name, "phone_default_country": f.phone_default_country}
+
+
 def _formula_to_orm(f, table, user):
     formula = f.formula or ""
     check_formula(table, f.name, formula)
@@ -474,6 +484,7 @@ _TO_DJANGO_ORM = {
     "formula": _formula_to_orm,
     "lookup": _lookup_to_orm,
     "pattern_text": _pattern_text_to_orm,
+    "international_phone": _international_phone_to_orm,
 }
 
 
@@ -516,6 +527,9 @@ _FROM_DJANGO_ORM: dict[str, Any] = {
         "pattern_error_message": f.specific.pattern_error_message,
         "pattern_trim": f.specific.pattern_trim,
         "pattern_case": f.specific.pattern_case,
+    },
+    "international_phone": lambda f: {
+        "phone_default_country": f.specific.phone_default_country,
     },
 }
 
@@ -577,7 +591,8 @@ class FieldItemCreate(BaseModel):
     pattern: str | None = Field(
         None,
         description="(pattern_text) Regular expression the whole value must match, "
-        "e.g. an email, phone number or Telegram username. Empty values are allowed.",
+        "e.g. an email or Telegram username. Empty values are allowed. For phone "
+        "numbers use international_phone.",
     )
     pattern_error_message: str = Field(
         "", description="(pattern_text) Shown when a value doesn't match, or ''."
@@ -587,6 +602,13 @@ class FieldItemCreate(BaseModel):
     )
     pattern_case: PatternCase = Field(
         "none", description="(pattern_text) Change the value's case first."
+    )
+    # (international_phone)
+    phone_default_country: str = Field(
+        "",
+        description="(international_phone) Two-letter country code, like 'US', of "
+        "numbers typed without + and a country code. '' makes every number start "
+        "with +. Numbers of any country are stored in the international format.",
     )
 
     @model_validator(mode="before")
@@ -673,6 +695,7 @@ class FieldItem(BaseModel):
     pattern_error_message: str | None = None
     pattern_trim: bool | None = None
     pattern_case: str | None = None
+    phone_default_country: str | None = None
 
     @model_serializer(mode="wrap")
     def _exclude_none(self, handler):
@@ -924,6 +947,15 @@ def _update_pattern_text(f: "FieldItemUpdate", field: BaserowField) -> dict[str,
     return kwargs
 
 
+def _update_international_phone(
+    f: "FieldItemUpdate", field: BaserowField
+) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
+    if f.phone_default_country is not None:
+        kwargs["phone_default_country"] = f.phone_default_country
+    return kwargs
+
+
 _TO_UPDATE_ORM = {
     "text": _update_simple,
     "boolean": _update_simple,
@@ -938,6 +970,7 @@ _TO_UPDATE_ORM = {
     "formula": _update_formula,
     "lookup": _update_simple,
     "pattern_text": _update_pattern_text,
+    "international_phone": _update_international_phone,
 }
 
 
@@ -996,6 +1029,11 @@ class FieldItemUpdate(BaseModel):
     )
     pattern_case: PatternCase | None = Field(
         None, description="(pattern_text) Change the value's case first."
+    )
+    # (international_phone)
+    phone_default_country: str | None = Field(
+        None,
+        description="(international_phone) New default country code, or '' for none.",
     )
 
     @model_validator(mode="before")

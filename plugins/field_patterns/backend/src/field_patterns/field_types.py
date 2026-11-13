@@ -1,12 +1,19 @@
 from django.core.exceptions import ValidationError
+from django.urls import include, path
 
 from rest_framework import serializers
 
 from baserow.contrib.database.fields.field_types import TextFieldType
 from baserow.contrib.database.fields.registries import field_type_registry
 
-from .models import CASE_CHOICES, PATTERN_MAX_LENGTH, PatternTextField
+from .models import (
+    CASE_CHOICES,
+    PATTERN_MAX_LENGTH,
+    InternationalPhoneField,
+    PatternTextField,
+)
 from .patterns import check_pattern, clean_value
+from .phones import COUNTRIES, check_country, clean_phone
 
 
 def _check_required_pattern(pattern):
@@ -59,6 +66,13 @@ class PatternTextFieldType(TextFieldType):
         ),
     }
 
+    def get_api_urls(self):
+        from . import urls
+
+        # /api/database/fields/field-patterns/ (database/api/fields/urls.py), for both
+        # of the plugin's field types.
+        return [path("field-patterns/", include(urls, namespace="field_patterns"))]
+
     # The serializer checks the pattern only for API requests; these hooks also cover
     # the handler calls of the agent's field tools (database/tools/fields.py).
     def before_create(
@@ -84,6 +98,49 @@ class PatternTextFieldType(TextFieldType):
         # Every write path runs this. The row and form views send the error's
         # message as the detail (api/rows/views.py, api/views/form/views.py).
         return clean_value(instance, value)
+
+    def random_value(self, instance, fake, cache):
+        return ""
+
+
+class InternationalPhoneFieldType(TextFieldType):
+    """
+    A phone number of any country. Numbers typed without + and a country code are
+    read as numbers of the field's default country. Valid numbers are stored in the
+    international format, so the cells, filters and sorting are the core text ones.
+    Converting a field to this type keeps the existing values; only new values are
+    checked.
+    """
+
+    type = "international_phone"
+    model_class = InternationalPhoneField
+    # No default value: a column default would skip the check.
+    allowed_fields = ["phone_default_country"]
+    serializer_field_names = list(allowed_fields)
+    serializer_field_overrides = {
+        "phone_default_country": serializers.ChoiceField(
+            choices=["", *COUNTRIES],
+            required=False,
+            allow_blank=True,
+            help_text="The country of numbers typed without + and a country code, "
+            "like 'US'. If empty, every number must start with +.",
+        ),
+    }
+
+    # The serializer's choices only cover API requests (see PatternTextFieldType).
+    def before_create(
+        self, table, primary, allowed_field_values, order, user, field_kwargs
+    ):
+        check_country(allowed_field_values.get("phone_default_country", ""))
+
+    def before_update(self, from_field, to_field_values, user, field_kwargs):
+        check_country(to_field_values.get("phone_default_country", ""))
+
+    def get_compatible_filter_field_type(self, field):
+        return field_type_registry.get(TextFieldType.type)
+
+    def prepare_value_for_db(self, instance, value):
+        return clean_phone(instance, value)
 
     def random_value(self, instance, fake, cache):
         return ""

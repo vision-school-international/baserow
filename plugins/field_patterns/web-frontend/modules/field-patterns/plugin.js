@@ -1,5 +1,5 @@
 import { defineNuxtPlugin } from '#imports'
-import { PatternTextFieldType } from './fieldTypes'
+import { InternationalPhoneFieldType, PatternTextFieldType } from './fieldTypes'
 
 export default defineNuxtPlugin({
   name: 'field-patterns',
@@ -8,5 +8,9 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const { $registry } = nuxtApp
     $registry.register('field', new PatternTextFieldType({ app: nuxtApp }))
+    $registry.register(
+      'field',
+      new InternationalPhoneFieldType({ app: nuxtApp })
+    )
   },
 })

@@ -11,6 +11,10 @@
     "caseLower": "lower case",
     "caseUpper": "UPPER CASE",
     "trim": "Spaces",
-    "trimLabel": "Remove spaces around the value"
+    "trimLabel": "Remove spaces around the value",
+    "phoneFieldName": "Phone (any country)",
+    "defaultCountry": "Default country",
+    "defaultCountryHelp": "Numbers typed without + and a country code are read as numbers of this country. Numbers are checked and saved in the international format, like +44 20 7946 0958.",
+    "noDefaultCountry": "None: numbers start with +"
   }
 }

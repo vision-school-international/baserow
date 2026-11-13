@@ -35,3 +35,18 @@ class PatternTextField(TextField):
         default=CASE_NONE,
         help_text="Change the value to lower or upper case before checking it.",
     )
+
+
+class InternationalPhoneField(TextField):
+    """
+    A phone number of any country, stored in the international format, like
+    "+44 20 7946 0958". Empty values are allowed.
+    """
+
+    phone_default_country = models.CharField(
+        max_length=2,
+        blank=True,
+        default="",
+        help_text="The country of numbers typed without + and a country code, like "
+        "'US'. If empty, every number must start with +.",
+    )
