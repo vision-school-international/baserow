@@ -9,7 +9,11 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.views.models import View
 from baserow.core.formula.field import FormulaField as PromptFormulaField
-from baserow.core.jobs.mixins import JobWithUserIpAddress
+from baserow.core.jobs.mixins import (
+    JobWithUndoRedoIds,
+    JobWithUserIpAddress,
+    JobWithWebsocketId,
+)
 from baserow.core.jobs.models import Job
 
 
@@ -89,4 +93,34 @@ class GenerateAIPromptValuesJob(JobWithUserIpAddress, Job):
     )
     only_empty = models.BooleanField(
         default=False, help_text="Only generate cells that are empty."
+    )
+
+
+class TransformAICellsJob(
+    JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
+):
+    """
+    Rewrites the selected cells of a text field in place with an instruction. The
+    undo/redo ids let the rows update it makes be undone in the user's session,
+    like DuplicateApplicationJob (core/models.py).
+    """
+
+    field = models.ForeignKey(
+        Field,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The text field whose cells are rewritten.",
+    )
+    row_ids = ArrayField(
+        models.IntegerField(), help_text="The rows whose cell is rewritten."
+    )
+    instruction = models.TextField(help_text="What the model does with every cell.")
+    ai_generative_ai_type = models.CharField(max_length=32)
+    ai_generative_ai_model = models.CharField(max_length=128)
+    ai_temperature = models.FloatField(null=True)
+    failed_row_ids = ArrayField(
+        models.IntegerField(),
+        default=list,
+        help_text="The rows left unchanged: the model failed on them, or their cell "
+        "was edited while the model ran.",
     )

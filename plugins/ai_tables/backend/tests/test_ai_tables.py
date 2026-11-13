@@ -1,14 +1,18 @@
 from unittest.mock import patch
 
+from django.db import connections
+
 import pytest
 from ai_tables.handler import AIPromptHandler
 from ai_tables.models import AIPromptScheduledUpdate
 
 from baserow.contrib.database.fields.exceptions import (
+    IncompatibleField,
     IncompatiblePrimaryFieldTypeError,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.models import RowHistory
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.jobs.handler import JobHandler
 
@@ -148,3 +152,79 @@ def test_changing_a_prompt_field_schedules_the_row(data_fixture):
     assert list(scheduled) == [(field.id, row.id)]
     field.refresh_from_db()
     assert field.ai_auto_update_user_id == user.id
+
+
+def _transform(user, field, row_ids):
+    return JobHandler().create_and_start_job(
+        user,
+        "transform_ai_cells",
+        field_id=field.id,
+        row_ids=row_ids,
+        instruction="Capitalize",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        sync=True,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_transform_rewrites_cells_in_place_with_row_history(data_fixture):
+    user, table, name = _setup(data_fixture)
+    ada = RowHandler().create_row(user, table, {f"field_{name.id}": "ada"})
+    empty = RowHandler().create_row(user, table, {})
+
+    job = _transform(user, name, [ada.id, empty.id])
+
+    job.refresh_from_db()
+    assert job.state == "finished"
+    assert job.failed_row_ids == []
+    # The fixture model echoes the prompt, which ends with the cell's text.
+    assert _cell(table, name, ada.id).endswith("Text:\nada")
+    assert _cell(table, name, empty.id) in (None, "")
+    entry = RowHistory.objects.get(row_id=ada.id)
+    assert entry.action_type == "update_rows"
+    assert entry.before_values == {f"field_{name.id}": "ada"}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_transform_never_blanks_or_overwrites_an_edited_cell(data_fixture):
+    user, table, name = _setup(data_fixture)
+    blank = RowHandler().create_row(user, table, {f"field_{name.id}": "ann"})
+    edited = RowHandler().create_row(user, table, {f"field_{name.id}": "bob"})
+
+    def answer(model_type, model, temperature, workspace, prompt, files, output):
+        # Runs in a worker thread, like the real _prompt_model.
+        try:
+            if prompt.endswith("ann"):
+                return "  "
+            # The user edits the cell while the model runs.
+            RowHandler().update_rows(
+                user, table, [{"id": edited.id, f"field_{name.id}": "Bobby"}]
+            )
+            return "BOB"
+        finally:
+            connections.close_all()
+
+    with patch.object(AIPromptHandler, "_prompt_model", side_effect=answer):
+        job = _transform(user, name, [blank.id, edited.id])
+
+    job.refresh_from_db()
+    assert sorted(job.failed_row_ids) == sorted([blank.id, edited.id])
+    assert _cell(table, name, blank.id) == "ann"
+    assert _cell(table, name, edited.id) == "Bobby"
+    assert not RowHistory.objects.filter(row_id=blank.id).exists()
+
+
+@pytest.mark.django_db
+def test_transform_refuses_fields_that_are_not_writable_text(data_fixture):
+    user, table, name = _setup(data_fixture)
+    number = data_fixture.create_number_field(table=table)
+    row = RowHandler().create_row(user, table, {})
+
+    with pytest.raises(IncompatibleField):
+        _transform(user, number, [row.id])
+
+    name.read_only = True
+    name.save()
+    with pytest.raises(IncompatibleField):
+        _transform(user, name, [row.id])

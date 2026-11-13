@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional
 
 from django.conf import settings
-from django.db import connections
+from django.db import connections, transaction
 
 from loguru import logger
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.operations import UpdateDatabaseRowOperationType
@@ -16,6 +17,7 @@ from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
 from baserow.contrib.database.rows.signals import rows_ai_values_generation_error
+from baserow.core.action.registries import action_type_registry
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
@@ -55,6 +57,15 @@ class AIFile:
 
 class RowGenerationError(Exception):
     """A row whose value can't be generated; the run continues with the others."""
+
+
+# The answer replaces the cell, so the model must return the new text only.
+TRANSFORM_PROMPT = (
+    "{instruction}\n\n"
+    "Apply the instruction above to the text below. Reply with only the "
+    "resulting text, without quotes or explanation.\n\n"
+    "Text:\n{text}"
+)
 
 
 class AIPromptHandler:
@@ -102,7 +113,9 @@ class AIPromptHandler:
             for file in getattr(row, field_object["name"]) or []
         ]
 
-    def _prompt_model(self, model_type, field, workspace, prompt, files, output):
+    def _prompt_model(
+        self, model_type, model, temperature, workspace, prompt, files, output
+    ):
         """
         Runs in a worker thread. It touches the database only through the provider
         settings lookup, so it closes this thread's connections when done.
@@ -114,10 +127,10 @@ class AIPromptHandler:
                 prepared = model_type.prepare_files(files, workspace=workspace)
             try:
                 return model_type.prompt(
-                    field.ai_generative_ai_model,
+                    model,
                     prompt,
                     workspace=workspace,
-                    temperature=field.ai_temperature,
+                    temperature=temperature,
                     output_type=output,
                     content=[f.content for f in prepared] or None,
                 )
@@ -194,7 +207,8 @@ class AIPromptHandler:
                     future = executor.submit(
                         self._prompt_model,
                         model_type,
-                        field,
+                        field.ai_generative_ai_model,
+                        field.ai_temperature,
                         workspace,
                         prompt,
                         files,
@@ -233,6 +247,80 @@ class AIPromptHandler:
                 if progress is not None:
                     progress.increment(by=len(chunk))
         return errors
+
+    def transform_cells(
+        self, job, field, progress: Optional[Progress] = None
+    ) -> List[int]:
+        """
+        Rewrites the job's cells of a text field with its instruction. The answers
+        are saved in one UpdateRowsActionType action, so the change can be undone
+        and is in the row history. Empty cells are skipped.
+
+        :return: The ids of the rows left unchanged: deleted, failed, or edited
+            while the model ran.
+        """
+
+        table = field.table
+        model = table.get_model()
+        model_type = generative_ai_model_type_registry.get(job.ai_generative_ai_type)
+        original = dict(
+            model.objects.filter(id__in=job.row_ids).values_list("id", field.db_column)
+        )
+        failed = set(job.row_ids) - set(original)
+        answers: dict[int, str] = {}
+        to_send = {row_id: value for row_id, value in original.items() if value}
+        if progress is not None:
+            # Deleted and empty rows are done already.
+            progress.increment(by=len(job.row_ids) - len(to_send))
+        workers = max(1, settings.AI_TABLES_MAX_CONCURRENT_GENERATIONS)
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(
+                    self._prompt_model,
+                    model_type,
+                    job.ai_generative_ai_model,
+                    job.ai_temperature,
+                    table.database.workspace,
+                    TRANSFORM_PROMPT.format(instruction=job.instruction, text=value),
+                    [],
+                    None,
+                ): row_id
+                for row_id, value in to_send.items()
+            }
+            for future in as_completed(futures):
+                row_id = futures[future]
+                try:
+                    answer = future.result()
+                    text = "" if answer is None else str(answer).strip()
+                    if not text:
+                        # Saving it would wipe the cell.
+                        raise RowGenerationError("The model returned no text.")
+                    answers[row_id] = text[: settings.MAX_FIELD_TEXT_LENGTH]
+                except Exception as exc:
+                    self._message(exc)  # Logs unexpected errors.
+                    failed.add(row_id)
+                if progress is not None:
+                    progress.increment()
+
+        with transaction.atomic():
+            # Locked, so a cell edited while the model ran is left as it was edited.
+            current = dict(
+                RowHandler()
+                .get_rows_for_update(model, list(answers))
+                .values_list("id", field.db_column)
+            )
+            rows_values = []
+            for row_id, text in answers.items():
+                if row_id not in current or current[row_id] != original[row_id]:
+                    failed.add(row_id)
+                elif text != original[row_id]:
+                    rows_values.append({"id": row_id, f"field_{field.id}": text})
+            if rows_values:
+                action_type_registry.get_by_type(UpdateRowsActionType).do(
+                    job.user, table, rows_values, model=model
+                )
+        return sorted(failed)
 
     def _message(self, exc: Exception) -> str:
         if isinstance(exc, (RowGenerationError, GenerativeAIPromptError)):

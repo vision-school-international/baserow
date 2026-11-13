@@ -13,9 +13,10 @@ class AITablesConfig(AppConfig):
 
         from .ai_provider_feature_types import AIPromptFieldsFeatureType
         from .field_types import AI_PROMPT_FIELD_TYPES
-        from .job_types import GenerateAIPromptValuesJobType
+        from .job_types import GenerateAIPromptValuesJobType, TransformAICellsJobType
 
         for field_type in AI_PROMPT_FIELD_TYPES:
             field_type_registry.register(field_type())
         job_type_registry.register(GenerateAIPromptValuesJobType())
+        job_type_registry.register(TransformAICellsJobType())
         ai_provider_model_feature_type_registry.register(AIPromptFieldsFeatureType())

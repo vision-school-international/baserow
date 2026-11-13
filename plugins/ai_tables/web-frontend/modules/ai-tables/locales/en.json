@@ -26,6 +26,16 @@
     "onlyEmpty": "Only empty cells",
     "generate": "Generate",
     "generateFailed": "Generating values failed",
-    "close": "Close"
+    "close": "Close",
+    "transformCells": "Transform with AI",
+    "transformTitle": "Transform {name} with AI",
+    "transformDescription": "The AI rewrites the {count} selected cells. Empty cells are skipped. You can undo it, and the old values stay in each row's history.",
+    "instruction": "Instruction",
+    "instructionHelp": "Sent to the model with each cell's text. The answer replaces the cell.",
+    "instructionPlaceholder": "Normalize the name to Title Case",
+    "transform": "Transform",
+    "transformPartialTitle": "Some cells weren't changed",
+    "transformPartial": "{count} cells were left as they were: the model failed on them, or they were edited while it ran.",
+    "transformFailed": "Transforming cells failed"
   }
 }
