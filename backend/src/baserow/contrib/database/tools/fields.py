@@ -126,7 +126,12 @@ FieldType = Literal[
     "file",
     "formula",
     "lookup",
+    # From the field_patterns plugin (PatternTextFieldType); without it, creating
+    # one fails as an unknown type.
+    "pattern_text",
 ]
+
+PatternCase = Literal["none", "lower", "upper"]
 
 _TYPE_ALIASES: dict[str, str] = {
     "string": "text",
@@ -210,6 +215,12 @@ _FIELD_EXAMPLES: dict[str, dict] = {
         "type": "lookup",
         "linked_table": "Clients",
         "target_field": "Name",
+    },
+    "pattern_text": {
+        "name": "Telegram",
+        "type": "pattern_text",
+        "pattern": "@[A-Za-z0-9_]{5,32}",
+        "pattern_error_message": "Enter a Telegram username like @name.",
     },
 }
 
@@ -326,6 +337,16 @@ def check_formula(table: Table, field_name: str, formula: str) -> None:
         tmp.recalculate_internal_fields(raise_if_invalid=True)
     except BaserowFormulaException as e:
         raise InvalidFormulaFieldError(field_name, formula, table, str(e))
+
+
+def _pattern_text_to_orm(f, table, user):
+    return {
+        "name": f.name,
+        "pattern": f.pattern,
+        "pattern_error_message": f.pattern_error_message,
+        "pattern_trim": f.pattern_trim,
+        "pattern_case": f.pattern_case,
+    }
 
 
 def _formula_to_orm(f, table, user):
@@ -452,6 +473,7 @@ _TO_DJANGO_ORM = {
     "multiple_select": _select_to_orm,
     "formula": _formula_to_orm,
     "lookup": _lookup_to_orm,
+    "pattern_text": _pattern_text_to_orm,
 }
 
 
@@ -488,6 +510,12 @@ _FROM_DJANGO_ORM: dict[str, Any] = {
         "target_field": f.specific.target_field_id,
         "through_field_name": f.specific.through_field_name,
         "target_field_name": f.specific.target_field_name,
+    },
+    "pattern_text": lambda f: {
+        "pattern": f.specific.pattern,
+        "pattern_error_message": f.specific.pattern_error_message,
+        "pattern_trim": f.specific.pattern_trim,
+        "pattern_case": f.specific.pattern_case,
     },
 }
 
@@ -545,6 +573,21 @@ class FieldItemCreate(BaseModel):
     target_field: int | str | None = Field(
         None, description="(lookup) ID or name of the field to look up."
     )
+    # (pattern_text)
+    pattern: str | None = Field(
+        None,
+        description="(pattern_text) Regular expression the whole value must match, "
+        "e.g. an email, phone number or Telegram username. Empty values are allowed.",
+    )
+    pattern_error_message: str = Field(
+        "", description="(pattern_text) Shown when a value doesn't match, or ''."
+    )
+    pattern_trim: bool = Field(
+        True, description="(pattern_text) Remove spaces around the value first."
+    )
+    pattern_case: PatternCase = Field(
+        "none", description="(pattern_text) Change the value's case first."
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -579,6 +622,7 @@ class FieldItemCreate(BaseModel):
         # The link comes from linked_table, through_field, or the table's only
         # link_row field.
         "lookup": [("target_field", "target_field")],
+        "pattern_text": [("pattern", "pattern")],
     }
 
     @model_validator(mode="after")
@@ -625,6 +669,10 @@ class FieldItem(BaseModel):
     target_field: int | None = None
     through_field_name: str | None = None
     target_field_name: str | None = None
+    pattern: str | None = None
+    pattern_error_message: str | None = None
+    pattern_trim: bool | None = None
+    pattern_case: str | None = None
 
     @model_serializer(mode="wrap")
     def _exclude_none(self, handler):
@@ -868,6 +916,14 @@ def _update_formula(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]
     return kwargs
 
 
+def _update_pattern_text(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
+    for key in ("pattern", "pattern_error_message", "pattern_trim", "pattern_case"):
+        if getattr(f, key) is not None:
+            kwargs[key] = getattr(f, key)
+    return kwargs
+
+
 _TO_UPDATE_ORM = {
     "text": _update_simple,
     "boolean": _update_simple,
@@ -881,6 +937,7 @@ _TO_UPDATE_ORM = {
     "multiple_select": _update_select,
     "formula": _update_formula,
     "lookup": _update_simple,
+    "pattern_text": _update_pattern_text,
 }
 
 
@@ -925,6 +982,21 @@ class FieldItemUpdate(BaseModel):
     )
     # (formula)
     formula: str | None = Field(None, description="(formula) The formula expression.")
+    # (pattern_text)
+    pattern: str | None = Field(
+        None,
+        description="(pattern_text) New regular expression. Only new values are "
+        "checked against it.",
+    )
+    pattern_error_message: str | None = Field(
+        None, description="(pattern_text) Shown when a value doesn't match."
+    )
+    pattern_trim: bool | None = Field(
+        None, description="(pattern_text) Remove spaces around the value first."
+    )
+    pattern_case: PatternCase | None = Field(
+        None, description="(pattern_text) Change the value's case first."
+    )
 
     @model_validator(mode="before")
     @classmethod
