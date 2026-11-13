@@ -27,3 +27,20 @@ class GoogleSheetsDataSync(DataSync):
         on_delete=models.SET_NULL,
         help_text="The user on whose behalf the periodic sync runs.",
     )
+
+
+class GoogleSheetsPendingRow(models.Model):
+    """
+    A Baserow row created in a two-way synced table that isn't written to the sheet
+    yet. A pull keeps it, so it's not deleted as missing from the sheet. Its own
+    table, because core saves the whole DataSync (data_sync/handler.py:752) and
+    would overwrite a list kept on it.
+    """
+
+    data_sync = models.ForeignKey(
+        GoogleSheetsDataSync, on_delete=models.CASCADE, related_name="pending_rows"
+    )
+    row_id = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = [["data_sync", "row_id"]]

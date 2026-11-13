@@ -10,12 +10,16 @@ export class WorkspaceMembersAdminType extends AdminType {
     return 'iconoir-add-user'
   }
 
+  // Registerables only have `this.app` (core/registry.js:10-11), so translate
+  // through it like core's admin types (core/adminTypes.js:129-137).
   getName() {
-    return this.$t('intercpWorkspaceMembers.title')
+    const { $i18n: i18n } = this.app
+    return i18n.t('intercpWorkspaceMembers.title')
   }
 
   getCategory() {
-    return this.$t('sidebar.people')
+    const { $i18n: i18n } = this.app
+    return i18n.t('sidebar.people')
   }
 
   getRouteName() {

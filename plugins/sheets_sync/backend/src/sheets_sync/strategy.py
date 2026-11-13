@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.db import transaction
 
 from loguru import logger
 
@@ -8,7 +7,12 @@ from baserow.contrib.database.data_sync.registries import (
     TwoWaySyncStrategy,
     data_sync_type_registry,
 )
-from baserow.contrib.database.rows.handler import RowHandler
+
+from .sheets import RetryableSyncError
+
+# Google's quota resets every minute (sheets/api/limits), so the first retry waits
+# a minute and later ones double, up to 15 minutes.
+MAX_RETRY_COUNTDOWN_SECONDS = 15 * 60
 
 
 class GoogleSheetsPushStrategy(TwoWaySyncStrategy):
@@ -29,43 +33,37 @@ class GoogleSheetsPushStrategy(TwoWaySyncStrategy):
 
     def _push(self, task_context, data_sync, push):
         try:
-            return push(data_sync_type_registry.get_by_model(data_sync))
+            push(data_sync_type_registry.get_by_model(data_sync))
         except SyncError as error:
             retries = task_context.request.retries
-            if retries < settings.SHEETS_SYNC_MAX_RETRIES:
-                # Exponential backoff, as Google asks for on 429 (sheets/api/limits).
+            # A bad key, no access or a missing column won't fix itself.
+            if (
+                isinstance(error, RetryableSyncError)
+                and retries < settings.SHEETS_SYNC_MAX_RETRIES
+            ):
                 # `max_retries` overrides celery's default of 3 (Task.retry).
                 raise task_context.retry(
-                    countdown=2**retries, max_retries=settings.SHEETS_SYNC_MAX_RETRIES
+                    countdown=min(60 * 2**retries, MAX_RETRY_COUNTDOWN_SECONDS),
+                    max_retries=settings.SHEETS_SYNC_MAX_RETRIES,
                 )
             logger.warning(
                 "Google Sheets data sync {id}: a push failed: {error}",
                 id=data_sync.id,
                 error=error,
             )
+            # New rows stay pending: every pull tries them again and keeps them
+            # until then (data_sync_types.py).
             data_sync.last_error = (
                 f"A change could not be written to the sheet: {error}"
             )
             data_sync.save(update_fields=("last_error",))
-            return None
 
     def rows_created(self, task_context, serialized_rows, data_sync):
-        rows_to_update = self._push(
+        self._push(
             task_context,
             data_sync,
             lambda sync_type: sync_type.create_rows(serialized_rows, data_sync),
         )
-        if not rows_to_update:
-            return
-        # Writes the generated IDs back; skip_two_way_sync stops it echoing back
-        # to the sheet (data_sync/receivers.py).
-        with transaction.atomic():
-            RowHandler().force_update_rows(
-                user=None,
-                table=data_sync.table,
-                rows_values=rows_to_update,
-                signal_params={"skip_two_way_sync": True},
-            )
 
     def rows_updated(self, task_context, serialized_rows, data_sync, updated_field_ids):
         self._push(

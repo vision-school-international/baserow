@@ -16,3 +16,6 @@ class SheetsSyncConfig(AppConfig):
 
         data_sync_type_registry.register(GoogleSheetsDataSyncType())
         two_way_sync_strategy_type_registry.register(GoogleSheetsPushStrategy())
+
+        # Connects the receivers, as core does (contrib/database/apps.py:1385-1387).
+        import sheets_sync.receivers  # noqa: F401

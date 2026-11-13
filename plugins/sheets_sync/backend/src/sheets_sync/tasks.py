@@ -21,20 +21,44 @@ def sync_google_sheet(data_sync_id: int):
     )
     from baserow.core.jobs.exceptions import MaxJobCountExceeded
     from baserow.core.jobs.handler import JobHandler
+    from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
 
     from .models import GoogleSheetsDataSync
 
     data_sync = (
-        GoogleSheetsDataSync.objects.select_related("authorized_user")
+        GoogleSheetsDataSync.objects.select_related(
+            "authorized_user", "table__database"
+        )
         .filter(id=data_sync_id)
         .first()
     )
-    if data_sync is None or data_sync.authorized_user is None:
+    if data_sync is None:
         return
+    user = data_sync.authorized_user
+    if user is None or not user.is_active:
+        # Imported or duplicated syncs have no user (prepare_values only runs on
+        # create), and the creator can be gone: run as the first workspace admin.
+        admin = (
+            WorkspaceUser.objects.filter(
+                workspace_id=data_sync.table.database.workspace_id,
+                permissions=WORKSPACE_USER_PERMISSION_ADMIN,
+                user__is_active=True,
+            )
+            .select_related("user")
+            .order_by("id")
+            .first()
+        )
+        if admin is None:
+            logger.warning(
+                "Google Sheets data sync {id} skipped: no active user to run it as.",
+                id=data_sync_id,
+            )
+            return
+        user = admin.user
 
     try:
         JobHandler().create_and_start_job(
-            data_sync.authorized_user,
+            user,
             SyncDataSyncTableJobType.type,
             sync=True,
             data_sync_id=data_sync_id,
@@ -54,9 +78,9 @@ def sync_all_google_sheets():
     from .models import GoogleSheetsDataSync
 
     data_sync_ids = GoogleSheetsDataSync.objects.filter(
-        authorized_user__is_active=True,
         table__trashed=False,
         table__database__trashed=False,
+        table__database__workspace__trashed=False,
     ).values_list("id", flat=True)
     for data_sync_id in data_sync_ids:
         sync_google_sheet.delay(data_sync_id)

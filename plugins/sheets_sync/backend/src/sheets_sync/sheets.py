@@ -20,6 +20,14 @@ from baserow.contrib.database.data_sync.exceptions import SyncError
 API_URL = "https://sheets.googleapis.com/v4/spreadsheets"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 TIMEOUT_SECONDS = 60
+# Writes are stored as-is, never parsed (ValueInputOption RAW). With USER_ENTERED,
+# "007" would become 7, "+A1*2" a formula, and a leading quote would be dropped;
+# the next pull would then overwrite the Baserow value with what Sheets made of it.
+VALUE_INPUT_OPTION = "RAW"
+
+
+class RetryableSyncError(SyncError):
+    """Over quota (429), a Google server error (5xx) or no connection."""
 
 
 def parse_spreadsheet_id(value: str) -> str:
@@ -49,12 +57,7 @@ def a1_range(sheet_name: str, cells: str = "") -> str:
 
 
 def to_sheet_value(value) -> str:
-    if value is None:
-        return ""
-    value = str(value)
-    # Writes use USER_ENTERED so numbers and dates stay numbers and dates, which
-    # would also run a leading "=" as a formula. A leading quote keeps it text.
-    return "'" + value if value.startswith("=") else value
+    return "" if value is None else str(value)
 
 
 class SheetsClient:
@@ -77,14 +80,21 @@ class SheetsClient:
             response = self.session.request(
                 method, url, timeout=TIMEOUT_SECONDS, **kwargs
             )
-        except (RequestException, GoogleAuthError) as e:
-            raise SyncError(f"Google Sheets could not be reached: {e}")
+        except RequestException as e:
+            raise RetryableSyncError(f"Google Sheets could not be reached: {e}")
+        except GoogleAuthError as e:
+            raise SyncError(f"Google rejected the service account: {e}")
         if not response.ok:
             try:
                 message = response.json()["error"]["message"]
             except (ValueError, KeyError, TypeError):
                 message = response.text[:200]
-            raise SyncError(
+            error_class = (
+                RetryableSyncError
+                if response.status_code == 429 or response.status_code >= 500
+                else SyncError
+            )
+            raise error_class(
                 f"Google Sheets responded with {response.status_code}: {message}"
             )
         return response.json()
@@ -114,7 +124,7 @@ class SheetsClient:
             "POST",
             "/values:batchUpdate",
             json={
-                "valueInputOption": "USER_ENTERED",
+                "valueInputOption": VALUE_INPUT_OPTION,
                 "data": [
                     {
                         "range": a1_range(
@@ -132,7 +142,7 @@ class SheetsClient:
             "POST",
             f"/values/{quote(a1_range(self.sheet_name, 'A1'), safe='')}:append",
             params={
-                "valueInputOption": "USER_ENTERED",
+                "valueInputOption": VALUE_INPUT_OPTION,
                 "insertDataOption": "INSERT_ROWS",
             },
             json={"values": rows},

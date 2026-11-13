@@ -74,7 +74,9 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
@@ -88,53 +90,55 @@ definePageMeta({
   middleware: 'staff',
 })
 
-export default {
-  name: 'AdminWorkspaceMembers',
-  components: { PaginatedDropdown },
-  setup() {
-    const { $i18n } = useNuxtApp()
-    useHead({ title: $i18n.t('intercpWorkspaceMembers.title') })
-  },
-  data() {
-    return {
-      workspaceId: null,
-      userId: null,
-      permissions: 'MEMBER',
-      loading: false,
-    }
-  },
-  methods: {
-    fetchWorkspaces(page, search) {
-      return fetchWorkspaceOptions(this.$client, page, search)
-    },
-    fetchUsers(page, search) {
-      const service = UsersAdminService(this.$client)
-      return service.fetch(service.options.baseUrl, page, search, [], {})
-    },
-    userName(user) {
-      return `${user.name} (${user.username})`
-    },
-    async add() {
-      this.loading = true
-      try {
-        const { data } = await this.$client.post(
-          '/intercp/admin/workspace-members/',
-          {
-            workspace_id: this.workspaceId,
-            user_id: this.userId,
-            permissions: this.permissions,
-          }
-        )
-        const message = data.added
-          ? this.$t('intercpWorkspaceMembers.added')
-          : this.$t('intercpWorkspaceMembers.alreadyMember')
-        await this.$store.dispatch('toast/success', { title: message })
-      } catch (error) {
-        notifyIf(error)
-      } finally {
-        this.loading = false
-      }
-    },
-  },
+// Same composition pattern as core/pages/login.vue:22 and resetPassword.vue:106.
+const { $store: store, $client } = useNuxtApp()
+const i18n = useI18n()
+useHead({ title: i18n.t('intercpWorkspaceMembers.title') })
+
+const workspaceId = ref(null)
+const userId = ref(null)
+const permissions = ref('MEMBER')
+const loading = ref(false)
+
+function fetchWorkspaces(page, search) {
+  return fetchWorkspaceOptions($client, page, search)
+}
+
+async function fetchUsers(page, search) {
+  const service = UsersAdminService($client)
+  const response = await service.fetch(
+    service.options.baseUrl,
+    page,
+    search,
+    [],
+    {}
+  )
+  // The backend only accepts active users, and the admin users endpoint has no
+  // filter for it (api/admin/users/views.py). `count` stays, so paging goes on.
+  response.data.results = response.data.results.filter((user) => user.is_active)
+  return response
+}
+
+function userName(user) {
+  return `${user.name} (${user.username})`
+}
+
+async function add() {
+  loading.value = true
+  try {
+    const { data } = await $client.post('/intercp/admin/workspace-members/', {
+      workspace_id: workspaceId.value,
+      user_id: userId.value,
+      permissions: permissions.value,
+    })
+    const message = data.added
+      ? i18n.t('intercpWorkspaceMembers.added')
+      : i18n.t('intercpWorkspaceMembers.alreadyMember')
+    await store.dispatch('toast/success', { title: message })
+  } catch (error) {
+    notifyIf(error)
+  } finally {
+    loading.value = false
+  }
 }
 </script>

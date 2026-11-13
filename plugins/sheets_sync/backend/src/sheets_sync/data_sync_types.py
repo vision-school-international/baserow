@@ -1,6 +1,8 @@
 from typing import Any
 from uuid import uuid4
 
+from django.core.cache import cache
+
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import (
     DataSyncProperty,
@@ -9,9 +11,16 @@ from baserow.contrib.database.data_sync.registries import (
 from baserow.contrib.database.fields.models import TextField
 from baserow.core.utils import ChildProgressBuilder
 
-from .models import GoogleSheetsDataSync
-from .sheets import SheetsClient, to_sheet_value
+from .models import GoogleSheetsDataSync, GoogleSheetsPendingRow
+from .sheets import RetryableSyncError, SheetsClient, to_sheet_value
 from .strategy import GoogleSheetsPushStrategy
+
+# Longer than one push takes: two requests of at most 60 s each (sheets.py).
+PUSH_LOCK_SECONDS = 180
+
+
+class PushInProgress(RetryableSyncError):
+    """Another worker is writing this table's new rows to the sheet."""
 
 
 class GoogleSheetsColumnProperty(DataSyncProperty):
@@ -32,6 +41,14 @@ class GoogleSheetsIDProperty(GoogleSheetsColumnProperty):
 
 def _cell(row: list, index: int) -> str:
     return str(row[index]).strip() if index < len(row) else ""
+
+
+def id_field_name(data_sync) -> str:
+    return next(
+        f"field_{p.field_id}"
+        for p in data_sync.synced_properties.all()
+        if p.unique_primary
+    )
 
 
 class GoogleSheetsDataSyncType(DataSyncType):
@@ -57,7 +74,8 @@ class GoogleSheetsDataSyncType(DataSyncType):
     }
 
     def prepare_values(self, user, values):
-        # Only called on create; the periodic sync runs on behalf of this user.
+        # Only called on create. Imported or duplicated syncs have no user; the
+        # periodic sync then runs as a workspace admin (tasks.py).
         values["authorized_user"] = user
         return values
 
@@ -75,6 +93,42 @@ class GoogleSheetsDataSyncType(DataSyncType):
             )
         return client, headers, rows, headers.index(instance.google_id_column)
 
+    def _row_numbers(self, data_sync) -> tuple[SheetsClient, list[str], dict]:
+        """
+        Maps every ID to its row number, read right before a write by number.
+        shortcut: the Sheets API has no conditional write, so a row inserted,
+        deleted or sorted in the sheet between this read and the write that follows
+        it (one request later) moves the target. Upgrade to row developer metadata
+        if that shows up in practice (30k characters per sheet limits it).
+        """
+
+        client, headers, rows, id_index = self._read(data_sync)
+        numbers = {
+            _cell(row, id_index): number
+            for number, row in enumerate(rows, start=2)
+            if _cell(row, id_index)
+        }
+        return client, headers, numbers
+
+    def _pending_rows(self, data_sync) -> dict[int, dict]:
+        """The pending rows that still exist, as {row id: {property key: value}}."""
+
+        row_ids = list(
+            GoogleSheetsPendingRow.objects.filter(data_sync=data_sync).values_list(
+                "row_id", flat=True
+            )
+        )
+        if not row_ids:
+            return {}
+        properties = list(data_sync.synced_properties.all())
+        model = data_sync.table.get_model()
+        return {
+            row["id"]: {p.key: row[f"field_{p.field_id}"] for p in properties}
+            for row in model.objects.filter(id__in=row_ids).values(
+                "id", *[f"field_{p.field_id}" for p in properties]
+            )
+        }
+
     def get_properties(self, instance) -> list[DataSyncProperty]:
         _, headers, _, _ = self._read(instance)
         return [
@@ -87,8 +141,20 @@ class GoogleSheetsDataSyncType(DataSyncType):
             if header
         ]
 
+    def before_sync_table(self, user, instance):
+        # New Baserow rows go to the sheet before it's read, so the pull sees them.
+        if not instance.two_way_sync:
+            return
+        try:
+            self.push_pending_rows(instance)
+        except PushInProgress:
+            # The two-way task is pushing them; get_all_rows keeps them meanwhile.
+            pass
+
     def get_all_rows(self, instance, progress_builder=None) -> list[dict]:
         progress = ChildProgressBuilder.build(progress_builder, child_total=2)
+        # Read before the sheet: a row pushed after this read is in the sheet read.
+        pending = self._pending_rows(instance) if instance.two_way_sync else {}
         client, headers, rows, id_index = self._read(instance)
         progress.increment(by=1)
 
@@ -96,19 +162,17 @@ class GoogleSheetsDataSyncType(DataSyncType):
         # they can be synced and edited. One-way sync never writes to the sheet,
         # so those rows are left out until an ID is typed in.
         if instance.two_way_sync:
-            missing = [
-                (number, row)
-                for number, row in enumerate(rows, start=2)
-                if not _cell(row, id_index)
-                and any(_cell(row, i) for i in range(len(row)))
-            ]
-            if missing:
-                cells = []
-                for number, row in missing:
-                    new_id = str(uuid4())
-                    row.extend([""] * (id_index + 1 - len(row)))
-                    row[id_index] = new_id
-                    cells.append((number, id_index, new_id))
+            cells = []
+            for number, row in enumerate(rows, start=2):
+                if _cell(row, id_index) or not any(
+                    _cell(row, i) for i in range(len(row))
+                ):
+                    continue
+                new_id = str(uuid4())
+                row.extend([""] * (id_index + 1 - len(row)))
+                row[id_index] = new_id
+                cells.append((number, id_index, new_id))
+            if cells:
                 client.update_cells(cells)
 
         result, seen = [], set()
@@ -126,45 +190,70 @@ class GoogleSheetsDataSyncType(DataSyncType):
                     if header
                 }
             )
+
+        # Rows created in Baserow that aren't in the sheet yet are returned as they
+        # are in Baserow, so core neither deletes nor changes them.
+        id_key = instance.google_id_column
+        for values in pending.values():
+            if values.get(id_key) and values[id_key] not in seen:
+                seen.add(values[id_key])
+                result.append(
+                    {
+                        header: to_sheet_value(values.get(header))
+                        for header in headers
+                        if header
+                    }
+                )
         progress.increment(by=1)
         return result
 
-    def _row_numbers(self, data_sync) -> tuple[SheetsClient, list[str], dict]:
-        client, headers, rows, id_index = self._read(data_sync)
-        numbers = {
-            _cell(row, id_index): number
-            for number, row in enumerate(rows, start=2)
-            if _cell(row, id_index)
-        }
-        return client, headers, numbers
+    def push_pending_rows(self, data_sync):
+        """
+        Appends the pending rows that aren't in the sheet yet, with their current
+        Baserow values, then marks them done. Locked per data sync, so the two-way
+        task and a pull never append the same row twice.
+        """
 
-    @staticmethod
-    def _properties(data_sync):
-        properties = list(data_sync.synced_properties.all())
-        id_field = next(f"field_{p.field_id}" for p in properties if p.unique_primary)
-        return properties, id_field
-
-    def create_rows(self, serialized_rows, data_sync):
-        properties, id_field = self._properties(data_sync)
-        client, headers, _, _ = self._read(data_sync)
-        new_rows, updates = [], []
-        for row in serialized_rows:
-            new_id = str(uuid4())
-            values = {p.key: row.get(f"field_{p.field_id}") for p in properties}
-            values[data_sync.google_id_column] = new_id
-            new_rows.append(
+        lock_key = f"sheets_sync_push_{data_sync.id}"
+        if not cache.add(lock_key, "locked", timeout=PUSH_LOCK_SECONDS):
+            raise PushInProgress("Another change is being written to the sheet.")
+        try:
+            row_ids = list(
+                GoogleSheetsPendingRow.objects.filter(data_sync=data_sync).values_list(
+                    "row_id", flat=True
+                )
+            )
+            if not row_ids:
+                return
+            pending = self._pending_rows(data_sync)
+            client, headers, numbers = self._row_numbers(data_sync)
+            id_key = data_sync.google_id_column
+            new_rows = [
                 [
                     to_sheet_value(values.get(header)) if header else ""
                     for header in headers
                 ]
-            )
-            # The ID is generated here, so it's written back to the Baserow row.
-            updates.append({"id": row["id"], id_field: new_id})
-        client.append_rows(new_rows)
-        return updates
+                for values in pending.values()
+                if values.get(id_key) and values[id_key] not in numbers
+            ]
+            if new_rows:
+                client.append_rows(new_rows)
+            # Also clears rows deleted from Baserow in the meantime.
+            GoogleSheetsPendingRow.objects.filter(
+                data_sync=data_sync, row_id__in=row_ids
+            ).delete()
+        finally:
+            cache.delete(lock_key)
+
+    def create_rows(self, serialized_rows, data_sync):
+        # The rows got their ID and pending mark when they were created
+        # (receivers.py); no values have to be written back to Baserow.
+        self.push_pending_rows(data_sync)
+        return None
 
     def update_rows(self, serialized_rows, data_sync, updated_field_ids):
-        properties, id_field = self._properties(data_sync)
+        properties = list(data_sync.synced_properties.all())
+        id_field = id_field_name(data_sync)
         field_to_key = {p.field_id: p.key for p in properties if not p.unique_primary}
         changed = [
             field_id for field_id in updated_field_ids if field_id in field_to_key
@@ -174,7 +263,8 @@ class GoogleSheetsDataSyncType(DataSyncType):
         client, headers, numbers = self._row_numbers(data_sync)
         cells = []
         for row in serialized_rows:
-            # A row deleted from the sheet in the meantime is skipped.
+            # Not in the sheet: still pending, and pushed with its current values,
+            # or deleted from the sheet in the meantime.
             number = numbers.get(str(row.get(id_field) or "").strip())
             if number is None:
                 continue
@@ -192,7 +282,10 @@ class GoogleSheetsDataSyncType(DataSyncType):
             client.update_cells(cells)
 
     def delete_rows(self, serialized_rows, data_sync):
-        _, id_field = self._properties(data_sync)
+        GoogleSheetsPendingRow.objects.filter(
+            data_sync=data_sync, row_id__in=[row["id"] for row in serialized_rows]
+        ).delete()
+        id_field = id_field_name(data_sync)
         client, _, numbers = self._row_numbers(data_sync)
         row_numbers = [
             numbers[row_id]
