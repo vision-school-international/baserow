@@ -26,3 +26,6 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/intercp_aut
 COPY plugins/ai_tables/baserow_plugin_info.json /baserow/vsi-plugins/ai_tables/
 COPY plugins/ai_tables/backend /baserow/vsi-plugins/ai_tables/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/ai_tables
+COPY plugins/sheets_sync/baserow_plugin_info.json /baserow/vsi-plugins/sheets_sync/
+COPY plugins/sheets_sync/backend /baserow/vsi-plugins/sheets_sync/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/sheets_sync

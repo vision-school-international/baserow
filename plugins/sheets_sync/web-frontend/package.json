@@ -1,0 +1,8 @@
+{
+  "name": "sheets-sync",
+  "version": "0.1.0",
+  "description": "Google Sheets data sync: one-way or two-way between a sheet and a table.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

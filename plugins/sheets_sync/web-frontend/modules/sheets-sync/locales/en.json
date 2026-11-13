@@ -1,0 +1,11 @@
+{
+  "googleSheetsDataSync": {
+    "name": "Google Sheets",
+    "description": "Syncs one tab of a Google Sheet. Share the sheet with the service account's email as an editor (or viewer for one-way sync). The first row must hold the column headers, and one column must hold a unique ID for every row.",
+    "serviceAccountKey": "Service account JSON key",
+    "spreadsheet": "Spreadsheet URL or ID",
+    "sheetName": "Tab name",
+    "idColumn": "ID column header",
+    "twoWayDescription": "Changes made in this table are written to the sheet right away. Changes made in the sheet come in with the next sync, every few minutes. Rows added in the sheet without an ID get one."
+  }
+}

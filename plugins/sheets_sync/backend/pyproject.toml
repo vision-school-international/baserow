@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sheets_sync"
+version = "0.1.0"
+description = "Google Sheets data sync for Baserow."
+license = "MIT"
+requires-python = ">=3.14"
+# google-auth and requests ship with Baserow (backend/uv.lock).
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
