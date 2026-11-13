@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.admin.users.views import UsersAdminView
+from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import validate_body
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
@@ -33,19 +34,28 @@ class AddWorkspaceMemberSerializer(serializers.Serializer):
     )
 
 
-class AdminActiveUsersView(UsersAdminView):
+class AdminActiveUsersView(AdminListingView):
     """
-    Core's staff-only users listing (api/admin/users/views.py:50), with paging and
-    search, narrowed to the active users the add endpoint accepts.
+    The active users the add endpoint accepts, listed like core's staff-only users
+    listing (api/admin/users/views.py:50-94). Built on the GET-only AdminListingView,
+    not on UsersAdminView, which also has the POST that creates password users.
     """
 
+    serializer_class = UsersAdminView.serializer_class
+    pagination_class = UsersAdminView.pagination_class
+    search_fields = UsersAdminView.search_fields
+    sort_field_mapping = UsersAdminView.sort_field_mapping
+
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(is_active=True)
+        return UsersAdminView().get_queryset(request).filter(is_active=True)
 
     @extend_schema(
         tags=["Admin"],
         operation_id="intercp_admin_list_active_users",
         description="Lists the active users, if the requesting user is staff.",
+        **AdminListingView.get_extend_schema_parameters(
+            "users", serializer_class, search_fields, sort_field_mapping
+        ),
     )
     def get(self, request):
         return super().get(request)

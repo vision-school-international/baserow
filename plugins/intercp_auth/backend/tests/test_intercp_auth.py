@@ -248,6 +248,16 @@ def test_staff_lists_only_active_users(api_client, data_fixture):
         active.id,
     }
 
+    # GET only: core's UsersAdminView.post, which creates password users
+    # (api/admin/users/views.py:113-122), must not be reachable here.
+    response = api_client.post(
+        reverse("api:intercp_auth:admin_active_users"),
+        {"username": "x", "email": "x@example.test", "password": "secret-123"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 405
+
     _, member_token = data_fixture.create_user_and_token()
     response = api_client.get(
         reverse("api:intercp_auth:admin_active_users"),

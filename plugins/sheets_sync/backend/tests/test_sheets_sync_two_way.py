@@ -129,14 +129,37 @@ def test_pushes_update_and_delete_the_right_row(data_fixture, sheet):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_edit_waits_for_a_pending_row(data_fixture, sheet):
+def test_an_edit_to_a_pending_row_pushes_its_current_values(data_fixture, sheet):
     user, data_sync, fields = _create(data_fixture)
-    row = RowHandler().create_row(
-        user, data_sync.table, {f"field_{fields['Name'].id}": "Cy"}
-    )
     id_name, name_name = f"field_{fields['ID'].id}", f"field_{fields['Name'].id}"
+    row = RowHandler().create_row(user, data_sync.table, {name_name: "Cy"})
+    RowHandler().update_row_by_id(user, data_sync.table, row.id, {name_name: "Cyd"})
+    new_id = getattr(row, id_name)
 
-    with pytest.raises(data_sync_types.RetryableSyncError):
+    data_sync_types.GoogleSheetsDataSyncType().update_rows(
+        [
+            {"id": 1, id_name: "1", name_name: "Anna"},
+            {"id": row.id, id_name: new_id, name_name: "Cyd"},
+        ],
+        data_sync,
+        [fields["Name"].id],
+    )
+
+    # The row in the sheet is written, and the pending one is pushed as it is now.
+    assert sheet.values[1:] == [["1", "Anna"], [new_id, "Cyd"]]
+    assert not GoogleSheetsPendingRow.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_edit_waits_while_another_push_holds_the_lock(
+    data_fixture, sheet, monkeypatch
+):
+    user, data_sync, fields = _create(data_fixture)
+    id_name, name_name = f"field_{fields['ID'].id}", f"field_{fields['Name'].id}"
+    row = RowHandler().create_row(user, data_sync.table, {name_name: "Cy"})
+    monkeypatch.setattr(data_sync_types.cache, "add", lambda *args, **kwargs: False)
+
+    with pytest.raises(data_sync_types.PushInProgress):
         data_sync_types.GoogleSheetsDataSyncType().update_rows(
             [{"id": row.id, id_name: getattr(row, id_name), name_name: "Cyd"}],
             data_sync,

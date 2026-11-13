@@ -32,7 +32,8 @@ def give_new_rows_a_sheet_id(
 
     id_field = id_field_name(data_sync)
     for row in rows:
-        if not getattr(row, id_field):
+        # Blank counts as empty: the sheet reads it back stripped.
+        if not str(getattr(row, id_field) or "").strip():
             setattr(row, id_field, str(uuid4()))
     # shortcut: written past RowHandler, so the search index has the ID only after
     # the row's next update; fine while nobody searches by sheet ID.

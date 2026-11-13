@@ -1,18 +1,16 @@
 import os
+import re
 
 
 def _positive_int(name: str, default: int) -> int:
     # base.py only catches ImportError around setup(), so a bad value must not
-    # raise: it would stop the whole backend from starting.
+    # raise: it would stop the whole backend from starting. Plain digits only:
+    # int() would also take "-3", "+5" and "1_0".
     value = os.getenv(name, "").strip()
     if not value:
         return default
-    try:
-        number = int(value)
-    except ValueError:
-        number = 0
-    if number > 0:
-        return number
+    if re.fullmatch(r"[0-9]+", value) and int(value) > 0:
+        return int(value)
     print(f"sheets_sync: {name} must be a positive number, got {value!r}.")
     return default
 

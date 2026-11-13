@@ -75,8 +75,17 @@ def add_to_default_workspace(users=None) -> None:
         return
     joined = DefaultWorkspaceJoin.objects.filter(workspace=workspace)
     if users is None:
-        users = get_user_model().objects.filter(is_active=True)
-    users = [user for user in users if not joined.filter(user=user).exists()]
+        # One query: on a normal start everyone has a record and nothing loads.
+        users = (
+            get_user_model()
+            .objects.filter(is_active=True)
+            .exclude(id__in=joined.values("user_id"))
+        )
+    else:
+        joined_ids = set(
+            joined.filter(user__in=users).values_list("user_id", flat=True)
+        )
+        users = [user for user in users if user.id not in joined_ids]
     handler = CoreHandler()
     for user in users:
         # An existing member keeps their role and only gets the record.

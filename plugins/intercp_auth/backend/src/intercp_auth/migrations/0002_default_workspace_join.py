@@ -5,6 +5,31 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def record_current_members(apps, schema_editor):
+    """
+    Everyone already in the default workspace gets their record now, in the same
+    migration, so nobody a staff member removes after it is added back.
+    Same pattern as core's 0137_mcpendpoint_rename_create_dashboards.
+    """
+
+    workspace_id = getattr(settings, "INTERCP_DEFAULT_WORKSPACE_ID", None)
+    Workspace = apps.get_model("core", "Workspace")
+    # A wrong ID must not fail the migration on the foreign key.
+    if workspace_id is None or not Workspace.objects.filter(id=workspace_id).exists():
+        return
+    WorkspaceUser = apps.get_model("core", "WorkspaceUser")
+    DefaultWorkspaceJoin = apps.get_model("intercp_auth", "DefaultWorkspaceJoin")
+    DefaultWorkspaceJoin.objects.bulk_create(
+        [
+            DefaultWorkspaceJoin(user_id=user_id, workspace_id=workspace_id)
+            for user_id in WorkspaceUser.objects.filter(
+                workspace_id=workspace_id
+            ).values_list("user_id", flat=True)
+        ],
+        ignore_conflicts=True,
+    )
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0139_delete_paid_data"),
@@ -43,4 +68,5 @@ class Migration(migrations.Migration):
                 "unique_together": {("user", "workspace")},
             },
         ),
+        migrations.RunPython(record_current_members, migrations.RunPython.noop),
     ]

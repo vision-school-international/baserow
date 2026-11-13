@@ -1,4 +1,5 @@
 from datetime import timedelta
+from itertools import chain
 
 from django.conf import settings
 
@@ -51,14 +52,18 @@ def sync_google_sheet(data_sync_id: int):
         .select_related("user")
         .order_by("id")
     )
-    candidates = [data_sync.authorized_user, *(admin.user for admin in admins)]
+    # Lazy: the admins are only queried, a row at a time, if the creator fails.
+    candidates = chain(
+        [data_sync.authorized_user], (admin.user for admin in admins.iterator())
+    )
+    core_handler = CoreHandler()
     user = next(
         (
             candidate
             for candidate in candidates
             if candidate is not None
             and candidate.is_active
-            and CoreHandler().check_permissions(
+            and core_handler.check_permissions(
                 candidate,
                 SyncTableOperationType.type,
                 workspace=workspace,
@@ -71,8 +76,11 @@ def sync_google_sheet(data_sync_id: int):
     if user is None:
         message = "The periodic sync has no workspace member to run as."
         logger.warning("Google Sheets data sync {id}: {m}", id=data_sync_id, m=message)
-        data_sync.last_error = message
-        data_sync.save(update_fields=("last_error",))
+        # Saved once, not on every tick; a successful sync clears it
+        # (data_sync/handler.py:752).
+        if data_sync.last_error != message:
+            data_sync.last_error = message
+            data_sync.save(update_fields=("last_error",))
         return
 
     try:
