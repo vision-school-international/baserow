@@ -157,6 +157,11 @@ export default {
         enumerable: true,
         get: () => this.tableFields,
       })
+      // The button's own table, which a linked row's modal doesn't select.
+      Object.defineProperty(context, 'table', {
+        enumerable: true,
+        get: () => this.table,
+      })
       return context
     },
   },

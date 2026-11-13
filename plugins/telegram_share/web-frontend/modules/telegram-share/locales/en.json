@@ -1,0 +1,19 @@
+{
+  "telegramShare": {
+    "label": "Send on Telegram",
+    "recipient": "Telegram username",
+    "recipientPlaceholder": "The field with the person's username",
+    "message": "Message",
+    "messagePlaceholder": "The message to type into the chat",
+    "form": "Form link",
+    "noForm": "No form",
+    "prefill": "Fill the form with this row's values",
+    "formNotPublic": "This form isn't shared publicly, so the person can't open the link. Share the form first.",
+    "noRecipient": "Pick the field with the Telegram username.",
+    "noUsernameTitle": "No Telegram username",
+    "noUsernameMessage": "This row has no Telegram username. Enter one like {'@'}name. Phone numbers can't be used.",
+    "openedTitle": "Opening Telegram for {'@'}{username}",
+    "openedMessage": "If the message box is empty, {'@'}{username}'s privacy settings don't let you message them.",
+    "openedCopiedMessage": "If the message box is empty, {'@'}{username}'s privacy settings don't let you message them. The message is copied, so you can send it another way."
+  }
+}

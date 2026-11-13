@@ -35,3 +35,6 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/field_patte
 COPY plugins/agent_tools/baserow_plugin_info.json /baserow/vsi-plugins/agent_tools/
 COPY plugins/agent_tools/backend /baserow/vsi-plugins/agent_tools/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/agent_tools
+COPY plugins/telegram_share/baserow_plugin_info.json /baserow/vsi-plugins/telegram_share/
+COPY plugins/telegram_share/backend /baserow/vsi-plugins/telegram_share/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/telegram_share

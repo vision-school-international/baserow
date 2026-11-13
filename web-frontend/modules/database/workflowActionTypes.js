@@ -412,8 +412,18 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
    * stringified. A formula that resolves to nothing comes back as an empty
    * string; one that throws is left to `execute`, which reports it.
    */
-  resolveUrl(workflowAction, { row, fields, previousActionResults = {} }) {
-    const formulaObject = workflowAction.url
+  resolveUrl(workflowAction, applicationContext) {
+    return encodeUrlWhitespace(
+      this.resolveText(workflowAction.url, applicationContext)
+    )
+  }
+
+  /**
+   * Resolves a formula of this action to trimmed text, the way `resolveUrl`
+   * does but without encoding it for a URL. A plugin action that builds its
+   * own URL, like Send on Telegram, encodes the parts itself.
+   */
+  resolveText(formulaObject, { row, fields, previousActionResults = {} }) {
     if (!formulaObject?.formula) {
       return ''
     }
@@ -451,7 +461,7 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
     if (resolved === null || resolved === undefined) {
       return ''
     }
-    return encodeUrlWhitespace(`${resolved}`.trim())
+    return `${resolved}`.trim()
   }
 
   /**

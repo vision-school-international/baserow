@@ -1,0 +1,8 @@
+{
+  "name": "telegram-share",
+  "version": "0.1.0",
+  "description": "Send on Telegram: a button action that opens a Telegram chat with a message ready to send.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}
