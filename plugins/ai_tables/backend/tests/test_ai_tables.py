@@ -2,11 +2,17 @@ from unittest.mock import patch
 
 from django.db import connections
 from django.test import override_settings
+from django.urls import reverse
 
 import pytest
 from ai_tables.handler import AIPromptHandler
 from ai_tables.models import AIPromptScheduledUpdate
 from rest_framework.exceptions import ValidationError
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.contrib.database.fields.exceptions import (
     IncompatibleField,
@@ -170,20 +176,48 @@ def _transform(user, fields, row_ids):
     )
 
 
+def _apply(job, cells=None):
+    """Applies the job's proposals, all of them unless `cells` is given."""
+
+    job.refresh_from_db()
+    fields = [FieldHandler().get_field(field_id).specific for field_id in job.field_ids]
+    if cells is None:
+        cells = {(p["row_id"], p["field_id"]) for p in job.proposals}
+    return AIPromptHandler().apply_cells(job.user, job, fields, cells)
+
+
 @pytest.mark.django_db(transaction=True)
-def test_transform_rewrites_cells_in_place_with_row_history(data_fixture):
+def test_transform_proposes_and_writes_only_what_is_applied(data_fixture):
     user, table, name = _setup(data_fixture)
     ada = RowHandler().create_row(user, table, {f"field_{name.id}": "ada"})
+    bob = RowHandler().create_row(user, table, {f"field_{name.id}": "bob"})
     empty = RowHandler().create_row(user, table, {})
 
-    job = _transform(user, name, [ada.id, empty.id])
+    job = _transform(user, name, [ada.id, bob.id, empty.id])
 
     job.refresh_from_db()
     assert job.state == "finished"
     assert job.failed_row_ids == []
-    # The fixture model echoes the prompt, which ends with the cell's text.
+    # Nothing is written until the user applies it.
+    assert _cell(table, name, ada.id) == "ada"
+    assert not RowHistory.objects.exists()
+    # The fixture model echoes the prompt, which names the column and ends with
+    # the cell's text. Empty cells get no proposal.
+    by_row = {p["row_id"]: p for p in job.proposals}
+    assert sorted(by_row) == [ada.id, bob.id]
+    assert by_row[ada.id]["old"] == "ada"
+    # Named by the primary field, as the grid shows the row.
+    assert by_row[ada.id]["row_name"] == "ada"
+    assert by_row[ada.id]["field_name"] == name.name
+    assert f'column "{name.name}"' in by_row[ada.id]["new"]
+    assert by_row[ada.id]["new"].endswith("Text:\nada")
+
+    # Bob's change is rejected.
+    written, skipped = _apply(job, {(ada.id, name.id)})
+
+    assert (written, skipped) == (1, [])
     assert _cell(table, name, ada.id).endswith("Text:\nada")
-    assert _cell(table, name, empty.id) in (None, "")
+    assert _cell(table, name, bob.id) == "bob"
     entry = RowHistory.objects.get(row_id=ada.id)
     assert entry.action_type == "update_rows"
     assert entry.before_values == {f"field_{name.id}": "ada"}
@@ -198,21 +232,22 @@ def test_transform_never_blanks_or_overwrites_an_edited_cell(data_fixture):
     def answer(model_type, model, temperature, workspace, prompt, files, output):
         # Runs in a worker thread, like the real _prompt_model.
         try:
-            if prompt.endswith("ann"):
-                return "  "
-            # The user edits the cell while the model runs.
-            RowHandler().update_rows(
-                user, table, [{"id": edited.id, f"field_{name.id}": "Bobby"}]
-            )
-            return "BOB"
+            return "  " if prompt.endswith("ann") else "BOB"
         finally:
             connections.close_all()
 
     with patch.object(AIPromptHandler, "_prompt_model", side_effect=answer):
         job = _transform(user, name, [blank.id, edited.id])
-
     job.refresh_from_db()
-    assert sorted(job.failed_row_ids) == sorted([blank.id, edited.id])
+    assert job.failed_row_ids == [blank.id]
+    # The user edits the cell before applying the proposal.
+    RowHandler().update_rows(
+        user, table, [{"id": edited.id, f"field_{name.id}": "Bobby"}]
+    )
+
+    written, skipped = _apply(job)
+
+    assert (written, skipped) == (0, [edited.id])
     assert _cell(table, name, blank.id) == "ann"
     assert _cell(table, name, edited.id) == "Bobby"
     assert not RowHistory.objects.filter(row_id=blank.id).exists()
@@ -260,10 +295,12 @@ def test_transform_several_columns_is_one_row_update(data_fixture):
     )
 
     job = _transform(user, [name, city], [row.id])
+    written, skipped = _apply(job)
 
     job.refresh_from_db()
     assert job.state == "finished"
     assert job.failed_row_ids == []
+    assert (written, skipped) == (2, [])
     assert _cell(table, name, row.id).endswith("Text:\nada")
     assert _cell(table, city, row.id).endswith("Text:\nrome")
     entry = RowHistory.objects.get(row_id=row.id)
@@ -271,3 +308,41 @@ def test_transform_several_columns_is_one_row_update(data_fixture):
         f"field_{name.id}": "ada",
         f"field_{city.id}": "rome",
     }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_apply_endpoint_writes_accepted_cells_once_for_the_owner(
+    api_client, data_fixture
+):
+    user, table, name = _setup(data_fixture)
+    ada = RowHandler().create_row(user, table, {f"field_{name.id}": "ada"})
+    bob = RowHandler().create_row(user, table, {f"field_{name.id}": "bob"})
+    job = _transform(user, name, [ada.id, bob.id])
+    url = reverse("api:ai_tables:apply_transform", kwargs={"job_id": job.id})
+    body = {"cells": [{"row_id": ada.id, "field_id": name.id}]}
+
+    other = data_fixture.create_user()
+    response = api_client.post(
+        url,
+        body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {data_fixture.generate_token(other)}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert _cell(table, name, ada.id) == "ada"
+
+    token = data_fixture.generate_token(user)
+    response = api_client.post(
+        url, body, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {"written": 1, "skipped_row_ids": []}
+    assert _cell(table, name, ada.id).endswith("Text:\nada")
+    # Not accepted, so rejected.
+    assert _cell(table, name, bob.id) == "bob"
+
+    response = api_client.post(
+        url, body, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_TRANSFORM_NOT_APPLICABLE"

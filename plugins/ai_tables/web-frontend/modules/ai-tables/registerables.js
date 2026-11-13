@@ -3,7 +3,9 @@ import { JobType } from '@baserow/modules/core/jobTypes'
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import { AIProviderModelFeatureType } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import GenerateValuesContextItem from './components/GenerateValuesContextItem.vue'
-import TransformCellsModal from './components/TransformCellsModal.vue'
+import TransformCellsModal, {
+  TRANSFORM_PREVIEW_EVENT,
+} from './components/TransformCellsModal.vue'
 import TransformCellsContextItem from './components/TransformCellsContextItem.vue'
 
 // The transform modal lives in the app layout: the grid's cell-selection menu
@@ -27,15 +29,20 @@ export class TransformAICellsJobType extends JobType {
     return this.$t('aiTables.transformCells')
   }
 
-  // Shown even when the modal was closed while the job ran.
+  // Nothing is saved yet: the preview lets the user keep or reject each change.
   async onJobDone(job) {
-    const count = job.failed_row_ids?.length || 0
-    if (count > 0) {
-      await this.app.$store.dispatch('toast/info', {
-        title: this.$t('aiTables.transformPartialTitle'),
-        message: this.$t('aiTables.transformPartial', { count }),
-      })
+    if (job.proposals?.length) {
+      this.app.$bus.$emit(TRANSFORM_PREVIEW_EVENT, job)
+      return
     }
+    await this.app.$store.dispatch('toast/info', {
+      title: this.$t('aiTables.noChangesTitle'),
+      message: job.failed_row_ids?.length
+        ? this.$t('aiTables.previewFailed', {
+            count: job.failed_row_ids.length,
+          })
+        : this.$t('aiTables.noChanges'),
+    })
   }
 
   async onJobFailed(job) {

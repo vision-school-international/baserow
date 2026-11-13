@@ -173,7 +173,10 @@ class GenerateAIPromptValuesJobType(JobType):
 
 
 class TransformAICellsJobType(JobType):
-    """Rewrites the selected cells of text fields in place with an instruction."""
+    """
+    Asks the model to rewrite the selected cells of text fields with an
+    instruction, and keeps the answers as proposals for the user to apply.
+    """
 
     type = "transform_ai_cells"
     model_class = TransformAICellsJob
@@ -218,13 +221,25 @@ class TransformAICellsJobType(JobType):
             required=False, allow_null=True, min_value=0, max_value=2
         ),
     }
-    serializer_field_names = request_serializer_field_names + ["failed_row_ids"]
+    serializer_field_names = request_serializer_field_names + [
+        "failed_row_ids",
+        "proposals",
+        "applied",
+    ]
     serializer_field_overrides = {
         **request_serializer_field_overrides,
         "failed_row_ids": serializers.ListField(
             child=serializers.IntegerField(),
-            help_text="The rows with a cell left unchanged: the model failed on it, "
-            "or it was edited while the model ran.",
+            help_text="The rows with a cell the model failed on, or that was "
+            "deleted while it ran.",
+        ),
+        "proposals": serializers.JSONField(
+            read_only=True,
+            help_text="The model's answers, not written yet: a list of {row_id, "
+            "field_id, old, new}. Applied with the apply endpoint.",
+        ),
+        "applied": serializers.BooleanField(
+            read_only=True, help_text="Whether the proposals were applied."
         ),
     }
 
@@ -303,6 +318,6 @@ class TransformAICellsJobType(JobType):
             len(job.row_ids) * len(fields),
         )
         # Saved with the finished state by run_async_job (core/jobs/tasks.py).
-        job.failed_row_ids = AIPromptHandler().transform_cells(
+        job.proposals, job.failed_row_ids = AIPromptHandler().suggest_cells(
             job, fields, progress=cells_progress
         )

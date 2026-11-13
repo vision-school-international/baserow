@@ -62,8 +62,9 @@ class RowGenerationError(Exception):
 # The answer replaces the cell, so the model must return the new text only.
 TRANSFORM_PROMPT = (
     "{instruction}\n\n"
-    "Apply the instruction above to the text below. Reply with only the "
-    "resulting text, without quotes or explanation.\n\n"
+    "Apply the instruction above to the text below, a value of the column "
+    '"{column}". Reply with only the resulting text, without quotes or '
+    "explanation.\n\n"
     "Text:\n{text}"
 )
 
@@ -248,35 +249,37 @@ class AIPromptHandler:
                     progress.increment(by=len(chunk))
         return errors
 
-    def transform_cells(
-        self, job, fields, progress: Optional[Progress] = None
-    ) -> List[int]:
-        """
-        Rewrites the job's cells of text fields of one table with its instruction,
-        one model call per cell. The answers are saved in one UpdateRowsActionType
-        action, so the change is one undo and is in the row history. Empty cells
-        are skipped.
+    @staticmethod
+    def _cells(fields, rows):
+        # {(row_id, field_id): value} for values_list rows of the fields' columns.
+        return {
+            (row[0], field.id): value
+            for row in rows
+            for field, value in zip(fields, row[1:])
+        }
 
-        :return: The ids of the rows with a cell left unchanged: the row was
-            deleted, or the model failed on the cell, or it was edited while the
-            model ran.
+    def suggest_cells(
+        self, job, fields, progress: Optional[Progress] = None
+    ) -> tuple[List[dict], List[int]]:
+        """
+        Asks the model to rewrite the job's cells of text fields of one table with
+        its instruction, one model call per cell. Nothing is saved: the answers
+        that differ from the cell come back as proposals for the user to apply
+        or reject (apply_cells). Empty cells are skipped.
+
+        :return: The proposals, as {row_id, field_id, old, new}, and the ids of
+            the rows with a cell the model failed on or that was deleted.
         """
 
         table = fields[0].table
         model = table.get_model()
         model_type = generative_ai_model_type_registry.get(job.ai_generative_ai_type)
         columns = [field.db_column for field in fields]
+        names = {field.id: field.name for field in fields}
 
-        def cells(rows):
-            # {(row_id, field_id): value} for the values_list rows of `columns`.
-            return {
-                (row[0], field.id): value
-                for row in rows
-                for field, value in zip(fields, row[1:])
-            }
-
-        original = cells(
-            model.objects.filter(id__in=job.row_ids).values_list("id", *columns)
+        original = self._cells(
+            fields,
+            model.objects.filter(id__in=job.row_ids).values_list("id", *columns),
         )
         failed = set(job.row_ids) - {row_id for row_id, _ in original}
         answers: dict[tuple[int, int], str] = {}
@@ -294,7 +297,11 @@ class AIPromptHandler:
                     job.ai_generative_ai_model,
                     job.ai_temperature,
                     table.database.workspace,
-                    TRANSFORM_PROMPT.format(instruction=job.instruction, text=value),
+                    TRANSFORM_PROMPT.format(
+                        instruction=job.instruction,
+                        column=names[cell[1]],
+                        text=value,
+                    ),
                     [],
                     None,
                 ): cell
@@ -315,27 +322,74 @@ class AIPromptHandler:
                 if progress is not None:
                     progress.increment()
 
+        # The rows' primary values, so the preview names rows as the grid does.
+        # Only the primary field is prefetched, like search_types.py does.
+        row_names = {}
+        for row in model.objects.enhance_by_fields(
+            only_field_ids=[model._primary_field_id]
+        ).filter(id__in={row_id for row_id, _ in answers}):
+            try:
+                row_names[row.id] = str(row)[:100]
+            except Exception:  # noqa: BLE001
+                # A name is only a label: the AI's answers must not be lost.
+                row_names[row.id] = ""
+        proposals = [
+            {
+                "row_id": cell[0],
+                "row_name": row_names.get(cell[0], ""),
+                "field_id": cell[1],
+                # For the preview, which may open on another table's page.
+                "field_name": names[cell[1]],
+                "old": original[cell],
+                "new": text,
+            }
+            for cell, text in sorted(answers.items())
+            if text != original[cell]
+        ]
+        return proposals, sorted(failed)
+
+    def apply_cells(self, user, job, fields, accepted) -> tuple[int, List[int]]:
+        """
+        Writes the accepted proposals of a job in one UpdateRowsActionType action,
+        so the change is one undo and is in the row history.
+
+        :param accepted: The (row_id, field_id) of the proposals to write.
+        :return: How many cells were written, and the ids of the rows with an
+            accepted cell left as it was: deleted, or edited since the model ran.
+        """
+
+        table = fields[0].table
+        model = table.get_model()
+        columns = [field.db_column for field in fields]
+        proposals = {
+            (p["row_id"], p["field_id"]): p
+            for p in job.proposals or []
+            if (p["row_id"], p["field_id"]) in accepted
+        }
+        skipped: set[int] = set()
         with transaction.atomic():
-            # Locked, so a cell edited while the model ran is left as it was edited.
-            current = cells(
+            # Locked, so a cell edited since the model ran is left as it was edited.
+            current = self._cells(
+                fields,
                 RowHandler()
-                .get_rows_for_update(model, list({row_id for row_id, _ in answers}))
-                .values_list("id", *columns)
+                .get_rows_for_update(model, list({row_id for row_id, _ in proposals}))
+                .values_list("id", *columns),
             )
             values_by_row: dict[int, dict] = {}
-            for cell, text in answers.items():
+            for cell, proposal in proposals.items():
                 row_id, field_id = cell
-                if cell not in current or current[cell] != original[cell]:
-                    failed.add(row_id)
-                elif text != original[cell]:
-                    row_values = values_by_row.setdefault(row_id, {"id": row_id})
-                    row_values[f"field_{field_id}"] = text
+                if cell not in current or current[cell] != proposal["old"]:
+                    skipped.add(row_id)
+                    continue
+                row_values = values_by_row.setdefault(row_id, {"id": row_id})
+                row_values[f"field_{field_id}"] = proposal["new"]
             rows_values = list(values_by_row.values())
             if rows_values:
                 action_type_registry.get_by_type(UpdateRowsActionType).do(
-                    job.user, table, rows_values, model=model
+                    user, table, rows_values, model=model
                 )
-        return sorted(failed)
+        written = sum(len(values) - 1 for values in rows_values)
+        return written, sorted(skipped)
 
     def _message(self, exc: Exception) -> str:
         if isinstance(exc, (RowGenerationError, GenerativeAIPromptError)):

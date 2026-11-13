@@ -100,9 +100,9 @@ class TransformAICellsJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):
     """
-    Rewrites the selected cells of text fields in place with an instruction. The
-    undo/redo ids let the rows update it makes be undone in the user's session,
-    like DuplicateApplicationJob (core/models.py).
+    Asks the model to rewrite the selected cells of text fields with an
+    instruction. The answers are kept as proposals; nothing is written until the
+    user applies them (views.py ApplyTransformView).
     """
 
     # TODO ZDM: remove this field in the next version
@@ -130,4 +130,14 @@ class TransformAICellsJob(
         default=list,
         help_text="The rows with a cell left unchanged: the model failed on it, or "
         "it was edited while the model ran.",
+    )
+    proposals = models.JSONField(
+        null=True,
+        help_text="The model's answers, written only when the user applies them: "
+        "a list of {row_id, field_id, old, new}.",
+    )
+    applied = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the proposals were applied, so they're written once.",
     )

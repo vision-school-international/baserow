@@ -66,6 +66,54 @@
         </TransformCellsForm>
       </template>
     </Modal>
+    <!-- Opened by the job type when the AI is done. Nothing is saved before. -->
+    <Modal ref="previewModal">
+      <template v-if="preview">
+        <h2 class="box__title">{{ $t('aiTables.previewTitle') }}</h2>
+        <p>{{ $t('aiTables.previewDescription') }}</p>
+        <Alert v-if="preview.failed_row_ids?.length" type="warning">
+          {{
+            $t('aiTables.previewFailed', {
+              count: preview.failed_row_ids.length,
+            })
+          }}
+        </Alert>
+        <Checkbox
+          v-for="proposal in preview.proposals"
+          :key="cellKey(proposal)"
+          :model-value="kept.includes(cellKey(proposal))"
+          class="margin-bottom-2"
+          @update:model-value="toggleKept(cellKey(proposal), $event)"
+        >
+          <strong>{{
+            $t('aiTables.previewCell', {
+              row: proposal.row_name || proposal.row_id,
+              column: proposal.field_name,
+            })
+          }}</strong>
+          <br />
+          <del>{{ proposal.old }}</del>
+          <br />
+          {{ proposal.new }}
+        </Checkbox>
+        <Error :error="error"></Error>
+        <div class="actions">
+          <ul class="action__links">
+            <li>
+              <a @click.prevent="reject">{{ $t('aiTables.rejectAll') }}</a>
+            </li>
+          </ul>
+          <Button
+            type="primary"
+            :loading="applying"
+            :disabled="applying || kept.length === 0"
+            @click="apply"
+          >
+            {{ $t('aiTables.applyChanges', { count: kept.length }) }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
     <!-- Outside the Modal, whose content unmounts when it hides. -->
     <WorkspaceSettingsModal
       v-if="workspace && canConfigure"
@@ -83,6 +131,9 @@ import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/W
 import TransformCellsForm from './TransformCellsForm.vue'
 
 export const TRANSFORM_CELLS_EVENT = 'ai-tables-transform-cells'
+export const TRANSFORM_PREVIEW_EVENT = 'ai-tables-transform-preview'
+
+const cellKey = (proposal) => `${proposal.row_id}:${proposal.field_id}`
 
 // The backend's BATCH_ROWS_SIZE_LIMIT default; the job refuses more rows x columns.
 const MAX_CELLS = 200
@@ -105,6 +156,10 @@ export default {
       enabled: false,
       loading: false,
       maxCells: MAX_CELLS,
+      // The finished job whose proposals are previewed, and the kept ones.
+      preview: null,
+      kept: [],
+      applying: false,
     }
   },
   computed: {
@@ -125,9 +180,11 @@ export default {
   },
   mounted() {
     this.$bus.$on(TRANSFORM_CELLS_EVENT, this.open)
+    this.$bus.$on(TRANSFORM_PREVIEW_EVENT, this.openPreview)
   },
   beforeUnmount() {
     this.$bus.$off(TRANSFORM_CELLS_EVENT, this.open)
+    this.$bus.$off(TRANSFORM_PREVIEW_EVENT, this.openPreview)
   },
   methods: {
     open({ fields, rowIds, database, workspace, enabled }) {
@@ -164,13 +221,69 @@ export default {
             row_ids: this.rowIds,
           }
         )
-        // The job store polls it; the cells update through the realtime events.
+        // The job store polls it; its job type opens the preview when it's done.
         await this.$store.dispatch('job/create', data)
         this.hide()
+        this.$store.dispatch('toast/info', {
+          title: this.$t('aiTables.transformStartedTitle'),
+          message: this.$t('aiTables.transformStarted'),
+        })
       } catch (err) {
         this.handleError(err)
       } finally {
         this.loading = false
+      }
+    },
+    cellKey,
+    openPreview(job) {
+      this.preview = job
+      this.kept = job.proposals.map(cellKey)
+      this.hideError()
+      this.$refs.previewModal.show()
+    },
+    toggleKept(key, checked) {
+      this.kept = checked
+        ? [...this.kept, key]
+        : this.kept.filter((kept) => kept !== key)
+    },
+    reject() {
+      // Nothing was saved, so rejecting only closes the preview.
+      this.$refs.previewModal.hide()
+      this.$store.dispatch('toast/info', {
+        title: this.$t('aiTables.rejectedTitle'),
+        message: this.$t('aiTables.rejected'),
+      })
+    },
+    async apply() {
+      this.hideError()
+      this.applying = true
+      try {
+        const cells = this.preview.proposals
+          .filter((proposal) => this.kept.includes(cellKey(proposal)))
+          .map(({ row_id: rowId, field_id: fieldId }) => ({
+            row_id: rowId,
+            field_id: fieldId,
+          }))
+        // ai_tables/views.py ApplyTransformView.
+        const { data } = await this.$client.post(
+          `/ai-tables/transform/${this.preview.id}/apply/`,
+          { cells }
+        )
+        this.$refs.previewModal.hide()
+        const skipped = data.skipped_row_ids.length
+        this.$store.dispatch('toast/success', {
+          title: this.$t('aiTables.appliedTitle'),
+          message: skipped
+            ? this.$t('aiTables.appliedSkipped', {
+                count: data.written,
+                skipped,
+              })
+            : this.$t('aiTables.applied', { count: data.written }),
+        })
+      } catch (err) {
+        this.handleError(err)
+      } finally {
+        this.applying = false
       }
     },
   },
