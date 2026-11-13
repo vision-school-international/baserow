@@ -325,3 +325,56 @@ def test_password_login_is_blocked_for_staff_after_enforcement(
 
     assert response.status_code == 401
     assert response.json()["error"] == "ERROR_AUTH_PROVIDER_DISABLED"
+
+
+@pytest.mark.django_db
+def test_staff_can_add_a_user_to_a_workspace(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    user = data_fixture.create_user()
+    url = reverse("api:intercp_auth:admin_add_workspace_member")
+
+    def add(user_id, permissions="MEMBER"):
+        body = {
+            "workspace_id": workspace.id,
+            "user_id": user_id,
+            "permissions": permissions,
+        }
+        return api_client.post(
+            url,
+            body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    response = add(user.id, "ADMIN")
+    assert response.status_code == 200
+    assert response.json()["added"] is True
+    assert workspace.workspaceuser_set.get(user=user).permissions == "ADMIN"
+
+    # An existing member keeps their role.
+    response = add(owner.id)
+    assert response.json() == {
+        "workspace_id": workspace.id,
+        "user_id": owner.id,
+        "permissions": "ADMIN",
+        "added": False,
+    }
+
+
+@pytest.mark.django_db
+def test_only_staff_can_add_workspace_members(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace()
+    user = data_fixture.create_user()
+
+    response = api_client.post(
+        reverse("api:intercp_auth:admin_add_workspace_member"),
+        {"workspace_id": workspace.id, "user_id": user.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 403
+    assert not workspace.workspaceuser_set.filter(user=user).exists()

@@ -1,0 +1,15 @@
+{
+  "intercpWorkspaceMembers": {
+    "title": "Add to workspace",
+    "workspace": "Workspace",
+    "chooseWorkspace": "Choose a workspace",
+    "user": "User",
+    "chooseUser": "Choose a user",
+    "role": "Role",
+    "member": "Member",
+    "admin": "Admin",
+    "add": "Add",
+    "added": "Added to the workspace",
+    "alreadyMember": "Already a member, role unchanged"
+  }
+}

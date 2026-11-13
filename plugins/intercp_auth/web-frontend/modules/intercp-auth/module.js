@@ -25,6 +25,25 @@ export default defineNuxtModule({
         path: '/login/intercp-error',
         file: resolve('./pages/loginError.vue'),
       })
+
+      // Core's admin pages are children of `root` (core/routes.js:70-74).
+      const root = pages.find((route) => route.name === 'root')
+      if (!root) {
+        throw new Error('intercp-auth: core route "root" not found.')
+      }
+      root.children.push({
+        name: 'admin-intercp-workspace-members',
+        path: '/admin/workspace-members',
+        file: resolve('./pages/adminWorkspaceMembers.vue'),
+      })
+    })
+
+    // Same registration as the ai-tables module; only English is shipped.
+    nuxt.hook('i18n:registerModule', (register) => {
+      register({
+        langDir: resolve('./locales'),
+        locales: [{ code: 'en', name: 'English', file: 'en.json' }],
+      })
     })
 
     addPlugin({ src: resolve('./plugin.js') })
