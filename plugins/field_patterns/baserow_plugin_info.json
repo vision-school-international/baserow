@@ -1,0 +1,12 @@
+{
+  "name": "field_patterns",
+  "version": "0.1.0",
+  "supported_baserow_versions": "2.4.2",
+  "plugin_api_version": "0.0.1-alpha",
+  "description": "Pattern text field: text that must match a regular expression.",
+  "author": "Vision School International",
+  "author_url": "https://github.com/vision-school-international",
+  "url": "https://github.com/vision-school-international/baserow",
+  "license": "MIT",
+  "contact": "https://github.com/vision-school-international/baserow"
+}

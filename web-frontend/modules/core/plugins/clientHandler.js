@@ -295,12 +295,13 @@ export class ErrorHandler {
     }
 
     const status = this.response?.status || 500
+    // A string detail is a readable message, also for body validation: the row
+    // views send a field's own error that way (api/rows/exceptions.py).
     if (
       this.detail &&
       typeof this.detail === 'string' &&
       status >= 400 &&
-      status < 500 &&
-      this.code != 'ERROR_REQUEST_BODY_VALIDATION'
+      status < 500
     ) {
       return new ResponseErrorMessage(
         this.app.$i18n.t('clientHandler.notCompletedTitle'),

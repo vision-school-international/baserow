@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "field_patterns"
+version = "0.1.0"
+description = "Pattern text field for Baserow."
+license = "MIT"
+requires-python = ">=3.14"
+# regex ships with Baserow (backend/uv.lock).
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -403,7 +403,6 @@ describe('test error handling', () => {
     const invalidDetails = [
       null,
       undefined,
-      'string',
       1,
       [],
       1.0,
@@ -476,5 +475,24 @@ describe('test error handling', () => {
         }
       }
     )
+  })
+  test('a string request body validation detail is shown', async () => {
+    // The row views send a field's own error as a string (api/rows/exceptions.py).
+    expect.assertions(2)
+    try {
+      await errorInterceptorWithStubAppAndStore()({
+        response: {
+          data: {
+            error: 'ERROR_REQUEST_BODY_VALIDATION',
+            detail: 'Use ABC-123',
+          },
+          status: 400,
+        },
+      })
+    } catch (error) {
+      const message = error.handler.getMessage('name')
+      expect(message.title).toBe('clientHandler.notCompletedTitle')
+      expect(message.message).toBe('Use ABC-123')
+    }
   })
 })

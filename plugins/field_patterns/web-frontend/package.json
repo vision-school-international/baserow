@@ -1,0 +1,8 @@
+{
+  "name": "field-patterns",
+  "version": "0.1.0",
+  "description": "Pattern text field: text that must match a regular expression.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}

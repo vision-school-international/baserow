@@ -1,0 +1,16 @@
+{
+  "fieldPatterns": {
+    "fieldName": "Pattern text",
+    "pattern": "Pattern",
+    "patternHelp": "A regular expression the whole value must match. Empty cells are allowed. Existing values aren't checked again.",
+    "patternPlaceholder": "[A-Z]{3}-\\d{3}",
+    "errorMessage": "Error message",
+    "errorMessagePlaceholder": "The value doesn't match the pattern.",
+    "case": "Change case before checking",
+    "caseNone": "Keep as typed",
+    "caseLower": "lower case",
+    "caseUpper": "UPPER CASE",
+    "trim": "Spaces",
+    "trimLabel": "Remove spaces around the value"
+  }
+}
