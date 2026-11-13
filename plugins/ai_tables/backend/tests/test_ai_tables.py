@@ -1,10 +1,12 @@
 from unittest.mock import patch
 
 from django.db import connections
+from django.test import override_settings
 
 import pytest
 from ai_tables.handler import AIPromptHandler
 from ai_tables.models import AIPromptScheduledUpdate
+from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.fields.exceptions import (
     IncompatibleField,
@@ -154,11 +156,12 @@ def test_changing_a_prompt_field_schedules_the_row(data_fixture):
     assert field.ai_auto_update_user_id == user.id
 
 
-def _transform(user, field, row_ids):
+def _transform(user, fields, row_ids):
+    fields = fields if isinstance(fields, list) else [fields]
     return JobHandler().create_and_start_job(
         user,
         "transform_ai_cells",
-        field_id=field.id,
+        field_ids=[field.id for field in fields],
         row_ids=row_ids,
         instruction="Capitalize",
         ai_generative_ai_type="test_generative_ai",
@@ -228,3 +231,43 @@ def test_transform_refuses_fields_that_are_not_writable_text(data_fixture):
     name.save()
     with pytest.raises(IncompatibleField):
         _transform(user, name, [row.id])
+
+    other_table = data_fixture.create_database_table(database=table.database)
+    other = data_fixture.create_text_field(table=other_table)
+    name.read_only = False
+    name.save()
+    with pytest.raises(IncompatibleField):
+        _transform(user, [name, other], [row.id])
+
+
+@pytest.mark.django_db
+def test_transform_refuses_more_cells_than_the_batch_limit(data_fixture):
+    user, table, name = _setup(data_fixture)
+    city = data_fixture.create_text_field(table=table, name="City")
+    row = RowHandler().create_row(user, table, {})
+
+    with override_settings(BATCH_ROWS_SIZE_LIMIT=1):
+        with pytest.raises(ValidationError):
+            _transform(user, [name, city], [row.id])
+
+
+@pytest.mark.django_db(transaction=True)
+def test_transform_several_columns_is_one_row_update(data_fixture):
+    user, table, name = _setup(data_fixture)
+    city = data_fixture.create_text_field(table=table, name="City")
+    row = RowHandler().create_row(
+        user, table, {f"field_{name.id}": "ada", f"field_{city.id}": "rome"}
+    )
+
+    job = _transform(user, [name, city], [row.id])
+
+    job.refresh_from_db()
+    assert job.state == "finished"
+    assert job.failed_row_ids == []
+    assert _cell(table, name, row.id).endswith("Text:\nada")
+    assert _cell(table, city, row.id).endswith("Text:\nrome")
+    entry = RowHistory.objects.get(row_id=row.id)
+    assert entry.before_values == {
+        f"field_{name.id}": "ada",
+        f"field_{city.id}": "rome",
+    }

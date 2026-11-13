@@ -100,19 +100,26 @@ class TransformAICellsJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):
     """
-    Rewrites the selected cells of a text field in place with an instruction. The
+    Rewrites the selected cells of text fields in place with an instruction. The
     undo/redo ids let the rows update it makes be undone in the user's session,
     like DuplicateApplicationJob (core/models.py).
     """
 
+    # TODO ZDM: remove this field in the next version
     field = models.ForeignKey(
         Field,
+        null=True,
         on_delete=models.CASCADE,
         related_name="+",
-        help_text="The text field whose cells are rewritten.",
+        help_text="Deprecated, replaced by field_ids.",
+    )
+    field_ids = ArrayField(
+        models.IntegerField(),
+        null=True,
+        help_text="The text fields of one table whose cells are rewritten.",
     )
     row_ids = ArrayField(
-        models.IntegerField(), help_text="The rows whose cell is rewritten."
+        models.IntegerField(), help_text="The rows whose cells are rewritten."
     )
     instruction = models.TextField(help_text="What the model does with every cell.")
     ai_generative_ai_type = models.CharField(max_length=32)
@@ -121,6 +128,6 @@ class TransformAICellsJob(
     failed_row_ids = ArrayField(
         models.IntegerField(),
         default=list,
-        help_text="The rows left unchanged: the model failed on them, or their cell "
-        "was edited while the model ran.",
+        help_text="The rows with a cell left unchanged: the model failed on it, or "
+        "it was edited while the model ran.",
     )

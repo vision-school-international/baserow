@@ -6,16 +6,13 @@ import {
   GenerateAIPromptValuesJobType,
   GenerateValuesContextItemType,
   TransformAICellsJobType,
+  TransformCellsSelectionItemType,
 } from './registerables'
-import TransformCellsContextItem from './components/TransformCellsContextItem.vue'
-
-// The backend's TRANSFORMABLE_FIELD_TYPES (job_types.py).
-const TRANSFORMABLE_FIELD_TYPES = ['text', 'long_text']
 
 export default defineNuxtPlugin({
   name: 'ai-tables',
-  // database/plugin.js registers 'field' and 'fieldContextItem', core 'job' and
-  // 'aiProviderModelFeature'.
+  // database/plugin.js registers 'field', 'fieldContextItem' and
+  // 'gridSelectionContextItem', core 'job' and 'aiProviderModelFeature'.
   dependsOn: ['core', 'database'],
   setup(nuxtApp) {
     const { $registry } = nuxtApp
@@ -33,17 +30,10 @@ export default defineNuxtPlugin({
       new GenerateValuesContextItemType(context)
     )
     $registry.register('job', new TransformAICellsJobType(context))
+    $registry.register(
+      'gridSelectionContextItem',
+      new TransformCellsSelectionItemType(context)
+    )
     $registry.register('plugin', new AITablesPlugin(context))
-
-    // shortcut: wraps the core text field type instances, because core has no
-    // registry for cell-selection menu items (GridView.vue getMultiSelectContextItems);
-    // replace with such a registry if core gets one.
-    for (const type of TRANSFORMABLE_FIELD_TYPES) {
-      const fieldType = $registry.get('field', type)
-      const original = fieldType.getGridViewContextItemsOnCellsSelection
-      fieldType.getGridViewContextItemsOnCellsSelection = function (field) {
-        return [...original.call(this, field), TransformCellsContextItem]
-      }
-    }
   },
 })

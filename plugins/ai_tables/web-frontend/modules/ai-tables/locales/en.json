@@ -28,14 +28,19 @@
     "generateFailed": "Generating values failed",
     "close": "Close",
     "transformCells": "Transform with AI",
-    "transformTitle": "Transform {name} with AI",
-    "transformDescription": "The AI rewrites the {count} selected cells. Empty cells are skipped. You can undo it, and the old values stay in each row's history.",
+    "transformDescription": "The AI rewrites each selected cell of the columns below. Empty cells are skipped. You can undo it, and the old values stay in each row's history.",
+    "columns": "Columns",
+    "transformCount": "{count} cells will be sent to the model.",
+    "transformTooMany": "{count} cells are selected. At most {max} can be transformed at once, so select fewer rows or columns.",
+    "transformNotEnabled": "No AI model is enabled for AI fields in this workspace. Enable one in the AI providers settings, then try again.",
+    "transformNotEnabledAskAdmin": "No AI model is enabled for AI fields in this workspace. Ask a workspace admin to enable one in the workspace's AI providers settings.",
+    "openAIProviders": "Open AI providers",
     "instruction": "Instruction",
     "instructionHelp": "Sent to the model with each cell's text. The answer replaces the cell.",
     "instructionPlaceholder": "Normalize the name to Title Case",
     "transform": "Transform",
     "transformPartialTitle": "Some cells weren't changed",
-    "transformPartial": "{count} cells were left as they were: the model failed on them, or they were edited while it ran.",
+    "transformPartial": "{count} rows have a cell that was left as it was: the model failed on it, or it was edited while the model ran.",
     "transformFailed": "Transforming cells failed"
   }
 }

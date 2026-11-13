@@ -4,6 +4,7 @@ import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import { AIProviderModelFeatureType } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import GenerateValuesContextItem from './components/GenerateValuesContextItem.vue'
 import TransformCellsModal from './components/TransformCellsModal.vue'
+import TransformCellsContextItem from './components/TransformCellsContextItem.vue'
 
 // The transform modal lives in the app layout: the grid's cell-selection menu
 // unmounts its items on the first click outside the grid.
@@ -88,5 +89,15 @@ export class GenerateValuesContextItemType extends Registerable {
 
   getComponent() {
     return GenerateValuesContextItem
+  }
+}
+
+export class TransformCellsSelectionItemType extends Registerable {
+  static getType() {
+    return 'transform_ai_cells'
+  }
+
+  getComponent() {
+    return TransformCellsContextItem
   }
 }

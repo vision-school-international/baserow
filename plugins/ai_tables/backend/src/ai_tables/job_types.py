@@ -173,7 +173,7 @@ class GenerateAIPromptValuesJobType(JobType):
 
 
 class TransformAICellsJobType(JobType):
-    """Rewrites the selected cells of a text field in place with an instruction."""
+    """Rewrites the selected cells of text fields in place with an instruction."""
 
     type = "transform_ai_cells"
     model_class = TransformAICellsJob
@@ -188,7 +188,7 @@ class TransformAICellsJobType(JobType):
         ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
     }
     request_serializer_field_names = [
-        "field_id",
+        "field_ids",
         "row_ids",
         "instruction",
         "ai_generative_ai_type",
@@ -196,14 +196,18 @@ class TransformAICellsJobType(JobType):
         "ai_temperature",
     ]
     request_serializer_field_overrides = {
-        "field_id": serializers.IntegerField(
-            help_text="The text or long text field whose cells are rewritten."
+        "field_ids": serializers.ListField(
+            child=serializers.IntegerField(),
+            min_length=1,
+            max_length=settings.BATCH_ROWS_SIZE_LIMIT,
+            help_text="The text or long text fields of one table whose cells are "
+            "rewritten. Rows times fields can be at most BATCH_ROWS_SIZE_LIMIT.",
         ),
         "row_ids": serializers.ListField(
             child=serializers.IntegerField(),
             min_length=1,
             max_length=settings.BATCH_ROWS_SIZE_LIMIT,
-            help_text="The rows whose cell is rewritten.",
+            help_text="The rows whose cells are rewritten.",
         ),
         "instruction": serializers.CharField(
             max_length=2000, help_text="What the model does with every cell."
@@ -219,8 +223,8 @@ class TransformAICellsJobType(JobType):
         **request_serializer_field_overrides,
         "failed_row_ids": serializers.ListField(
             child=serializers.IntegerField(),
-            help_text="The rows left unchanged: the model failed on them, or their "
-            "cell was edited while the model ran.",
+            help_text="The rows with a cell left unchanged: the model failed on it, "
+            "or it was edited while the model ran.",
         ),
     }
 
@@ -228,28 +232,36 @@ class TransformAICellsJobType(JobType):
         # The model calls run outside a transaction; the save opens its own.
         return _empty_transaction_context()
 
-    def _get_field_or_raise(self, user, field_id):
-        """The writable text field, if the user may update rows of its table."""
+    def _get_fields_or_raise(self, user, field_ids):
+        """
+        The writable text fields, if they're of one table and the user may update
+        rows of it.
+        """
 
-        field = FieldHandler().get_field(field_id).specific
-        if (
-            field_type_registry.get_by_model(field).type
-            not in TRANSFORMABLE_FIELD_TYPES
-            or field.read_only
-        ):
-            raise IncompatibleField("Only writable text fields can be transformed.")
-        table = field.table
+        fields = []
+        for field_id in dict.fromkeys(field_ids):
+            field = FieldHandler().get_field(field_id).specific
+            if (
+                field_type_registry.get_by_model(field).type
+                not in TRANSFORMABLE_FIELD_TYPES
+                or field.read_only
+            ):
+                raise IncompatibleField("Only writable text fields can be transformed.")
+            if fields and field.table_id != fields[0].table_id:
+                raise IncompatibleField("The fields must be of the same table.")
+            fields.append(field)
+        table = fields[0].table
         CoreHandler().check_permissions(
             user,
             UpdateDatabaseRowOperationType.type,
             workspace=table.database.workspace,
             context=table,
         )
-        return field
+        return fields
 
     def prepare_values(self, values, user):
-        field = self._get_field_or_raise(user, values["field_id"])
-        table = field.table
+        fields = self._get_fields_or_raise(user, values["field_ids"])
+        table = fields[0].table
         enabled = generative_ai_model_type_registry.get_enabled_models_per_type(
             table.database.workspace, feature_type=AI_PROVIDER_FEATURE_AI_FIELDS
         )
@@ -259,6 +271,12 @@ class TransformAICellsJobType(JobType):
             raise ModelDoesNotBelongToType(model_name=values["ai_generative_ai_model"])
 
         row_ids = list(dict.fromkeys(values["row_ids"]))
+        # One model call per cell, so one request makes at most this many.
+        if len(row_ids) * len(fields) > settings.BATCH_ROWS_SIZE_LIMIT:
+            raise serializers.ValidationError(
+                f"At most {settings.BATCH_ROWS_SIZE_LIMIT} cells can be "
+                "transformed at once."
+            )
         found = set(
             table.get_model()
             .objects.filter(id__in=row_ids)
@@ -268,7 +286,7 @@ class TransformAICellsJobType(JobType):
         if missing:
             raise RowDoesNotExist(missing)
         return {
-            "field": field,
+            "field_ids": [field.id for field in fields],
             "row_ids": row_ids,
             "instruction": values["instruction"],
             "ai_generative_ai_type": values["ai_generative_ai_type"],
@@ -277,13 +295,14 @@ class TransformAICellsJobType(JobType):
         }
 
     def run(self, job, progress):
-        # Checked again: the field or the user's access may have changed.
-        field = self._get_field_or_raise(job.user, job.field_id)
-        rows_progress = ChildProgressBuilder.build(
+        # Checked again: the fields or the user's access may have changed. A job
+        # created by the previous version has only `field`.
+        fields = self._get_fields_or_raise(job.user, job.field_ids or [job.field_id])
+        cells_progress = ChildProgressBuilder.build(
             progress.create_child_builder(represents_progress=progress.total),
-            len(job.row_ids),
+            len(job.row_ids) * len(fields),
         )
         # Saved with the finished state by run_async_job (core/jobs/tasks.py).
         job.failed_row_ids = AIPromptHandler().transform_cells(
-            job, field, progress=rows_progress
+            job, fields, progress=cells_progress
         )

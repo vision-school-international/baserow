@@ -199,6 +199,19 @@
           :database="database"
           @click=";[$refs.rowContext.hide()]"
         ></component>
+        <component
+          :is="itemComponent"
+          v-for="(itemComponent, index) in selectionContextItems"
+          :key="'selection-' + index"
+          :fields="selectionContextFields"
+          :get-rows="getSelectedRowsFunction"
+          :table="table"
+          :view="view"
+          :database="database"
+          :store-prefix="storePrefix"
+          :read-only="readOnly"
+          @click=";[$refs.rowContext.hide()]"
+        ></component>
         <li class="context__menu-item">
           <a
             class="context__menu-item-link"
@@ -258,6 +271,25 @@
         @open-row-modal="onContextOpenRowModal"
         @delete-row="deleteRow($event)"
       />
+      <ul
+        v-if="selectedCellField && selectionContextItems.length > 0"
+        v-show="!isMultiSelectActive"
+        class="context__menu"
+      >
+        <component
+          :is="itemComponent"
+          v-for="(itemComponent, index) in selectionContextItems"
+          :key="'cell-' + index"
+          :fields="[selectedCellField]"
+          :get-rows="getSelectedCellRowsFunction"
+          :table="table"
+          :view="view"
+          :database="database"
+          :store-prefix="storePrefix"
+          :read-only="readOnly"
+          @click=";[$refs.rowContext.hide()]"
+        ></component>
+      </ul>
     </Context>
     <ButtonFloating
       v-if="canCreateRow"
@@ -649,6 +681,46 @@ export default {
       return this.$store.getters[
         this.storePrefix + 'view/grid/isMultiSelectActive'
       ]
+    },
+    /**
+     * Components registered in `gridSelectionContextItem`. They get the same props
+     * for an area selection, checked rows or one selected cell.
+     */
+    selectionContextItems() {
+      return Object.values(this.$registry.getAll('gridSelectionContextItem'))
+        .map((itemType) => itemType.getComponent())
+        .filter((component) => component !== null)
+    },
+    /**
+     * The area's columns, or every visible column when rows are checked, because a
+     * checkbox selection has no columns.
+     */
+    selectionContextFields() {
+      if (!this.isMultiSelectActive) {
+        return []
+      }
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+      if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+        return this.allVisibleFields
+      }
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getSelectedFields'
+      ](this.allVisibleFields)
+    },
+    /**
+     * The field of the selected cell, if the right clicked row holds it. A right
+     * click doesn't select a cell.
+     */
+    selectedCellField() {
+      const row = this.selectedRow
+      if (!row || !row._?.selected || row._.selectedFieldId === -1) {
+        return null
+      }
+      return (
+        this.allVisibleFields.find((f) => f.id === row._.selectedFieldId) ||
+        null
+      )
     },
   },
   watch: {
@@ -2105,9 +2177,13 @@ export default {
     async getSelectedRowsFunction() {
       const fieldsAndRows = await this.$store.dispatch(
         this.storePrefix + 'view/grid/getCurrentSelection',
-        { fields: this.fields }
+        // getCurrentSelection slices by visible index, like copySelection.
+        { fields: this.allVisibleFields }
       )
       return fieldsAndRows[1]
+    },
+    getSelectedCellRowsFunction() {
+      return Promise.resolve(this.selectedRow ? [this.selectedRow] : [])
     },
     _emitPresenceCellFocus(rowId, fieldId, editing = false) {
       if (this.presenceFocus) {

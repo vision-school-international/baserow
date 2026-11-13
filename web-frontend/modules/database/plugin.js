@@ -1187,6 +1187,8 @@ export default defineNuxtPlugin({
     )
 
     $registry.registerNamespace('fieldContextItem')
+    // Grid cell or row selection menu items, see GridView.vue selectionContextItems.
+    $registry.registerNamespace('gridSelectionContextItem')
 
     searchTypeRegistry.register(new DatabaseSearchType(context))
     searchTypeRegistry.register(new DatabaseTableSearchType(context))

@@ -16,37 +16,47 @@ import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiPr
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { TRANSFORM_CELLS_EVENT } from './TransformCellsModal.vue'
 
+// The backend's TRANSFORMABLE_FIELD_TYPES (job_types.py).
+const TRANSFORMABLE_FIELD_TYPES = ['text', 'long_text']
+
+/**
+ * A `gridSelectionContextItem`: shown for a selection with a writable text column.
+ * It stays shown when no model is enabled, and the modal explains why.
+ */
 export default {
   name: 'TransformCellsContextItem',
   props: {
-    field: { type: Object, required: true },
+    fields: { type: Array, required: true },
     getRows: { type: Function, required: true },
-    storePrefix: { type: String, required: true },
+    table: { type: Object, required: true },
+    view: { type: Object, required: true },
     database: { type: Object, required: true },
+    storePrefix: { type: String, required: true },
+    readOnly: { type: Boolean, required: true },
   },
   emits: ['click'],
   data() {
     return { loading: false }
   },
   computed: {
+    transformableFields() {
+      return this.fields.filter(
+        (field) =>
+          TRANSFORMABLE_FIELD_TYPES.includes(field.type) &&
+          this.$registry.get('field', field.type).canWriteFieldValues(field)
+      )
+    },
     available() {
-      const workspace = this.$store.getters['workspace/get'](
-        this.database.workspace.id
-      )
-      const table = this.database.tables?.find(
-        (t) => t.id === this.field.table_id
-      )
+      // The same gates as the grid's delete rows item (GridView.vue).
       return (
-        Boolean(table) &&
-        !this.field.read_only &&
+        this.transformableFields.length > 0 &&
+        !this.readOnly &&
+        (!this.table.data_sync || this.table.data_sync.two_way_sync) &&
         this.$hasPermission(
           'database.table.update_row',
-          table,
+          this.table,
           this.database.workspace.id
-        ) &&
-        Object.values(
-          getEnabledModelsForAIProviderFeature(workspace, 'ai_fields')
-        ).some((models) => models.length > 0)
+        )
       )
     },
   },
@@ -57,12 +67,20 @@ export default {
       }
       this.loading = true
       try {
-        const rows = await this.getRows()
+        const workspace = this.$store.getters['workspace/get'](
+          this.database.workspace.id
+        )
+        const enabled = Object.values(
+          getEnabledModelsForAIProviderFeature(workspace, 'ai_fields')
+        ).some((models) => models.length > 0)
+        const rows = enabled ? await this.getRows() : []
         // The modal is in the app layout; this item unmounts with the selection.
         this.$bus.$emit(TRANSFORM_CELLS_EVENT, {
-          field: this.field,
+          fields: this.transformableFields,
           rowIds: rows.map((row) => row.id),
           database: this.database,
+          workspace,
+          enabled,
         })
         this.$emit('click')
       } catch (error) {

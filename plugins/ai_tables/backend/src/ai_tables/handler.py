@@ -249,29 +249,41 @@ class AIPromptHandler:
         return errors
 
     def transform_cells(
-        self, job, field, progress: Optional[Progress] = None
+        self, job, fields, progress: Optional[Progress] = None
     ) -> List[int]:
         """
-        Rewrites the job's cells of a text field with its instruction. The answers
-        are saved in one UpdateRowsActionType action, so the change can be undone
-        and is in the row history. Empty cells are skipped.
+        Rewrites the job's cells of text fields of one table with its instruction,
+        one model call per cell. The answers are saved in one UpdateRowsActionType
+        action, so the change is one undo and is in the row history. Empty cells
+        are skipped.
 
-        :return: The ids of the rows left unchanged: deleted, failed, or edited
-            while the model ran.
+        :return: The ids of the rows with a cell left unchanged: the row was
+            deleted, or the model failed on the cell, or it was edited while the
+            model ran.
         """
 
-        table = field.table
+        table = fields[0].table
         model = table.get_model()
         model_type = generative_ai_model_type_registry.get(job.ai_generative_ai_type)
-        original = dict(
-            model.objects.filter(id__in=job.row_ids).values_list("id", field.db_column)
+        columns = [field.db_column for field in fields]
+
+        def cells(rows):
+            # {(row_id, field_id): value} for the values_list rows of `columns`.
+            return {
+                (row[0], field.id): value
+                for row in rows
+                for field, value in zip(fields, row[1:])
+            }
+
+        original = cells(
+            model.objects.filter(id__in=job.row_ids).values_list("id", *columns)
         )
-        failed = set(job.row_ids) - set(original)
-        answers: dict[int, str] = {}
-        to_send = {row_id: value for row_id, value in original.items() if value}
+        failed = set(job.row_ids) - {row_id for row_id, _ in original}
+        answers: dict[tuple[int, int], str] = {}
+        to_send = {cell: value for cell, value in original.items() if value}
         if progress is not None:
-            # Deleted and empty rows are done already.
-            progress.increment(by=len(job.row_ids) - len(to_send))
+            # Cells of deleted rows and empty cells are done already.
+            progress.increment(by=len(job.row_ids) * len(fields) - len(to_send))
         workers = max(1, settings.AI_TABLES_MAX_CONCURRENT_GENERATIONS)
 
         with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -285,37 +297,40 @@ class AIPromptHandler:
                     TRANSFORM_PROMPT.format(instruction=job.instruction, text=value),
                     [],
                     None,
-                ): row_id
-                for row_id, value in to_send.items()
+                ): cell
+                for cell, value in to_send.items()
             }
             for future in as_completed(futures):
-                row_id = futures[future]
+                cell = futures[future]
                 try:
                     answer = future.result()
                     text = "" if answer is None else str(answer).strip()
                     if not text:
                         # Saving it would wipe the cell.
                         raise RowGenerationError("The model returned no text.")
-                    answers[row_id] = text[: settings.MAX_FIELD_TEXT_LENGTH]
+                    answers[cell] = text[: settings.MAX_FIELD_TEXT_LENGTH]
                 except Exception as exc:
                     self._message(exc)  # Logs unexpected errors.
-                    failed.add(row_id)
+                    failed.add(cell[0])
                 if progress is not None:
                     progress.increment()
 
         with transaction.atomic():
             # Locked, so a cell edited while the model ran is left as it was edited.
-            current = dict(
+            current = cells(
                 RowHandler()
-                .get_rows_for_update(model, list(answers))
-                .values_list("id", field.db_column)
+                .get_rows_for_update(model, list({row_id for row_id, _ in answers}))
+                .values_list("id", *columns)
             )
-            rows_values = []
-            for row_id, text in answers.items():
-                if row_id not in current or current[row_id] != original[row_id]:
+            values_by_row: dict[int, dict] = {}
+            for cell, text in answers.items():
+                row_id, field_id = cell
+                if cell not in current or current[cell] != original[cell]:
                     failed.add(row_id)
-                elif text != original[row_id]:
-                    rows_values.append({"id": row_id, f"field_{field.id}": text})
+                elif text != original[cell]:
+                    row_values = values_by_row.setdefault(row_id, {"id": row_id})
+                    row_values[f"field_{field_id}"] = text
+            rows_values = list(values_by_row.values())
             if rows_values:
                 action_type_registry.get_by_type(UpdateRowsActionType).do(
                     job.user, table, rows_values, model=model
