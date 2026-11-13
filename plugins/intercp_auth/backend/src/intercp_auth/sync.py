@@ -56,10 +56,14 @@ def enforce_single_sign_on() -> None:
 def add_to_default_workspace(users=None) -> None:
     """
     Adds users to INTERCP_DEFAULT_WORKSPACE_ID as members, through core's
-    add_user_to_workspace, which never changes an existing member's role.
+    add_user_to_workspace, which never changes an existing member's role
+    (core/handler.py:1587-1604). Each user is added once, recorded in
+    DefaultWorkspaceJoin, so someone a staff member removed stays removed.
 
     :param users: The users to add; all active users when None.
     """
+
+    from .models import DefaultWorkspaceJoin
 
     workspace_id = settings.INTERCP_DEFAULT_WORKSPACE_ID
     if workspace_id is None:
@@ -69,14 +73,14 @@ def add_to_default_workspace(users=None) -> None:
         # Workspace.objects leaves out trashed workspaces.
         logger.warning(f"INTERCP_DEFAULT_WORKSPACE_ID {workspace_id} not found.")
         return
+    joined = DefaultWorkspaceJoin.objects.filter(workspace=workspace)
     if users is None:
-        users = (
-            get_user_model()
-            .objects.filter(is_active=True)
-            .exclude(workspaceuser__workspace=workspace)
-        )
+        users = get_user_model().objects.filter(is_active=True)
+    users = [user for user in users if not joined.filter(user=user).exists()]
     handler = CoreHandler()
     for user in users:
+        # An existing member keeps their role and only gets the record.
         handler.add_user_to_workspace(
             workspace, user, permissions=WORKSPACE_USER_PERMISSION_MEMBER
         )
+        DefaultWorkspaceJoin.objects.get_or_create(user=user, workspace=workspace)

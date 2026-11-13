@@ -15,8 +15,9 @@ from .models import GoogleSheetsDataSync, GoogleSheetsPendingRow
 from .sheets import RetryableSyncError, SheetsClient, to_sheet_value
 from .strategy import GoogleSheetsPushStrategy
 
-# Longer than one push takes: two requests of at most 60 s each (sheets.py).
-PUSH_LOCK_SECONDS = 180
+# Far longer than one push: two requests of about 60 s each (sheets.py), whose
+# limit "is not guaranteed" (google-auth max_allowed_time). Released by its owner.
+PUSH_LOCK_SECONDS = 15 * 60
 
 
 class PushInProgress(RetryableSyncError):
@@ -215,7 +216,8 @@ class GoogleSheetsDataSyncType(DataSyncType):
         """
 
         lock_key = f"sheets_sync_push_{data_sync.id}"
-        if not cache.add(lock_key, "locked", timeout=PUSH_LOCK_SECONDS):
+        owner = str(uuid4())
+        if not cache.add(lock_key, owner, timeout=PUSH_LOCK_SECONDS):
             raise PushInProgress("Another change is being written to the sheet.")
         try:
             row_ids = list(
@@ -225,25 +227,42 @@ class GoogleSheetsDataSyncType(DataSyncType):
             )
             if not row_ids:
                 return
-            pending = self._pending_rows(data_sync)
-            client, headers, numbers = self._row_numbers(data_sync)
             id_key = data_sync.google_id_column
+            pending = self._pending_rows(data_sync)
+            # The receiver always sets an ID; one that's empty anyway gets one here,
+            # because core deletes rows with an empty unique primary (handler.py:684).
+            missing_id = [
+                row_id for row_id, values in pending.items() if not values.get(id_key)
+            ]
+            if missing_id:
+                model = data_sync.table.get_model()
+                field_name = id_field_name(data_sync)
+                for row_id in missing_id:
+                    new_id = str(uuid4())
+                    model.objects.filter(id=row_id).update(**{field_name: new_id})
+                    pending[row_id][id_key] = new_id
+            client, headers, numbers = self._row_numbers(data_sync)
             new_rows = [
                 [
                     to_sheet_value(values.get(header)) if header else ""
                     for header in headers
                 ]
                 for values in pending.values()
-                if values.get(id_key) and values[id_key] not in numbers
+                if values[id_key] not in numbers
             ]
             if new_rows:
                 client.append_rows(new_rows)
-            # Also clears rows deleted from Baserow in the meantime.
+            # Every collected mark is done: appended, already in the sheet, or the
+            # row was deleted from Baserow in the meantime.
             GoogleSheetsPendingRow.objects.filter(
                 data_sync=data_sync, row_id__in=row_ids
             ).delete()
         finally:
-            cache.delete(lock_key)
+            # Only the owner releases it, so an expired lock that another worker
+            # took over is left alone. shortcut: get-then-delete isn't atomic; the
+            # gap is one cache round trip after a 15 minute expiry.
+            if cache.get(lock_key) == owner:
+                cache.delete(lock_key)
 
     def create_rows(self, serialized_rows, data_sync):
         # The rows got their ID and pending mark when they were created
@@ -260,13 +279,21 @@ class GoogleSheetsDataSyncType(DataSyncType):
         ]
         if not changed:
             return
+        pending_ids = set(
+            GoogleSheetsPendingRow.objects.filter(
+                data_sync=data_sync, row_id__in=[row["id"] for row in serialized_rows]
+            ).values_list("row_id", flat=True)
+        )
         client, headers, numbers = self._row_numbers(data_sync)
         cells = []
         for row in serialized_rows:
-            # Not in the sheet: still pending, and pushed with its current values,
-            # or deleted from the sheet in the meantime.
             number = numbers.get(str(row.get(id_field) or "").strip())
             if number is None:
+                if row["id"] in pending_ids:
+                    # Its push may have read the values before this edit, so wait
+                    # until the row is in the sheet and write the edit then.
+                    raise RetryableSyncError("A new row is still being written.")
+                # Deleted from the sheet in the meantime.
                 continue
             for field_id in changed:
                 key = field_to_key[field_id]

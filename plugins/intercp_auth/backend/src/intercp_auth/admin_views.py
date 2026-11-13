@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.admin.users.views import UsersAdminView
 from baserow.api.decorators import validate_body
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
@@ -32,6 +33,24 @@ class AddWorkspaceMemberSerializer(serializers.Serializer):
     )
 
 
+class AdminActiveUsersView(UsersAdminView):
+    """
+    Core's staff-only users listing (api/admin/users/views.py:50), with paging and
+    search, narrowed to the active users the add endpoint accepts.
+    """
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(is_active=True)
+
+    @extend_schema(
+        tags=["Admin"],
+        operation_id="intercp_admin_list_active_users",
+        description="Lists the active users, if the requesting user is staff.",
+    )
+    def get(self, request):
+        return super().get(request)
+
+
 class AdminAddWorkspaceMemberView(APIView):
     """Lets a staff member add any active user to any workspace, without an invite."""
 
@@ -47,6 +66,11 @@ class AdminAddWorkspaceMemberView(APIView):
     @validate_body(AddWorkspaceMemberSerializer, return_validated=True)
     def post(self, request, data):
         workspace, user = data["workspace"], data["user"]
+        # Core's add_user_to_workspace doesn't say whether it created the member
+        # (core/handler.py:1587-1604), so it's looked up first. The row lock makes
+        # concurrent adds to this workspace wait, so a double click gets "already
+        # a member" instead of a second "added".
+        Workspace.objects.select_for_update().filter(pk=workspace.pk).first()
         existing = WorkspaceUser.objects.filter(workspace=workspace, user=user).first()
         workspace_user = existing or CoreHandler().add_user_to_workspace(
             workspace, user, permissions=data["permissions"]

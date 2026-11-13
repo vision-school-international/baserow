@@ -77,8 +77,14 @@ class SheetsClient:
     def _call(self, method: str, path: str, **kwargs) -> dict:
         url = f"{API_URL}/{quote(self.spreadsheet_id, safe='')}{path}"
         try:
+            # max_allowed_time also bounds the token refresh, whose own default
+            # timeout is 120 s (google/auth/transport/requests.py:45, :583).
             response = self.session.request(
-                method, url, timeout=TIMEOUT_SECONDS, **kwargs
+                method,
+                url,
+                timeout=TIMEOUT_SECONDS,
+                max_allowed_time=TIMEOUT_SECONDS,
+                **kwargs,
             )
         except RequestException as e:
             raise RetryableSyncError(f"Google Sheets could not be reached: {e}")

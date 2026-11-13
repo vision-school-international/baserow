@@ -81,7 +81,7 @@ import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/workspaces'
-import UsersAdminService from '@baserow/modules/core/services/admin/users'
+import baseService from '@baserow/modules/core/crudTable/baseService'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 // Same layout and middleware as core's admin pages (pages/admin/settings.vue).
@@ -104,19 +104,19 @@ function fetchWorkspaces(page, search) {
   return fetchWorkspaceOptions($client, page, search)
 }
 
-async function fetchUsers(page, search) {
-  const service = UsersAdminService($client)
-  const response = await service.fetch(
-    service.options.baseUrl,
+// Our active-users listing (admin_views.py), so every page is full and paging
+// works; the add endpoint only accepts active users. Same service helper as core's
+// UsersAdminService (core/crudTable/baseService.js).
+const activeUsersService = baseService($client, '/intercp/admin/active-users/')
+
+function fetchUsers(page, search) {
+  return activeUsersService.fetch(
+    activeUsersService.options.baseUrl,
     page,
     search,
     [],
     {}
   )
-  // The backend only accepts active users, and the admin users endpoint has no
-  // filter for it (api/admin/users/views.py). `count` stays, so paging goes on.
-  response.data.results = response.data.results.filter((user) => user.is_active)
-  return response
 }
 
 function userName(user) {

@@ -19,6 +19,8 @@ def sync_google_sheet(data_sync_id: int):
     from baserow.contrib.database.data_sync.models import (
         DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC,
     )
+    from baserow.contrib.database.data_sync.operations import SyncTableOperationType
+    from baserow.core.handler import CoreHandler
     from baserow.core.jobs.exceptions import MaxJobCountExceeded
     from baserow.core.jobs.handler import JobHandler
     from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
@@ -27,34 +29,51 @@ def sync_google_sheet(data_sync_id: int):
 
     data_sync = (
         GoogleSheetsDataSync.objects.select_related(
-            "authorized_user", "table__database"
+            "authorized_user", "table__database__workspace"
         )
         .filter(id=data_sync_id)
         .first()
     )
     if data_sync is None:
         return
-    user = data_sync.authorized_user
-    if user is None or not user.is_active:
-        # Imported or duplicated syncs have no user (prepare_values only runs on
-        # create), and the creator can be gone: run as the first workspace admin.
-        admin = (
-            WorkspaceUser.objects.filter(
-                workspace_id=data_sync.table.database.workspace_id,
-                permissions=WORKSPACE_USER_PERMISSION_ADMIN,
-                user__is_active=True,
-            )
-            .select_related("user")
-            .order_by("id")
-            .first()
+
+    # The creator, else a workspace admin: imported or duplicated syncs have no
+    # creator (prepare_values only runs on create), and a creator can be removed
+    # from the workspace. Each candidate gets the same check the sync job makes
+    # (data_sync/job_types.py:288), without raising.
+    workspace = data_sync.table.database.workspace
+    admins = (
+        WorkspaceUser.objects.filter(
+            workspace=workspace,
+            permissions=WORKSPACE_USER_PERMISSION_ADMIN,
+            user__is_active=True,
         )
-        if admin is None:
-            logger.warning(
-                "Google Sheets data sync {id} skipped: no active user to run it as.",
-                id=data_sync_id,
+        .select_related("user")
+        .order_by("id")
+    )
+    candidates = [data_sync.authorized_user, *(admin.user for admin in admins)]
+    user = next(
+        (
+            candidate
+            for candidate in candidates
+            if candidate is not None
+            and candidate.is_active
+            and CoreHandler().check_permissions(
+                candidate,
+                SyncTableOperationType.type,
+                workspace=workspace,
+                context=data_sync.table,
+                raise_permission_exceptions=False,
             )
-            return
-        user = admin.user
+        ),
+        None,
+    )
+    if user is None:
+        message = "The periodic sync has no workspace member to run as."
+        logger.warning("Google Sheets data sync {id}: {m}", id=data_sync_id, m=message)
+        data_sync.last_error = message
+        data_sync.save(update_fields=("last_error",))
+        return
 
     try:
         JobHandler().create_and_start_job(

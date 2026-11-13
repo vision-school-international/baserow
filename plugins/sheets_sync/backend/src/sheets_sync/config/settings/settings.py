@@ -5,10 +5,15 @@ def _positive_int(name: str, default: int) -> int:
     # base.py only catches ImportError around setup(), so a bad value must not
     # raise: it would stop the whole backend from starting.
     value = os.getenv(name, "").strip()
-    if value.isdigit() and int(value) > 0:
-        return int(value)
-    if value:
-        print(f"sheets_sync: {name} must be a positive number, got {value!r}.")
+    if not value:
+        return default
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
+    if number > 0:
+        return number
+    print(f"sheets_sync: {name} must be a positive number, got {value!r}.")
     return default
 
 

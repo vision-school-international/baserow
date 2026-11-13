@@ -216,6 +216,47 @@ def test_existing_users_join_default_workspace_keeping_roles(settings, data_fixt
 
 
 @pytest.mark.django_db
+def test_a_removed_user_is_not_added_to_the_default_workspace_again(
+    settings, data_fixture
+):
+    workspace = data_fixture.create_workspace()
+    user = data_fixture.create_user()
+    settings.INTERCP_DEFAULT_WORKSPACE_ID = workspace.id
+
+    add_to_default_workspace()
+    workspace.workspaceuser_set.filter(user=user).delete()
+    add_to_default_workspace()
+    add_to_default_workspace([user])
+
+    assert not workspace.workspaceuser_set.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_staff_lists_only_active_users(api_client, data_fixture):
+    staff, token = data_fixture.create_user_and_token(is_staff=True)
+    active = data_fixture.create_user()
+    data_fixture.create_user(is_active=False)
+
+    response = api_client.get(
+        reverse("api:intercp_auth:admin_active_users"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+    assert {user["id"] for user in response.json()["results"]} == {
+        staff.id,
+        active.id,
+    }
+
+    _, member_token = data_fixture.create_user_and_token()
+    response = api_client.get(
+        reverse("api:intercp_auth:admin_active_users"),
+        HTTP_AUTHORIZATION=f"JWT {member_token}",
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_callback_links_existing_password_account(intercp, api_client, data_fixture):
     data_fixture.create_password_provider(enabled=True)
     user = data_fixture.create_user(email="nerdy_koala@visionschool.dev")
