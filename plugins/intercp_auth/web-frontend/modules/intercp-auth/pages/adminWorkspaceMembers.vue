@@ -15,7 +15,7 @@
               :fetch-page="fetchWorkspaces"
               :add-empty-item="false"
               :not-selected-text="$t('intercpWorkspaceMembers.chooseWorkspace')"
-              value-name="name"
+              value-name="value"
               @input="workspaceId = $event"
             />
           </div>
