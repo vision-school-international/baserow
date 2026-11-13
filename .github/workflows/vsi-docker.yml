@@ -43,7 +43,7 @@ jobs:
           file: web-frontend/Dockerfile
           target: prod
           build-args: |
-            ADDITIONAL_MODULES=/baserow/vsi-plugins/intercp_auth/web-frontend/modules/intercp-auth/module.js,/baserow/vsi-plugins/brand/web-frontend/modules/brand/module.js,/baserow/vsi-plugins/ai_tables/web-frontend/modules/ai-tables/module.js,/baserow/vsi-plugins/sheets_sync/web-frontend/modules/sheets-sync/module.js
+            ADDITIONAL_MODULES=/baserow/vsi-plugins/intercp_auth/web-frontend/modules/intercp-auth/module.js,/baserow/vsi-plugins/brand/web-frontend/modules/brand/module.js,/baserow/vsi-plugins/ai_tables/web-frontend/modules/ai-tables/module.js,/baserow/vsi-plugins/sheets_sync/web-frontend/modules/sheets-sync/module.js,/baserow/vsi-plugins/field_patterns/web-frontend/modules/field-patterns/module.js,/baserow/vsi-plugins/agent_tools/web-frontend/modules/agent-tools/module.js
           push: true
           tags: ghcr.io/${{ github.repository }}/web-frontend:${{ steps.meta.outputs.version }}
       - uses: docker/build-push-action@v7

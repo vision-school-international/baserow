@@ -1,5 +1,18 @@
 const GROUPS = {
   database: { label: 'agent.toolGroupDatabase', icon: 'iconoir-db' },
+  // The groups of the agent_tools plugin, with their application types' icons.
+  builder: {
+    label: 'agent.toolGroupBuilder',
+    icon: 'baserow-icon-application',
+  },
+  dashboard: {
+    label: 'agent.toolGroupDashboard',
+    icon: 'baserow-icon-dashboard',
+  },
+  automation: {
+    label: 'agent.toolGroupAutomation',
+    icon: 'baserow-icon-automation',
+  },
 }
 
 /**

@@ -29,3 +29,9 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/ai_tables
 COPY plugins/sheets_sync/baserow_plugin_info.json /baserow/vsi-plugins/sheets_sync/
 COPY plugins/sheets_sync/backend /baserow/vsi-plugins/sheets_sync/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/sheets_sync
+COPY plugins/field_patterns/baserow_plugin_info.json /baserow/vsi-plugins/field_patterns/
+COPY plugins/field_patterns/backend /baserow/vsi-plugins/field_patterns/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/field_patterns
+COPY plugins/agent_tools/baserow_plugin_info.json /baserow/vsi-plugins/agent_tools/
+COPY plugins/agent_tools/backend /baserow/vsi-plugins/agent_tools/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/agent_tools

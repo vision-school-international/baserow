@@ -1,0 +1,8 @@
+{
+  "name": "agent-tools",
+  "version": "0.1.0",
+  "description": "Agent tools for applications, dashboards and automations.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}
