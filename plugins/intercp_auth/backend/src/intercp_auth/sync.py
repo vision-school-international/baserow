@@ -1,11 +1,15 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+
+from loguru import logger
 
 from baserow.core.auth_provider.handler import (
     AuthProviderHandler,
     PasswordProviderHandler,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.models import WORKSPACE_USER_PERMISSION_MEMBER, Workspace
 from baserow.core.registries import auth_provider_type_registry
 
 from . import oidc
@@ -47,3 +51,32 @@ def enforce_single_sign_on() -> None:
     if instance_settings.show_admin_signup_page:
         instance_settings.show_admin_signup_page = False
         instance_settings.save(update_fields=["show_admin_signup_page"])
+
+
+def add_to_default_workspace(users=None) -> None:
+    """
+    Adds users to INTERCP_DEFAULT_WORKSPACE_ID as members, through core's
+    add_user_to_workspace, which never changes an existing member's role.
+
+    :param users: The users to add; all active users when None.
+    """
+
+    workspace_id = settings.INTERCP_DEFAULT_WORKSPACE_ID
+    if workspace_id is None:
+        return
+    workspace = Workspace.objects.filter(id=workspace_id).first()
+    if workspace is None:
+        # Workspace.objects leaves out trashed workspaces.
+        logger.warning(f"INTERCP_DEFAULT_WORKSPACE_ID {workspace_id} not found.")
+        return
+    if users is None:
+        users = (
+            get_user_model()
+            .objects.filter(is_active=True)
+            .exclude(workspaceuser__workspace=workspace)
+        )
+    handler = CoreHandler()
+    for user in users:
+        handler.add_user_to_workspace(
+            workspace, user, permissions=WORKSPACE_USER_PERMISSION_MEMBER
+        )

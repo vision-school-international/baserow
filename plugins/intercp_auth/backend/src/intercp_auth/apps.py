@@ -22,6 +22,8 @@ def _enforce_single_sign_on(sender, **kwargs):
     if settings.TESTS:
         return
 
-    from .sync import enforce_single_sign_on
+    from .sync import add_to_default_workspace, enforce_single_sign_on
 
     enforce_single_sign_on()
+    # Existing users; new ones are added when they sign in (views.py).
+    add_to_default_workspace()

@@ -11,7 +11,7 @@ import responses
 from cryptography.hazmat.primitives.asymmetric import rsa
 from intercp_auth import oidc
 from intercp_auth.models import InterCPAuthProviderModel
-from intercp_auth.sync import enforce_single_sign_on
+from intercp_auth.sync import add_to_default_workspace, enforce_single_sign_on
 
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.cache import global_cache
@@ -183,6 +183,36 @@ def test_callback_creates_user_and_signs_in(intercp, api_client, data_fixture):
     user = get_user_model().objects.get(email="nerdy_koala@visionschool.dev")
     assert user.password == ""
     assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+def test_callback_adds_user_to_default_workspace(
+    intercp, settings, api_client, data_fixture
+):
+    workspace = data_fixture.create_workspace()
+    settings.INTERCP_DEFAULT_WORKSPACE_ID = workspace.id
+    data_fixture.create_password_provider(enabled=True)
+    enforce_single_sign_on()
+
+    finish_flow(api_client, intercp, start_flow(api_client))
+
+    user = get_user_model().objects.get(email="nerdy_koala@visionschool.dev")
+    assert workspace.workspaceuser_set.get(user=user).permissions == "MEMBER"
+
+
+@pytest.mark.django_db
+def test_existing_users_join_default_workspace_keeping_roles(settings, data_fixture):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    other = data_fixture.create_user()
+    inactive = data_fixture.create_user(is_active=False)
+    settings.INTERCP_DEFAULT_WORKSPACE_ID = workspace.id
+
+    add_to_default_workspace()
+
+    members = dict(workspace.workspaceuser_set.values_list("user_id", "permissions"))
+    assert members == {admin.id: "ADMIN", other.id: "MEMBER"}
+    assert inactive.id not in members
 
 
 @pytest.mark.django_db

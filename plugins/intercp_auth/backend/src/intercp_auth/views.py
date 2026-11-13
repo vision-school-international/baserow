@@ -28,6 +28,7 @@ from baserow.core.user.utils import generate_session_tokens_for_user, sign_user_
 
 from . import oidc
 from .models import InterCPAuthProviderModel
+from .sync import add_to_default_workspace
 
 SESSION_KEY = "intercp_auth"
 ERROR_PAGE_PATH = "/login/intercp-error"
@@ -118,6 +119,7 @@ class CallbackView(APIView):
                 user, _ = provider.get_type().get_or_create_user_and_sign_in(
                     provider, user_info
                 )
+                add_to_default_workspace([user])
         except tuple(SIGN_IN_ERRORS) as e:
             return _error_redirect(_sign_in_error_code(e))
 
