@@ -15,6 +15,12 @@
     "phoneFieldName": "Phone (any country)",
     "defaultCountry": "Default country",
     "defaultCountryHelp": "Numbers typed without + and a country code are read as numbers of this country. Numbers are checked and saved in the international format, like +44 20 7946 0958.",
-    "noDefaultCountry": "None: numbers start with +"
+    "noDefaultCountry": "None: numbers start with +",
+    "telegramFieldName": "Telegram username",
+    "timeFieldName": "Time",
+    "timeFormat": "Clock",
+    "timeFormat24": "24 hour (14:30)",
+    "timeFormat12": "12 hour (2:30 PM)",
+    "timeInvalid": "Enter a time like 14:30 or 2:30 PM."
   }
 }

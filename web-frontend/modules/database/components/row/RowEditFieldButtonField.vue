@@ -23,6 +23,7 @@
       <Button
         size="tiny"
         type="secondary"
+        :class="buttonClass"
         :loading="dispatching"
         :disabled="!rowIsCreated"
         @click="dispatchWorkflowActions"

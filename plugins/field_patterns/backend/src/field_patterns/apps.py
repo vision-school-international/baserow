@@ -8,7 +8,14 @@ class FieldPatternsConfig(AppConfig):
         # Same registration as core (contrib/database/apps.py).
         from baserow.contrib.database.fields.registries import field_type_registry
 
-        from .field_types import InternationalPhoneFieldType, PatternTextFieldType
+        from .field_types import (
+            InternationalPhoneFieldType,
+            PatternTextFieldType,
+            TelegramUsernameFieldType,
+            TimeOfDayFieldType,
+        )
 
         field_type_registry.register(PatternTextFieldType())
         field_type_registry.register(InternationalPhoneFieldType())
+        field_type_registry.register(TelegramUsernameFieldType())
+        field_type_registry.register(TimeOfDayFieldType())

@@ -71,6 +71,105 @@ def test_international_phone_stores_the_international_format(data_fixture):
 
 
 @pytest.mark.django_db
+def test_telegram_username_stores_at_name(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user, table, "telegram_username", name="Telegram"
+    )
+    name = f"field_{field.id}"
+
+    for typed in ["jane_doe", " @jane_doe ", "https://t.me/jane_doe", "t.me/jane_doe"]:
+        row = RowHandler().create_row(user, table, {name: typed})
+        assert getattr(row, name) == "@jane_doe"
+    # The documented limits: 5 to 32 characters.
+    assert getattr(RowHandler().create_row(user, table, {name: "abcde"}), name) == (
+        "@abcde"
+    )
+    empty = RowHandler().create_row(user, table, {name: ""})
+    assert getattr(empty, name) in ("", None)
+
+    for bad in ["abcd", "a" * 33, "jane-doe", "jane doe", "@", "+15555550100"]:
+        with pytest.raises(ValidationError, match="Enter a Telegram username"):
+            RowHandler().create_row(user, table, {name: bad})
+
+
+@pytest.mark.django_db
+def test_time_of_day_stores_24_hour_hh_mm(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user, table, "time_of_day", name="Start", time_format="12"
+    )
+    assert field.time_format == "12"
+    name = f"field_{field.id}"
+
+    for typed, stored in [
+        ("14:30", "14:30"),
+        ("9:05", "09:05"),
+        (" 2:30 pm ", "14:30"),
+        ("2PM", "14:00"),
+        ("12:00 a.m.", "00:00"),
+        ("12 pm", "12:00"),
+        ("14:30:00", "14:30"),
+    ]:
+        row = RowHandler().create_row(user, table, {name: typed})
+        assert getattr(row, name) == stored, typed
+    empty = RowHandler().create_row(user, table, {name: ""})
+    assert getattr(empty, name) in ("", None)
+
+    for bad in ["14", "24:00", "12:60", "13 pm", "9:5", "14:30:15", "noon"]:
+        with pytest.raises(ValidationError):
+            RowHandler().create_row(user, table, {name: bad})
+
+    with pytest.raises(ValidationError, match="isn't 24 or 12"):
+        FieldHandler().update_field(user, field, time_format="6")
+
+
+@pytest.mark.django_db
+def test_converted_text_field_drops_its_default(data_fixture):
+    # A text default survives the conversion (shared TextField column); new rows
+    # must not get it, or the check refuses every row created without the field.
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, text_default="TBD")
+    FieldHandler().update_field(user, field, new_type_name="telegram_username")
+
+    row = RowHandler().create_row(user, table, {})
+
+    assert getattr(row, f"field_{field.id}") in ("", None)
+
+
+@pytest.mark.django_db
+def test_agent_field_tools_create_telegram_username(table_ctx):
+    ctx, table = table_ctx
+
+    result = create_fields(
+        ctx, table.id, [FieldItemCreate(name="Telegram", type="telegram")]
+    )
+
+    (created,) = result["created_fields"]
+    assert created["type"] == "telegram_username"
+
+
+@pytest.mark.django_db
+def test_agent_field_tools_create_and_update_time_of_day(table_ctx):
+    ctx, table = table_ctx
+
+    result = create_fields(
+        ctx, table.id, [FieldItemCreate(name="Start", type="time", time_format="12")]
+    )
+
+    (created,) = result["created_fields"]
+    assert created["type"] == "time_of_day"
+    assert created["time_format"] == "12"
+
+    field = table.field_set.get(name="Start")
+    result = update_fields(ctx, [FieldItemUpdate(field_id=field.id, time_format="24")])
+    assert result["updated_fields"][0]["time_format"] == "24"
+
+
+@pytest.mark.django_db
 def test_international_phone_refuses_unknown_countries(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

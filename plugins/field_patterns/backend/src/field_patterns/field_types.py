@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.urls import include, path
 
 from rest_framework import serializers
@@ -9,11 +10,16 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from .models import (
     CASE_CHOICES,
     PATTERN_MAX_LENGTH,
+    TIME_FORMAT_CHOICES,
     InternationalPhoneField,
     PatternTextField,
+    TelegramUsernameField,
+    TimeOfDayField,
 )
 from .patterns import check_pattern, clean_value
 from .phones import COUNTRIES, check_country, clean_phone
+from .telegram import clean_telegram_username
+from .times import clean_time
 
 
 def _check_required_pattern(pattern):
@@ -23,7 +29,31 @@ def _check_required_pattern(pattern):
     check_pattern(pattern)
 
 
-class PatternTextFieldType(TextFieldType):
+class NoTextDefaultMixin:
+    """
+    Ignores `text_default`. A text field converted to one of these types keeps
+    its default (core TextField column), and core's TextFieldType would still give
+    it to new rows: unchecked in the database, or refused by the check, so every
+    new row failed.
+    """
+
+    def get_serializer_field(self, instance, **kwargs):
+        # Core spreads kwargs last (TextFieldType.get_serializer_field).
+        return super().get_serializer_field(instance, **{"default": None, **kwargs})
+
+    def get_model_field(self, instance, **kwargs):
+        # Core's TextFieldType.get_model_field without the default; it passes
+        # `default=` itself, so it can't be overridden through super().
+        return models.TextField(
+            default=None,
+            blank=True,
+            null=True,
+            db_index=instance.db_index,
+            **kwargs,
+        )
+
+
+class PatternTextFieldType(NoTextDefaultMixin, TextFieldType):
     """
     Single line text that must match the field's regular expression. The cells,
     filters and sorting are the core text ones.
@@ -103,7 +133,7 @@ class PatternTextFieldType(TextFieldType):
         return ""
 
 
-class InternationalPhoneFieldType(TextFieldType):
+class InternationalPhoneFieldType(NoTextDefaultMixin, TextFieldType):
     """
     A phone number of any country. Numbers typed without + and a country code are
     read as numbers of the field's default country. Valid numbers are stored in the
@@ -141,6 +171,75 @@ class InternationalPhoneFieldType(TextFieldType):
 
     def prepare_value_for_db(self, instance, value):
         return clean_phone(instance, value)
+
+    def random_value(self, instance, fake, cache):
+        return ""
+
+
+class TelegramUsernameFieldType(NoTextDefaultMixin, TextFieldType):
+    """
+    A Telegram username, stored as "@name" so the cells, filters and sorting are
+    the core text ones. Converting a field to this type keeps the existing values;
+    only new values are checked.
+    """
+
+    type = "telegram_username"
+    model_class = TelegramUsernameField
+    # No default value: a column default would skip the check.
+    allowed_fields = []
+    serializer_field_names = []
+
+    def get_compatible_filter_field_type(self, field):
+        return field_type_registry.get(TextFieldType.type)
+
+    def prepare_value_for_db(self, instance, value):
+        return clean_telegram_username(instance, value)
+
+    def random_value(self, instance, fake, cache):
+        return ""
+
+
+def _check_time_format(time_format):
+    if time_format not in dict(TIME_FORMAT_CHOICES):
+        raise ValidationError(f"'{time_format}' isn't 24 or 12.", code="invalid")
+
+
+class TimeOfDayFieldType(NoTextDefaultMixin, TextFieldType):
+    """
+    A time of day without a date, stored as 24 hour "HH:MM" text: it sorts in time
+    order, and the cells and filters are the core text ones. Converting a field to
+    this type keeps the existing values; only new values are checked.
+    """
+
+    type = "time_of_day"
+    model_class = TimeOfDayField
+    # No default value: a column default would skip the check.
+    allowed_fields = ["time_format"]
+    serializer_field_names = list(allowed_fields)
+    serializer_field_overrides = {
+        "time_format": serializers.ChoiceField(
+            choices=TIME_FORMAT_CHOICES,
+            required=False,
+            help_text="Show the time in the 24 hour (14:30) or 12 hour (2:30 PM) "
+            "clock. Values are always stored as 24 hour HH:MM.",
+        ),
+    }
+
+    # The serializer's choices only cover API requests (see PatternTextFieldType).
+    def before_create(
+        self, table, primary, allowed_field_values, order, user, field_kwargs
+    ):
+        _check_time_format(allowed_field_values.get("time_format", "24"))
+
+    def before_update(self, from_field, to_field_values, user, field_kwargs):
+        if "time_format" in to_field_values:
+            _check_time_format(to_field_values["time_format"])
+
+    def get_compatible_filter_field_type(self, field):
+        return field_type_registry.get(TextFieldType.type)
+
+    def prepare_value_for_db(self, instance, value):
+        return clean_time(instance, value)
 
     def random_value(self, instance, fake, cache):
         return ""

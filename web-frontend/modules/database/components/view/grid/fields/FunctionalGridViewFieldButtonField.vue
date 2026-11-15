@@ -23,6 +23,7 @@
         v-else-if="canClick"
         type="secondary"
         size="tiny"
+        :class="buttonClass"
         :loading="dispatching"
         @click="dispatchWorkflowActions"
       >

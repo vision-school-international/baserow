@@ -1,5 +1,10 @@
 import { defineNuxtPlugin } from '#imports'
-import { InternationalPhoneFieldType, PatternTextFieldType } from './fieldTypes'
+import {
+  InternationalPhoneFieldType,
+  PatternTextFieldType,
+  TelegramUsernameFieldType,
+  TimeOfDayFieldType,
+} from './fieldTypes'
 
 export default defineNuxtPlugin({
   name: 'field-patterns',
@@ -12,5 +17,7 @@ export default defineNuxtPlugin({
       'field',
       new InternationalPhoneFieldType({ app: nuxtApp })
     )
+    $registry.register('field', new TelegramUsernameFieldType({ app: nuxtApp }))
+    $registry.register('field', new TimeOfDayFieldType({ app: nuxtApp }))
   },
 })

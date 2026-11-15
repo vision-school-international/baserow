@@ -1050,6 +1050,49 @@ class ButtonField(Field):
         ).exists()
 
     # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
+    WORKFLOW_ACTION_CONTENT_TYPES_ANNOTATION = "workflow_action_content_types_annotated"
+
+    @property
+    def workflow_action_types(self) -> list[str]:
+        """
+        The types of the field's actions in the order they run, each once. A
+        cell styles its button from them, like a Telegram share button.
+        """
+
+        # Imported here: the workflow action modules import this module.
+        from baserow.contrib.database.workflow_actions.models import (
+            DatabaseWorkflowAction,
+        )
+        from baserow.contrib.database.workflow_actions.registries import (
+            database_workflow_action_type_registry,
+        )
+        from baserow.core.exceptions import InstanceTypeDoesNotExist
+
+        content_type_ids = getattr(
+            self, self.WORKFLOW_ACTION_CONTENT_TYPES_ANNOTATION, None
+        )
+        if content_type_ids is None:
+            content_type_ids = DatabaseWorkflowAction.objects.filter(
+                field_id=self.id
+            ).values_list("content_type_id", flat=True)
+
+        types = []
+        for content_type_id in content_type_ids:
+            model_class = ContentType.objects.get_for_id(content_type_id).model_class()
+            if model_class is None:
+                continue
+            try:
+                action_type = database_workflow_action_type_registry.get_by_model(
+                    model_class
+                ).type
+            except InstanceTypeDoesNotExist:
+                # A plugin that registered it was removed: nothing to style.
+                continue
+            if action_type not in types:
+                types.append(action_type)
+        return types
+
+    # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
     REQUIRES_RECONFIGURATION_ANNOTATION = "requires_reconfiguration_annotated"
 
     @property

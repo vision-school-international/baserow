@@ -69,6 +69,22 @@ export default {
     canClick() {
       return this.hasWorkflowActions && this.canDispatch
     },
+    /** The style of the first action that asks for one, like Telegram's. */
+    buttonClass() {
+      for (const type of this.field.workflow_action_types || []) {
+        if (!this.$registry.exists('databaseWorkflowActionType', type)) {
+          continue
+        }
+        const buttonClass = this.$registry.get(
+          'databaseWorkflowActionType',
+          type
+        ).buttonClass
+        if (buttonClass) {
+          return buttonClass
+        }
+      }
+      return null
+    },
     /** A disabled button fires no mouse events, so its wrapper shows this. */
     disabledReason() {
       return this.hasWorkflowActions && !this.canDispatch

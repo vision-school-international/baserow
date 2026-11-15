@@ -6,6 +6,9 @@ export default defineNuxtModule({
   setup(moduleOptions, nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
+    // Same as intercp-auth/module.js.
+    nuxt.options.css.push(resolve('./assets/scss/telegram-share-button.scss'))
+
     nuxt.hook('i18n:registerModule', (register) => {
       // Only English is shipped (AGENTS.md); other languages fall back to it.
       register({

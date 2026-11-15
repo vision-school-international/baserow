@@ -22,6 +22,7 @@
       type="secondary"
       :loading="dispatching"
       class="forced-pointer-events-auto"
+      :class="buttonClass"
       @mousedown.stop
       @click="dispatchWorkflowActions"
     >

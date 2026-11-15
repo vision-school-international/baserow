@@ -50,3 +50,30 @@ class InternationalPhoneField(TextField):
         help_text="The country of numbers typed without + and a country code, like "
         "'US'. If empty, every number must start with +.",
     )
+
+
+class TelegramUsernameField(TextField):
+    """
+    A Telegram username, stored as "@name". Empty values are allowed. Its own
+    model only so the field type registry can tell it apart from text.
+    """
+
+
+TIME_FORMAT_24 = "24"
+TIME_FORMAT_12 = "12"
+TIME_FORMAT_CHOICES = [(TIME_FORMAT_24, "24 hour"), (TIME_FORMAT_12, "12 hour")]
+
+
+class TimeOfDayField(TextField):
+    """
+    A time of day without a date, stored as 24 hour "HH:MM" text so it sorts in
+    time order. `time_format` only decides how it's shown. Empty values are
+    allowed.
+    """
+
+    time_format = models.CharField(
+        max_length=2,
+        choices=TIME_FORMAT_CHOICES,
+        default=TIME_FORMAT_24,
+        help_text="Show the time in the 24 hour (14:30) or 12 hour (2:30 PM) clock.",
+    )

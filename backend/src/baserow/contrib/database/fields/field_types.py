@@ -28,6 +28,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
+from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
@@ -9019,6 +9020,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         "has_workflow_actions",
         "requires_reconfiguration",
         "opens_new_tab",
+        "workflow_action_types",
     ]
     serializer_field_overrides = {
         "label": serializers.CharField(
@@ -9051,6 +9053,13 @@ class ButtonFieldType(ReadOnlyFieldType):
             "then opens the tab as the button is clicked, because a browser "
             "may block one opened after the click's request returns.",
         ),
+        "workflow_action_types": serializers.ListField(
+            child=serializers.CharField(),
+            required=False,
+            read_only=True,
+            help_text="The types of the field's actions in the order they run, "
+            "each once. The client styles the button from them.",
+        ),
     }
     api_exceptions_map = {
         ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
@@ -9072,6 +9081,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         "has_workflow_actions",
         "requires_reconfiguration",
         "opens_new_tab",
+        "workflow_action_types",
     ]
 
     def get_field_names(self, request_serializer, extra_params, **kwargs):
@@ -9145,6 +9155,11 @@ class ButtonFieldType(ReadOnlyFieldType):
                     OpenUrlWorkflowAction.objects.filter(
                         field_id=OuterRef("pk"), target="blank"
                     )
+                ),
+                ButtonField.WORKFLOW_ACTION_CONTENT_TYPES_ANNOTATION: ArraySubquery(
+                    DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
+                    .order_by("order", "id")
+                    .values("content_type_id")
                 ),
             }
         )

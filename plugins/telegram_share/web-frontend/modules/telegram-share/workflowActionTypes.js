@@ -2,9 +2,10 @@ import { OpenUrlWorkflowActionType } from '@baserow/modules/database/workflowAct
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 import TelegramSendWorkflowActionForm from './components/TelegramSendWorkflowActionForm.vue'
 
-// Telegram usernames are letters, digits and underscores, starting with a
-// letter (core.telegram.org/api/links, "Public username links").
-const USERNAME = /^[A-Za-z][A-Za-z0-9_]{3,31}$/
+// "Accepted characters: a-z (case-insensitive), 0-9 and underscores. Length:
+// 5-32 characters." (core.telegram.org/method/account.updateUsername). The same
+// rule as the Telegram username field (field_patterns/telegram.py).
+const USERNAME = /^[A-Za-z0-9_]{5,32}$/
 
 /**
  * The username in a cell, typed as "@name", "name" or a t.me link. Empty when
@@ -48,6 +49,11 @@ export class TelegramSendWorkflowActionType extends OpenUrlWorkflowActionType {
 
   get icon() {
     return 'iconoir-send'
+  }
+
+  // telegram-share-button.scss: Telegram's own Share button.
+  get buttonClass() {
+    return 'telegram-share-button'
   }
 
   getErrorMessage(workflowAction, applicationContext) {

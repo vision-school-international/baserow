@@ -1406,6 +1406,7 @@ def test_generating_a_schema_does_not_query_per_button_field(data_fixture):
             assert "has_workflow_actions" not in metadata
             assert "requires_reconfiguration" not in metadata
             assert "opens_new_tab" not in metadata
+            assert "workflow_action_types" not in metadata
         return len(captured)
 
     schema_queries(1)

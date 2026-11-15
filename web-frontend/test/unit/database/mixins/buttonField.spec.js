@@ -28,6 +28,32 @@ const actions = [
   { id: 2, type: 'open_url', position: 2 },
 ]
 
+describe('buttonField buttonClass', () => {
+  const types = {
+    open_url: { buttonClass: null },
+    telegram_send: { buttonClass: 'telegram-share-button' },
+  }
+  const ctx = (workflowActionTypes) => ({
+    field: { workflow_action_types: workflowActionTypes },
+    $registry: {
+      exists: (namespace, type) => type in types,
+      get: (namespace, type) => types[type],
+    },
+  })
+
+  test('takes the first action type that has a class', () => {
+    expect(
+      buttonField.computed.buttonClass.call(ctx(['open_url', 'telegram_send']))
+    ).toBe('telegram-share-button')
+  })
+
+  test('is null without one, or for a type no longer registered', () => {
+    expect(buttonField.computed.buttonClass.call(ctx(['open_url']))).toBe(null)
+    expect(buttonField.computed.buttonClass.call(ctx(['removed']))).toBe(null)
+    expect(buttonField.computed.buttonClass.call(ctx(undefined))).toBe(null)
+  })
+})
+
 describe('buttonField runClientActions', () => {
   test('captures whether each client action ran', async () => {
     const posthog = { capture: vi.fn() }

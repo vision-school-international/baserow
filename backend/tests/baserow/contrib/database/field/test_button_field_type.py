@@ -474,6 +474,38 @@ def test_button_field_reports_whether_it_opens_a_new_tab(
 
 
 @pytest.mark.django_db
+def test_button_field_reports_its_action_types_in_run_order(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+
+    item_url = reverse("api:database:fields:item", kwargs={"field_id": button_field.id})
+    response = api_client.get(item_url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.json()["workflow_action_types"] == []
+
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field, order=2
+    )
+    data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field, order=1
+    )
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field, order=3
+    )
+
+    item = api_client.get(item_url, HTTP_AUTHORIZATION=f"JWT {token}")
+    listing = api_client.get(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    expected = ["local_baserow_create_row", "open_url"]
+    assert item.json()["workflow_action_types"] == expected
+    [listed] = [f for f in listing.json() if f["id"] == button_field.id]
+    assert listed["workflow_action_types"] == expected
+
+
+@pytest.mark.django_db
 def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture):
     """
     `has_workflow_actions` is serialized for every button field, so it is
@@ -527,5 +559,11 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
         "Two": True,
         "Three": True,
         "Four": True,
+    }
+    assert {field["label"]: field["workflow_action_types"] for field in buttons} == {
+        "One": ["local_baserow_create_row"],
+        "Two": ["local_baserow_create_row", "open_url"],
+        "Three": ["local_baserow_create_row", "open_url"],
+        "Four": ["local_baserow_create_row", "open_url"],
     }
     assert four_button_queries == one_button_queries

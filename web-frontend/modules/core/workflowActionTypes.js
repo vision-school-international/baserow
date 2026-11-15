@@ -22,6 +22,14 @@ export class WorkflowActionType extends Registerable {
     return this.group.iconColor
   }
 
+  /**
+   * A class a button field's button takes when it runs this action, to look
+   * like the service it opens. The first action with one wins.
+   */
+  get buttonClass() {
+    return null
+  }
+
   get group() {
     return getCoreGroup(this.app)
   }

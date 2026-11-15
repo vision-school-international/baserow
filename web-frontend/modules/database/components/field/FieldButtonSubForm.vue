@@ -612,7 +612,13 @@ export default {
      * keeps what it has.
      */
     fieldValuesAfterSave() {
-      const values = { has_workflow_actions: this.serverActions.length > 0 }
+      const values = {
+        has_workflow_actions: this.serverActions.length > 0,
+        // As the backend reports them: each type once, in run order.
+        workflow_action_types: [
+          ...new Set(this.serverActions.map((action) => action.type)),
+        ],
+      }
       if (this.requiresReconfiguration !== null) {
         values.requires_reconfiguration = this.requiresReconfiguration
       }
