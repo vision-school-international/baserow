@@ -2191,10 +2191,18 @@ class PublicViewLinkRowFieldLookupView(APIView):
             queryset = queryset.filter(id__in=view_queryset)
 
         if search:
+            # Only the primary field, and the linked table's fields the form's
+            # owner chose to make searchable: nothing else may be probed.
+            search_field_ids = [primary_field.id]
+            chosen_ids = getattr(field_option, "link_row_search_field_ids", None)
+            if chosen_ids:
+                search_field_ids += table.field_set.filter(
+                    id__in=chosen_ids
+                ).values_list("id", flat=True)
             queryset = queryset.search_all_fields(
                 search,
                 search_mode=search_mode,
-                only_search_by_field_ids=[primary_field.id],
+                only_search_by_field_ids=search_field_ids,
             )
 
         paginator = PageNumberPagination(limit_page_size=settings.ROW_PAGE_SIZE_LIMIT)

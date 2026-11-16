@@ -42,7 +42,12 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatibleField,
     SelectOptionDoesNotBelongToField,
 )
-from baserow.contrib.database.fields.models import Field, FileField, SelectOption
+from baserow.contrib.database.fields.models import (
+    Field,
+    FileField,
+    LinkRowField,
+    SelectOption,
+)
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
@@ -659,6 +664,7 @@ class FormViewType(ViewType):
         "order",
         "field_component",
         "include_all_select_options",
+        "link_row_search_field_ids",
     ]
     serializer_mixins = [FormViewNotifyOnSubmitSerializerMixin]
     serializer_field_names = [
@@ -1264,6 +1270,7 @@ class FormViewType(ViewType):
                     "allowed_select_options": [
                         s.id for s in field_option.allowed_select_options.all()
                     ],
+                    "link_row_search_field_ids": field_option.link_row_search_field_ids,
                 }
             )
 
@@ -1338,6 +1345,13 @@ class FormViewType(ViewType):
                 field_option_copy["field_id"] = id_mapping["database_fields"][
                     field_option["field_id"]
                 ]
+                field_option_copy["link_row_search_field_ids"] = (
+                    self._import_link_row_search_field_ids(
+                        field_option.get("link_row_search_field_ids", []),
+                        field_option_copy["field_id"],
+                        id_mapping,
+                    )
+                )
                 field_option_object = FormViewFieldOptions.objects.create(
                     form_view=form_view, **field_option_copy
                 )
@@ -1404,6 +1418,29 @@ class FormViewType(ViewType):
             )
 
         return form_view
+
+    def _import_link_row_search_field_ids(
+        self, search_field_ids: List[int], new_field_id: int, id_mapping: Dict
+    ) -> List[int]:
+        """
+        Maps the ids of the linked table's fields a link row field also searches.
+        Duplicating one table only maps its own fields, but then the linked table is
+        unchanged, so an id that isn't mapped is kept if it's still one of its fields.
+        """
+
+        field_mapping = id_mapping["database_fields"]
+        mapped = [field_mapping[i] for i in search_field_ids if i in field_mapping]
+        unmapped = [i for i in search_field_ids if i not in field_mapping]
+        if unmapped:
+            link_row_table_id = (
+                LinkRowField.objects.filter(id=new_field_id)
+                .values_list("link_row_table_id", flat=True)
+                .first()
+            )
+            mapped += Field.objects.filter(
+                id__in=unmapped, table_id=link_row_table_id
+            ).values_list("id", flat=True)
+        return mapped
 
     def get_visible_field_options_in_order(self, form_view):
         return (

@@ -192,6 +192,7 @@ import { trueValues } from '@baserow/modules/core/utils/constants'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
+import FormViewFieldOptionsLinkRowSearchFields from '@baserow/modules/database/components/view/form/FormViewFieldOptionsLinkRowSearchFields'
 import FieldFormViewEditRowSubForm from '@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
 import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
@@ -1562,6 +1563,10 @@ export class LinkRowFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldLinkRow
+  }
+
+  getFormViewFieldOptionsComponent() {
+    return FormViewFieldOptionsLinkRowSearchFields
   }
 
   getGroupByComponent(field) {

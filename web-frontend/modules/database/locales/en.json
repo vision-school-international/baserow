@@ -962,7 +962,10 @@
     "showFieldAs": "Show field as",
     "noSelectOptions": "There are no select options available.",
     "noCollaboratorsAvailable": "There are no collaborators available.",
-    "cannotSumitValues": "This field is read-only and won't be displayed in the form."
+    "cannotSumitValues": "This field is read-only and won't be displayed in the form.",
+    "linkRowSearchFields": "Also search by",
+    "linkRowSearchFieldsHelper": "Visitors can find rows by these fields too, besides the primary field. Only the primary field is shown to them.",
+    "linkRowSearchFieldsPlaceholder": "Primary field only"
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",

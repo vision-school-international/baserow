@@ -50,6 +50,10 @@ class FormViewFieldOptionsSerializer(serializers.ModelSerializer):
         many=True,
         queryset=None,
     )
+    # Ids that aren't fields of the linked table are ignored by the search.
+    link_row_search_field_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, max_length=100
+    )
 
     class Meta:
         model = FormViewFieldOptions
@@ -66,6 +70,7 @@ class FormViewFieldOptionsSerializer(serializers.ModelSerializer):
             "field_component",
             "include_all_select_options",
             "allowed_select_options",
+            "link_row_search_field_ids",
         )
 
     def validate(self, data):

@@ -23,6 +23,7 @@ from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.utils.row_edit import generate_row_edit_token
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.models import (
     FormView,
     FormViewFieldOptions,
@@ -4468,3 +4469,99 @@ def test_edit_row_form_view_with_missing_user_file_is_a_client_error(
         "error": "ERROR_USER_FILE_DOES_NOT_EXIST",
         "detail": "The user files ['zzzzzzzz_yyyyyyyy.png'] do not exist.",
     }
+
+
+@pytest.mark.django_db
+def test_form_view_link_row_lookup_searches_the_chosen_fields(api_client, data_fixture):
+    database = data_fixture.create_database_application()
+    table = data_fixture.create_database_table(database=database)
+    people = data_fixture.create_database_table(database=database)
+    form = data_fixture.create_form_view(table=table, public=True)
+    participants = data_fixture.create_link_row_field(
+        table=table, link_row_table=people
+    )
+    code = data_fixture.create_text_field(table=people, primary=True)
+    first_name = data_fixture.create_text_field(table=people, name="First name")
+    other_table_field = data_fixture.create_text_field(table=table)
+    option = data_fixture.create_form_view_field_option(
+        form, participants, required=True, enabled=True
+    )
+    model = people.get_model()
+    jane = model.objects.create(
+        **{f"field_{code.id}": "P-1", f"field_{first_name.id}": "Jane"}
+    )
+    model.objects.create(**{f"field_{code.id}": "P-2", f"field_{first_name.id}": "Tom"})
+    url = reverse(
+        "api:database:views:link_row_field_lookup",
+        kwargs={"slug": form.slug, "field_id": participants.id},
+    )
+
+    # By default only the primary field is searched.
+    assert api_client.get(f"{url}?search=Jane").json()["count"] == 0
+
+    # An id of another table's field is ignored, not searched.
+    option.link_row_search_field_ids = [first_name.id, other_table_field.id]
+    option.save()
+    response = api_client.get(f"{url}?search=Jane")
+
+    assert response.status_code == HTTP_200_OK
+    results = response.json()["results"]
+    # The visitor still only sees the primary value.
+    assert results == [{"id": jane.id, "value": "P-1", "order": results[0]["order"]}]
+    assert api_client.get(f"{url}?search=P-2").json()["count"] == 1
+
+
+@pytest.mark.django_db
+def test_form_view_field_options_update_link_row_search_field_ids(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    people = data_fixture.create_database_table(database=table.database)
+    form = data_fixture.create_form_view(table=table)
+    participants = data_fixture.create_link_row_field(
+        table=table, link_row_table=people
+    )
+    first_name = data_fixture.create_text_field(table=people)
+
+    response = api_client.patch(
+        reverse("api:database:views:field_options", kwargs={"view_id": form.id}),
+        {
+            "field_options": {
+                participants.id: {"link_row_search_field_ids": [first_name.id]}
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["field_options"][str(participants.id)][
+        "link_row_search_field_ids"
+    ] == [first_name.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_duplicating_a_table_keeps_the_link_row_search_field_ids(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    people = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, primary=True)
+    data_fixture.create_text_field(table=people, primary=True)
+    first_name = data_fixture.create_text_field(table=people, name="First name")
+    participants = data_fixture.create_link_row_field(
+        table=table, link_row_table=people
+    )
+    form = data_fixture.create_form_view(table=table)
+    data_fixture.create_form_view_field_option(
+        form, participants, enabled=True, link_row_search_field_ids=[first_name.id]
+    )
+
+    duplicated = TableHandler().duplicate_table(user, table)
+
+    option = FormViewFieldOptions.objects.get(
+        form_view__table=duplicated, field__name=participants.name
+    )
+    # The linked table isn't duplicated, so the same field is still searched.
+    assert option.link_row_search_field_ids == [first_name.id]

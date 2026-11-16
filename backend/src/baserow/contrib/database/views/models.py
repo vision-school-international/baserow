@@ -900,6 +900,12 @@ class FormViewFieldOptions(HierarchicalModelMixin, models.Model):
         help_text="If `include_all_select_options` is True, then only these select "
         "options can be chosen.",
     )
+    link_row_search_field_ids = models.JSONField(
+        default=list,
+        db_default=[],
+        help_text="For a link row field: the ids of the linked table's fields that "
+        "the form's row search also matches, besides the primary field.",
+    )
     show_when_matching_conditions = models.BooleanField(
         default=False,
         help_text="Indicates whether this field is visible when the conditions are "

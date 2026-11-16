@@ -1406,6 +1406,7 @@ export class FormViewType extends ViewType {
           conditions: [],
           field_component: 'default',
           allowed_select_options: [],
+          link_row_search_field_ids: [],
         },
       },
       { root: true }
