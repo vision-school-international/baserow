@@ -38,3 +38,6 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/agent_tools
 COPY plugins/telegram_share/baserow_plugin_info.json /baserow/vsi-plugins/telegram_share/
 COPY plugins/telegram_share/backend /baserow/vsi-plugins/telegram_share/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/telegram_share
+COPY plugins/form_rows/baserow_plugin_info.json /baserow/vsi-plugins/form_rows/
+COPY plugins/form_rows/backend /baserow/vsi-plugins/form_rows/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/form_rows

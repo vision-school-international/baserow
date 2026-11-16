@@ -1,0 +1,133 @@
+// Variables only, no CSS (same import as premium's default.scss).
+@import '@baserow/modules/core/assets/scss/colors';
+
+.form-rows {
+  margin-bottom: 40px;
+}
+
+.form-rows__heading {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.form-rows__intro {
+  color: $palette-neutral-900;
+  margin-bottom: 12px;
+}
+
+.form-rows__empty,
+.form-rows__more {
+  color: $palette-neutral-900;
+  font-size: 13px;
+}
+
+.form-rows__more {
+  margin-top: 8px;
+}
+
+// About 8 rows, then it scrolls.
+.form-rows__scroll {
+  max-height: 380px;
+  overflow: auto;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.form-rows__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th {
+    position: sticky;
+    top: 0;
+    background: $palette-neutral-100;
+    text-align: left;
+    font-weight: 600;
+    padding: 8px;
+    white-space: nowrap;
+  }
+}
+
+.form-rows__cell,
+.form-rows__edit {
+  padding: 8px;
+  border-bottom: 1px solid $palette-neutral-200;
+  vertical-align: middle;
+}
+
+.form-rows__edit {
+  text-align: right;
+}
+
+.form-rows__label {
+  display: none;
+}
+
+.form-rows__chip {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 0 6px;
+  margin-right: 4px;
+  line-height: 20px;
+}
+
+// Phone: each row is a card of label and value lines.
+@media screen and (max-width: 600px) {
+  .form-rows__scroll {
+    max-height: 520px;
+    border-top: none;
+  }
+
+  .form-rows__table,
+  .form-rows__table tbody {
+    display: block;
+  }
+
+  .form-rows__table thead {
+    display: none;
+  }
+
+  .form-rows__row {
+    display: block;
+    border: 1px solid $palette-neutral-200;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+
+  .form-rows__cell,
+  .form-rows__edit {
+    display: flex;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: none;
+  }
+
+  .form-rows__label {
+    display: block;
+    flex: 0 0 40%;
+    color: $palette-neutral-900;
+  }
+
+  .form-rows__edit {
+    justify-content: flex-end;
+  }
+}
+
+.form-rows-settings {
+  padding: 20px;
+  margin: 20px 20px 0;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+}
+
+.form-rows-settings__warning {
+  margin-top: 8px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.form-rows-settings__preview {
+  margin: 20px 20px 0;
+}

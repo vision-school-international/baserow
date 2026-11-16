@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "form_rows"
+version = "0.1.0"
+description = "Form with existing rows: a form mode that lists a view's rows above the fields."
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

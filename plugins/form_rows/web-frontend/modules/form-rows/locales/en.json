@@ -1,0 +1,15 @@
+{
+  "formRows": {
+    "modeName": "Form with existing rows",
+    "modeDescription": "Lists a view's rows above the form, with an optional Edit button on each.",
+    "noRows": "No rows yet.",
+    "more": "+ {count} more",
+    "edit": "Edit",
+    "listView": "Rows from view",
+    "heading": "Heading",
+    "headingPlaceholder": "Existing entries",
+    "intro": "Line under the heading",
+    "allowEdit": "Show an Edit button on each row",
+    "allowEditWarning": "Anyone with this form's link can change any listed row. An \"Edit link\" field is added to the table and hidden in its grid views."
+  }
+}

@@ -225,7 +225,8 @@ def draw_card(card):
     draw = ImageDraw.Draw(image)
 
     # Navy under the cover too, for covers with transparent parts.
-    draw.rectangle((0, 0, WIDTH, BAND), fill=NAVY)
+    # Pillow's rectangle includes its end row: rows 0 to BAND - 1, like the cover.
+    draw.rectangle((0, 0, WIDTH - 1, BAND - 1), fill=NAVY)
     cover = _open_image(card.cover)
     if cover is not None:
         band = ImageOps.fit(cover, (WIDTH, BAND), centering=(0.5, 0.5))

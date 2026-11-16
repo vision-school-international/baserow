@@ -1,0 +1,8 @@
+{
+  "name": "form-rows",
+  "version": "0.1.0",
+  "description": "Form with existing rows: a form mode that lists a view's rows above the fields.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}
