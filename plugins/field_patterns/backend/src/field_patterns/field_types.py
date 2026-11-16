@@ -18,7 +18,9 @@ from .models import (
 )
 from .patterns import check_pattern, clean_value
 from .phones import COUNTRIES, check_country, clean_phone
+from .telegram import CONVERT_SQL as TELEGRAM_CONVERT_SQL
 from .telegram import clean_telegram_username
+from .times import CONVERT_SQL as TIME_CONVERT_SQL
 from .times import clean_time
 
 
@@ -179,8 +181,8 @@ class InternationalPhoneFieldType(NoTextDefaultMixin, TextFieldType):
 class TelegramUsernameFieldType(NoTextDefaultMixin, TextFieldType):
     """
     A Telegram username, stored as "@name" so the cells, filters and sorting are
-    the core text ones. Converting a field to this type keeps the existing values;
-    only new values are checked.
+    the core text ones. Converting a field to this type cleans the values it holds
+    the same way.
     """
 
     type = "telegram_username"
@@ -195,6 +197,16 @@ class TelegramUsernameFieldType(NoTextDefaultMixin, TextFieldType):
     def prepare_value_for_db(self, instance, value):
         return clean_telegram_username(instance, value)
 
+    # Converting a field to this type cleans the values it holds, like core's
+    # email and URL fields (TextFieldMatchingRegexFieldType): "name" and t.me
+    # links become "@name", and anything that isn't a username becomes ''.
+    def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
+        if connection.vendor == "postgresql":
+            return f"p_in = {TELEGRAM_CONVERT_SQL};"
+        return super().get_alter_column_prepare_new_value(
+            connection, from_field, to_field
+        )
+
     def random_value(self, instance, fake, cache):
         return ""
 
@@ -208,7 +220,7 @@ class TimeOfDayFieldType(NoTextDefaultMixin, TextFieldType):
     """
     A time of day without a date, stored as 24 hour "HH:MM" text: it sorts in time
     order, and the cells and filters are the core text ones. Converting a field to
-    this type keeps the existing values; only new values are checked.
+    this type cleans the values it holds the same way.
     """
 
     type = "time_of_day"
@@ -240,6 +252,15 @@ class TimeOfDayFieldType(NoTextDefaultMixin, TextFieldType):
 
     def prepare_value_for_db(self, instance, value):
         return clean_time(instance, value)
+
+    # Converting a field to this type cleans the values it holds: times become
+    # "HH:MM" and anything else becomes '', like TelegramUsernameFieldType.
+    def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
+        if connection.vendor == "postgresql":
+            return f"p_in = {TIME_CONVERT_SQL};"
+        return super().get_alter_column_prepare_new_value(
+            connection, from_field, to_field
+        )
 
     def random_value(self, instance, fake, cache):
         return ""

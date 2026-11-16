@@ -55,6 +55,10 @@ import {
   prefillField,
 } from '@baserow/modules/database/utils/form'
 import { matchSearchFilters } from '@baserow/modules/database/utils/view'
+import {
+  markdownToText,
+  shareCardMeta,
+} from '@baserow/modules/database/utils/shareCard'
 import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 
 definePageMeta({
@@ -244,6 +248,13 @@ const values = ref(data.value.values)
 
 useHead(() => ({
   title: title.value || 'Form',
+  meta: shareCardMeta(nuxtApp.$config, {
+    slug: route.params.slug,
+    // Without the query: prefill and edit_token values stay out of the card.
+    path: route.path,
+    title: title.value || 'Form',
+    description: markdownToText(description.value),
+  }),
   bodyAttrs: {
     class: ['background-white'],
   },

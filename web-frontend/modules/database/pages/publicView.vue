@@ -28,6 +28,7 @@ import ViewService from '@baserow/modules/database/services/view'
 import { PUBLIC_PLACEHOLDER_ENTITY_ID } from '@baserow/modules/database/utils/constants'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import { keyboardShortcutsToPriorityEventBus } from '@baserow/modules/core/utils/events'
+import { shareCardMeta } from '@baserow/modules/database/utils/shareCard'
 
 definePageMeta({
   middleware: ['settings'],
@@ -162,7 +163,14 @@ const table = computed(() => data.value?.table)
 const fields = computed(() => $store.getters['field/getAll'])
 const view = computed(() => $store.getters['view/getSelected'])
 
-useHead(() => ({ title: view.value?.name || 'View' }))
+useHead(() => ({
+  title: view.value?.name || 'View',
+  meta: shareCardMeta($config, {
+    slug: route.params.slug,
+    path: route.path,
+    title: view.value?.name || 'View',
+  }),
+}))
 
 let keydownEvent = null
 

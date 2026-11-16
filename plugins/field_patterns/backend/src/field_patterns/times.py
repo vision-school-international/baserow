@@ -3,13 +3,30 @@ import re
 from django.core.exceptions import ValidationError
 
 # "14:30", "9:05", "2:30 pm", "2pm", "12:00 a.m.", and "14:30:00" from a Postgres
-# time cast to text. Seconds are only accepted as :00: they aren't stored.
+# time cast to text. Seconds are only accepted as :00: they aren't stored. ASCII
+# digits only, like CONVERT_SQL and the browser's time.js.
 TIME = re.compile(
-    r"(?P<hour>\d{1,2})(?::(?P<minute>\d{2})(?::00)?)?"
+    r"(?P<hour>[0-9]{1,2})(?::(?P<minute>[0-9]{2})(?::00)?)?"
     r"(?:\s*(?P<half>[ap])\.?m\.?)?",
     re.IGNORECASE,
 )
 INVALID = "Enter a time like 14:30 or 2:30 PM."
+
+# The same rules in SQL, for the values a field converted to this type already
+# holds (TimeOfDayFieldType.get_alter_column_prepare_new_value). Like core's
+# email and URL fields, a value that isn't a time becomes ''. No "%": core runs
+# it with params (db/schema.py _alter_field), so the driver would read it.
+CONVERT_SQL = r"""(select case when p_in is null then null
+    when m is null or (m[2] is null and m[3] is null) then ''
+    when m[3] is not null and (m[1]::int < 1 or m[1]::int > 12) then ''
+    else (select case when h > 23 or mi > 59 then ''
+            else lpad(h::text, 2, '0') || ':' || lpad(mi::text, 2, '0') end
+          from (select case when m[3] is null then m[1]::int
+                  else mod(m[1]::int, 12) + case when lower(m[3]) = 'p' then 12 else 0 end
+                end as h, coalesce(m[2], '0')::int as mi) t)
+    end
+  from (select regexp_match(regexp_replace(p_in::text, '^\s+|\s+$', '', 'g'),
+    '^([0-9]{1,2})(?::([0-9]{2})(?::00)?)?(?:\s*([ap])\.?m\.?)?$', 'i') as m) s)"""
 
 
 def clean_time(field, value):

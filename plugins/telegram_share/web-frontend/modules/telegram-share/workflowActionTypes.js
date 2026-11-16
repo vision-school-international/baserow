@@ -17,7 +17,8 @@ export function telegramUsername(value) {
     .replace(/^(https?:\/\/)?(www\.)?(t|telegram)\.me\//i, '')
     .replace(/^@/, '')
     .split(/[/?#]/)[0]
-  return USERNAME.test(name) ? name : ''
+  // Digits only is a phone number, like field_patterns/telegram.py DIGITS.
+  return USERNAME.test(name) && !/^[0-9]+$/.test(name) ? name : ''
 }
 
 /**

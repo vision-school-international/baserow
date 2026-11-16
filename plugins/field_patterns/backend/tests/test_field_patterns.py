@@ -89,7 +89,15 @@ def test_telegram_username_stores_at_name(data_fixture):
     empty = RowHandler().create_row(user, table, {name: ""})
     assert getattr(empty, name) in ("", None)
 
-    for bad in ["abcd", "a" * 33, "jane-doe", "jane doe", "@", "+15555550100"]:
+    for bad in [
+        "abcd",
+        "a" * 33,
+        "jane-doe",
+        "jane doe",
+        "@",
+        "+15555550100",
+        "15555550100",
+    ]:
         with pytest.raises(ValidationError, match="Enter a Telegram username"):
             RowHandler().create_row(user, table, {name: bad})
 
@@ -138,6 +146,49 @@ def test_converted_text_field_drops_its_default(data_fixture):
     row = RowHandler().create_row(user, table, {})
 
     assert getattr(row, f"field_{field.id}") in ("", None)
+
+
+@pytest.mark.django_db
+def test_converting_a_text_field_cleans_its_values(data_fixture):
+    # The SQL in telegram.py / times.py CONVERT_SQL must agree with the cleaners.
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    cases = {
+        "telegram_username": [
+            (" @jane_doe ", "@jane_doe"),
+            ("https://t.me/Jane_Doe", "@Jane_Doe"),
+            ("jane_doe", "@jane_doe"),
+            ("15555550100", ""),
+            ("+15555550100", ""),
+            ("abcd", ""),
+            ("jane doe", ""),
+            ("", ""),
+            (None, None),
+        ],
+        "time_of_day": [
+            ("14:30", "14:30"),
+            (" 2:30 pm ", "14:30"),
+            ("12:00 a.m.", "00:00"),
+            ("14:30:00", "14:30"),
+            ("14", ""),
+            ("13 pm", ""),
+            ("24:00", ""),
+            ("noon", ""),
+            (None, None),
+        ],
+    }
+    for type_name, values in cases.items():
+        field = data_fixture.create_text_field(table=table, name=type_name)
+        name = f"field_{field.id}"
+        rows = [
+            RowHandler().create_row(user, table, {name: typed}) for typed, _ in values
+        ]
+
+        FieldHandler().update_field(user, field, new_type_name=type_name)
+
+        model = table.get_model()
+        for row, (typed, stored) in zip(rows, values):
+            assert getattr(model.objects.get(id=row.id), name) == stored, typed
 
 
 @pytest.mark.django_db

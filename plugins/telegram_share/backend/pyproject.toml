@@ -12,3 +12,7 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# The share card's font and logo (share_cards.py).
+[tool.setuptools.package-data]
+telegram_share = ["share_card_assets/*"]

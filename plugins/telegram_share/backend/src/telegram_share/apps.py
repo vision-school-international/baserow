@@ -9,9 +9,12 @@ class TelegramShareConfig(AppConfig):
         from baserow.contrib.database.workflow_actions.registries import (
             database_workflow_action_type_registry,
         )
+        from baserow.core.registries import plugin_registry
 
+        from .plugins import TelegramSharePlugin
         from .workflow_action_types import TelegramSendWorkflowActionType
 
         database_workflow_action_type_registry.register(
             TelegramSendWorkflowActionType()
         )
+        plugin_registry.register(TelegramSharePlugin())
