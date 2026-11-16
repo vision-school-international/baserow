@@ -56,6 +56,7 @@ def agent_workspace(data_fixture):
     table = data_fixture.create_database_table(database=database)
     data_fixture.create_text_field(table=table, name="Name", primary=True)
     amount = data_fixture.create_number_field(table=table, name="Amount")
+    view = data_fixture.create_grid_view(table=table)
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(automation=automation)
@@ -69,8 +70,10 @@ def agent_workspace(data_fixture):
         page=page,
         first=first,
         second=second,
+        database=database,
         table=table,
         amount=amount,
+        view=view,
         dashboard=dashboard,
         automation=automation,
         workflow=workflow,
@@ -117,6 +120,27 @@ TOOL_ARGUMENTS = {
     "list_workflows": lambda d: {"automation_id": d.automation.id},
     "publish_workflow": lambda d: {"workflow_id": d.workflow.id},
     "list_workflow_runs": lambda d: {"workflow_id": d.workflow.id},
+    "list_applications": lambda d: {},
+    "create_database": lambda d: {"name": "Ops data"},
+    "update_database": lambda d: {"database_id": d.database.id, "name": "Ops"},
+    "set_view_sorts": lambda d: {
+        "view_id": d.view.id,
+        "sorts": [{"field_id": d.amount.id, "order": "DESC"}],
+    },
+    "update_builder": lambda d: {"builder_id": d.builder.id, "name": "Site"},
+    "list_data_sources": lambda d: {"page_id": d.page.id},
+    "create_data_sources": lambda d: {
+        "page_id": d.page.id,
+        "data_sources": [
+            {"ref": "rows", "name": "Rows", "type": "list_rows", "table_id": d.table.id}
+        ],
+    },
+    "list_element_actions": lambda d: {"page_id": d.page.id},
+    "create_dashboard": lambda d: {"name": "Ops"},
+    "update_dashboard": lambda d: {"dashboard_id": d.dashboard.id, "name": "Ops"},
+    "create_automation": lambda d: {"name": "Ops"},
+    "update_automation": lambda d: {"automation_id": d.automation.id, "name": "Ops"},
+    "list_nodes": lambda d: {"workflow_id": d.workflow.id},
 }
 
 
