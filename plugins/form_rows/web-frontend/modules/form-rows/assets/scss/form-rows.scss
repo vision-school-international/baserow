@@ -72,8 +72,64 @@
   line-height: 20px;
 }
 
+.form-rows__tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.form-rows__search,
+.form-rows__sort-select select {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.form-rows__search {
+  width: 100%;
+}
+
+// Desktop sorts by clicking a column header.
+.form-rows__sort-select {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: $palette-neutral-900;
+
+  select {
+    flex: 1;
+  }
+}
+
+.form-rows__sort {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 4px;
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+  }
+}
+
 // Phone: each row is a card of label and value lines.
 @media screen and (max-width: 600px) {
+  .form-rows__sort-select {
+    display: flex;
+  }
+
+  .form-rows__search,
+  .form-rows__sort-select select {
+    height: 44px;
+    font-size: 14px;
+  }
+
   .form-rows__scroll {
     max-height: 520px;
     border-top: none;

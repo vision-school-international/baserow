@@ -10,6 +10,16 @@
     "headingPlaceholder": "Existing entries",
     "intro": "Line under the heading",
     "allowEdit": "Show an Edit button on each row",
+    "search": "Search rows",
+    "noMatches": "No rows match your search.",
+    "sortBy": "Sort by",
+    "viewOrder": "Default order",
+    "dateAsc": "{name}, earliest first",
+    "dateDesc": "{name}, latest first",
+    "numberAsc": "{name}, lowest first",
+    "numberDesc": "{name}, highest first",
+    "textAsc": "{name}, A to Z",
+    "textDesc": "{name}, Z to A",
     "allowEditWarning": "Anyone with this form's link can change any listed row. An \"Edit link\" field is added to the table and hidden in its grid views."
   }
 }
