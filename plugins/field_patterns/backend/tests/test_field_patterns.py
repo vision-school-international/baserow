@@ -82,15 +82,13 @@ def test_telegram_username_stores_at_name(data_fixture):
     for typed in ["jane_doe", " @jane_doe ", "https://t.me/jane_doe", "t.me/jane_doe"]:
         row = RowHandler().create_row(user, table, {name: typed})
         assert getattr(row, name) == "@jane_doe"
-    # The documented limits: 5 to 32 characters.
-    assert getattr(RowHandler().create_row(user, table, {name: "abcde"}), name) == (
-        "@abcde"
-    )
+    # 2 to 32 characters (owner's rule).
+    assert getattr(RowHandler().create_row(user, table, {name: "ab"}), name) == "@ab"
     empty = RowHandler().create_row(user, table, {name: ""})
     assert getattr(empty, name) in ("", None)
 
     for bad in [
-        "abcd",
+        "a",
         "a" * 33,
         "jane-doe",
         "jane doe",
@@ -160,7 +158,8 @@ def test_converting_a_text_field_cleans_its_values(data_fixture):
             ("jane_doe", "@jane_doe"),
             ("15555550100", ""),
             ("+15555550100", ""),
-            ("abcd", ""),
+            ("ab", "@ab"),
+            ("a", ""),
             ("jane doe", ""),
             ("", ""),
             (None, None),

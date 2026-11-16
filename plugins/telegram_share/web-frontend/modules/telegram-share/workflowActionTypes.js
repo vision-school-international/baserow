@@ -2,10 +2,9 @@ import { OpenUrlWorkflowActionType } from '@baserow/modules/database/workflowAct
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 import TelegramSendWorkflowActionForm from './components/TelegramSendWorkflowActionForm.vue'
 
-// "Accepted characters: a-z (case-insensitive), 0-9 and underscores. Length:
-// 5-32 characters." (core.telegram.org/method/account.updateUsername). The same
-// rule as the Telegram username field (field_patterns/telegram.py).
-const USERNAME = /^[A-Za-z0-9_]{5,32}$/
+// a-z, 0-9 and underscores, 2 to 32 characters: the same rule as the Telegram
+// username field (field_patterns/telegram.py).
+const USERNAME = /^[A-Za-z0-9_]{2,32}$/
 
 /**
  * The username in a cell, typed as "@name", "name" or a t.me link. Empty when
