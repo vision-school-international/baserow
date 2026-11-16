@@ -97,7 +97,11 @@ def update_settings(user, form, values):
         workspace=form.table.database.workspace,
         context=form,
     )
-    settings = get_settings(form)
+    # Two saves can arrive at once (typing, then clicking the view list): the
+    # second waits for the first's row instead of failing on a duplicate.
+    settings, _ = FormRowsSettings.objects.select_for_update().get_or_create(
+        form_view=form
+    )
 
     if "list_view_id" in values:
         view_id = values["list_view_id"]

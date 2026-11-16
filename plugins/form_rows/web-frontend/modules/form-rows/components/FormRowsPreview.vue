@@ -86,27 +86,47 @@ const listViews = computed(() =>
   )
 )
 
+// A response never overwrites the text boxes: the editor may be typing in one
+// while another setting's save comes back. Each box saves its own text on blur.
+function apply(data) {
+  const typed = settings.value
+    ? { heading: settings.value.heading, intro: settings.value.intro }
+    : {}
+  settings.value = { ...data, ...typed }
+}
+
+// Responses for a form the editor has since left are dropped.
 async function load() {
+  const viewId = props.view.id
   try {
-    const { data } = await FormRowsService($client).getSettings(props.view.id)
-    settings.value = data
+    const { data } = await FormRowsService($client).getSettings(viewId)
+    if (viewId === props.view.id) apply(data)
   } catch (error) {
-    notifyIf(error, 'view')
+    if (viewId === props.view.id) notifyIf(error, 'view')
   }
 }
 
 async function save(values) {
+  const viewId = props.view.id
   try {
     const { data } = await FormRowsService($client).updateSettings(
-      props.view.id,
+      viewId,
       values
     )
-    settings.value = data
+    if (viewId === props.view.id) apply(data)
   } catch (error) {
     notifyIf(error, 'view')
-    await load()
+    if (viewId === props.view.id) await load()
   }
 }
 
-watch(() => props.view.id, load, { immediate: true })
+watch(
+  () => props.view.id,
+  () => {
+    // Another form: its own text, not the last form's.
+    settings.value = null
+    load()
+  },
+  { immediate: true }
+)
 </script>
