@@ -128,6 +128,11 @@ TOOL_ARGUMENTS = {
         "sorts": [{"field_id": d.amount.id, "order": "DESC"}],
     },
     "update_builder": lambda d: {"builder_id": d.builder.id, "name": "Site"},
+    "get_theme": lambda d: {"builder_id": d.builder.id},
+    "update_theme": lambda d: {
+        "builder_id": d.builder.id,
+        "values": {"primary_color": "#123456ff", "custom_css": "h1 {}"},
+    },
     "list_data_sources": lambda d: {"page_id": d.page.id},
     "create_data_sources": lambda d: {
         "page_id": d.page.id,

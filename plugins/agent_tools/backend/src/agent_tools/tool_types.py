@@ -25,6 +25,7 @@ from baserow.contrib.database.mcp.table.tools import list_database_applications
 from baserow.contrib.database.tools import databases, view_config
 
 from .runs import list_workflow_runs
+from .theme import get_theme, update_theme
 
 
 def _tool(type_name, group, function, changes_data):
@@ -84,6 +85,8 @@ AGENT_TOOL_TYPES = [
     ),
     _tool("update_element_action", "builder", actions.update_element_action, True),
     _tool("set_theme", "builder", themes.set_theme, True),
+    _tool("get_theme", "builder", get_theme, False),
+    _tool("update_theme", "builder", update_theme, True),
     # Dashboards.
     _tool("list_dashboards", "dashboard", dashboards.list_dashboards, False),
     _tool("create_dashboard", "dashboard", dashboards.create_dashboard, True),
