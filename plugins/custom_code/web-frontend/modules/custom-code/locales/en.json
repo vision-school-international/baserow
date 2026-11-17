@@ -1,0 +1,24 @@
+{
+  "customCodeThemeConfigBlock": {
+    "label": "Custom code",
+    "css": "CSS",
+    "cssHelper": "Added to every page after the theme, so it can override any style. Shown in the preview.",
+    "cssPlaceholder": "h1 { letter-spacing: -0.02em; }",
+    "js": "JavaScript",
+    "jsHelper": "Runs once when the published site loads, not again when visitors move between its pages. It doesn't run in the preview.",
+    "jsPlaceholder": "console.log('Loaded')",
+    "assets": "External stylesheets and scripts",
+    "assetsHelper": "Loaded in this order, before the CSS and JavaScript above. Stylesheets are also loaded in the preview, scripts only on the published site. Drag to reorder.",
+    "urlPlaceholder": "https://",
+    "stylesheet": "Stylesheet",
+    "script": "Script",
+    "loadNormal": "Load normally",
+    "loadDefer": "Defer",
+    "loadAsync": "Async",
+    "crossoriginNone": "No crossorigin",
+    "crossoriginAnonymous": "Anonymous",
+    "crossoriginCredentials": "Use credentials",
+    "add": "Add stylesheet or script",
+    "remove": "Remove"
+  }
+}

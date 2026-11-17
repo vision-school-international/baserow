@@ -41,3 +41,6 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/telegram_sh
 COPY plugins/form_rows/baserow_plugin_info.json /baserow/vsi-plugins/form_rows/
 COPY plugins/form_rows/backend /baserow/vsi-plugins/form_rows/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/form_rows
+COPY plugins/custom_code/baserow_plugin_info.json /baserow/vsi-plugins/custom_code/
+COPY plugins/custom_code/backend /baserow/vsi-plugins/custom_code/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/custom_code

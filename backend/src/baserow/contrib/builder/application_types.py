@@ -565,8 +565,9 @@ class BuilderApplicationType(ApplicationType):
                 builder.login_page_id = login_page_id
                 builder.save()
 
+        # With the builder's cache, a theme block can report active content too.
         ThemeHandler().import_theme(
-            builder, serialized_theme, id_mapping, files_zip, storage
+            builder, serialized_theme, id_mapping, files_zip, storage, cache
         )
 
         return builder

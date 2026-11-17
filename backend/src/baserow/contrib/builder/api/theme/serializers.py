@@ -180,10 +180,17 @@ def get_combined_theme_config_blocks_serializer_class(
     )
 
 
-CombinedThemeConfigBlocksSerializer = (
-    get_combined_theme_config_blocks_serializer_class()
-)
+def __getattr__(name):
+    """
+    The combined serializers are built on first use instead of on import: the
+    builder imports this module while it's starting (ws/theme/signals.py), before
+    plugin apps have registered their theme config blocks.
+    """
 
-CombinedThemeConfigBlocksRequestSerializer = (
-    get_combined_theme_config_blocks_serializer_class(request_serializer=True)
-)
+    if name == "CombinedThemeConfigBlocksSerializer":
+        return get_combined_theme_config_blocks_serializer_class()
+    if name == "CombinedThemeConfigBlocksRequestSerializer":
+        return get_combined_theme_config_blocks_serializer_class(
+            request_serializer=True
+        )
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

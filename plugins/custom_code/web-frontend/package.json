@@ -1,0 +1,8 @@
+{
+  "name": "custom-code",
+  "version": "0.1.0",
+  "description": "Custom CSS and JavaScript for application builder sites.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}
