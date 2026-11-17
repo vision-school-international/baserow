@@ -44,3 +44,6 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/form_rows
 COPY plugins/custom_code/baserow_plugin_info.json /baserow/vsi-plugins/custom_code/
 COPY plugins/custom_code/backend /baserow/vsi-plugins/custom_code/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/custom_code
+COPY plugins/app_paths/baserow_plugin_info.json /baserow/vsi-plugins/app_paths/
+COPY plugins/app_paths/backend /baserow/vsi-plugins/app_paths/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/app_paths

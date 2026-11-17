@@ -14,7 +14,10 @@ const PublishedBuilderService = (client) => {
       })
     },
     fetchByDomain(domain) {
-      return client.get(`builder/domains/published/by_name/${domain}/`)
+      // Encoded: a domain name never needs it, so nothing else can reach the path.
+      return client.get(
+        `builder/domains/published/by_name/${encodeURIComponent(domain)}/`
+      )
     },
     fetchById(builderId) {
       return client.get(`builder/domains/published/by_id/${builderId}/`)

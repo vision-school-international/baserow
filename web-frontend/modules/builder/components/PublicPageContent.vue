@@ -322,7 +322,8 @@ const maybeRedirectUserToLoginPage = async () => {
       loginPage.path,
       'page',
       props.mode,
-      props.builder.id
+      props.builder.id,
+      props.builder.base_path
     )
 
     const currentPath = route.fullPath

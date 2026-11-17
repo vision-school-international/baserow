@@ -19,7 +19,7 @@
         >
           <Radio v-model="selectedDomainId" :value="domain.id">
             <span class="publish-action-modal__domain-name">{{
-              domain.domain_name
+              $registry.get('domain', domain.type).getDisplayName(domain)
             }}</span>
             <a
               v-if="domain.last_published"
@@ -216,10 +216,7 @@ export default {
       this.loading = false
     },
     getDomainUrl(domain) {
-      const url = new URL(this.$config.public.publicWebFrontendUrl)
-      return `${url.protocol}//${domain.domain_name}${
-        url.port ? `:${url.port}` : ''
-      }`
+      return this.$registry.get('domain', domain.type).getPublicUrl(domain)
     },
     copyDomainUrl(domain) {
       copyToClipboard(this.getDomainUrl(domain))

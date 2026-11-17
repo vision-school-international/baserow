@@ -4,7 +4,7 @@
       <div class="domain-card__header">
         <div>
           <div class="margin-bottom-1 domain-card__name">
-            {{ domain.domain_name }}
+            {{ $registry.get('domain', domain.type).getDisplayName(domain) }}
           </div>
           <a class="domain-card__detail-button-link" @click="toggle">
             {{ $t('domainCard.detailLabel')

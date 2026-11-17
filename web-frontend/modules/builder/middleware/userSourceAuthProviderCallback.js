@@ -12,6 +12,7 @@ import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewUserSourceCookieName,
 } from '@baserow/modules/builder/utils/preview'
+import { getPublishedLocation } from '@baserow/modules/builder/utils/urlResolution'
 import {
   setToken,
   userSourceCookieTokenName,
@@ -111,10 +112,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
     ? useResponseHeader('Referrer-Policy')
     : null
   try {
+    const location = getPublishedLocation(to, requestUrl.hostname)
+    if (!location.domain) {
+      throw new Error('Invalid published location.')
+    }
     const builder = await fetchPublicBuilder(nuxtApp.$client, {
       mode: to.meta.builderPageMode,
       builderId: to.params.builderId ? Number(to.params.builderId) : null,
-      domain: requestUrl.hostname,
+      domain: location.domain,
     })
     const callback = getAuthProviderCallback(
       callbackUrl,
@@ -135,7 +140,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
           cookieUrl: preview
             ? config.public.builderPreviewUrl
             : config.public.publicWebFrontendUrl,
-          path: preview ? getBuilderPreviewCookiePath(builder.id) : '/',
+          path: preview
+            ? getBuilderPreviewCookiePath(builder.id)
+            : location.basePath || '/',
         }
       )
     }

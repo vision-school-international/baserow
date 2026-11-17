@@ -1,0 +1,12 @@
+{
+  "name": "app_paths",
+  "version": "0.1.0",
+  "supported_baserow_versions": "2.4.2",
+  "plugin_api_version": "0.0.1-alpha",
+  "description": "App paths: publish application builder sites at a path of one shared address, such as apps.example.com/<slug>, instead of a domain each.",
+  "author": "Vision School International",
+  "author_url": "https://github.com/vision-school-international",
+  "url": "https://github.com/vision-school-international/baserow",
+  "license": "MIT",
+  "contact": "https://github.com/vision-school-international/baserow"
+}

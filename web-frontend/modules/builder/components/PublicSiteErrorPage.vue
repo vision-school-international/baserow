@@ -75,7 +75,8 @@ export default {
       return {
         name: this.routeName,
         params: {
-          builderId: this.$route.params.builderId,
+          // builderId for previews, appSlug for apps below a path (app_paths).
+          ...this.$route.params,
           pathMatch: '',
         },
         query: null,

@@ -108,14 +108,9 @@ export class BuilderApplicationType extends ApplicationType {
   getFrontendUrls(application) {
     const domains = this.app.$store.getters['domain/getDomains']
 
-    return [
-      ...domains.map((domain) => {
-        const url = new URL(this.app.$config.public.publicWebFrontendUrl)
-        return `${url.protocol}//${domain.domain_name}${
-          url.port ? `:${url.port}` : ''
-        }`
-      }),
-    ]
+    return domains.map((domain) =>
+      this.app.$registry.get('domain', domain.type).getPublicUrl(domain)
+    )
   }
 
   delete(application) {

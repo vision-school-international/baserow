@@ -101,7 +101,8 @@ export default function resolveElementUrl(
     resolvedUrl,
     element.navigation_type,
     editorMode,
-    builder.id
+    builder.id,
+    builder.base_path
   )
 }
 
@@ -112,13 +113,16 @@ export default function resolveElementUrl(
  * @param {String} navigationType An element's `navigation_type` (custom / page).
  * @param {String} editorMode A builder application's editor mode.
  * @param {Number} builderId The draft builder ID.
+ * @param {String} basePath The path a published builder is served under, if any
+ *  (see getPublishedLocation).
  * @returns {String} The resolved URL.
  */
 export function prefixInternalResolvedUrl(
   resolvedUrl,
   navigationType,
   editorMode,
-  builderId
+  builderId,
+  basePath = ''
 ) {
   // Only internal URLs rendered in preview mode need the preview route.
   // Page navigation is always internal, while custom navigation is internal only
@@ -133,17 +137,28 @@ export function prefixInternalResolvedUrl(
     return resolvedUrl
   }
 
-  return resolveBuilderUrl(resolvedUrl, editorMode, builderId)
+  return resolveBuilderUrl(resolvedUrl, editorMode, builderId, basePath)
 }
 
 /**
  * Translate a logical builder page path into the URL for its rendering mode.
- * Published URLs remain unchanged; preview URLs live below the builder-scoped
- * fixed route.
+ * Published URLs stay unchanged, or go below their base path when the builder
+ * is served under one; preview URLs live below the builder-scoped fixed route.
  */
-export function resolveBuilderUrl(logicalPagePath, mode, builderId) {
-  if (!logicalPagePath || mode !== 'preview') {
+export function resolveBuilderUrl(
+  logicalPagePath,
+  mode,
+  builderId,
+  basePath = ''
+) {
+  if (!logicalPagePath) {
     return logicalPagePath
+  }
+  if (mode !== 'preview') {
+    // "//host/x" is protocol-relative, so another site.
+    return basePath && !logicalPagePath.startsWith('//')
+      ? prefixPath(logicalPagePath, basePath)
+      : logicalPagePath
   }
 
   const previewPath = `${BUILDER_PREVIEW_PATH_PREFIX}/${builderId}`
@@ -161,3 +176,38 @@ export function resolveBuilderUrl(logicalPagePath, mode, builderId) {
     : `/${logicalPagePath}`
   return `${previewPath}${path}`
 }
+
+/**
+ * Puts a logical, root-relative path below `basePath` ("/app"). Callers pass
+ * logical paths only, so a page path that starts like the base path ("/app/x")
+ * is still prefixed.
+ */
+function prefixPath(path, basePath) {
+  return `${basePath}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
+/**
+ * Where a published builder is served: on its own domain, or, for a route with
+ * an `appSlug` param (the app_paths plugin), at /<appSlug> of a shared host
+ * whose domain is stored as "<appSlug>.<host>".
+ *
+ * @param {Object} route The current route.
+ * @param {String} hostname The request's hostname.
+ * @returns {{domain: String, basePath: String}} The domain name to fetch the
+ *  builder by, and the path its pages are below ('' for none).
+ */
+export function getPublishedLocation(route, hostname) {
+  const slug = route.params?.appSlug
+  if (slug === undefined) {
+    return { domain: hostname, basePath: '' }
+  }
+  // Only a slug the app_paths backend allows (PathDomainType.SLUG): anything
+  // else, like dots or decoded slashes, would reach the API path. `domain` is
+  // then null and the site isn't found.
+  return {
+    domain: APP_SLUG.test(slug) ? `${slug}.${hostname}` : null,
+    basePath: `/${slug}`,
+  }
+}
+
+const APP_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/

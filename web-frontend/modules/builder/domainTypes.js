@@ -20,6 +20,19 @@ export class DomainType extends Registerable {
   get options() {
     return []
   }
+
+  /** How the domain is shown in the editor. */
+  getDisplayName(domain) {
+    return domain.domain_name
+  }
+
+  /** The URL the domain's published site is visited at. */
+  getPublicUrl(domain) {
+    const url = new URL(this.app.$config.public.publicWebFrontendUrl)
+    return `${url.protocol}//${domain.domain_name}${
+      url.port ? `:${url.port}` : ''
+    }`
+  }
 }
 
 export class CustomDomainType extends DomainType {

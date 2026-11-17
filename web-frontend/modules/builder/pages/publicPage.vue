@@ -35,7 +35,10 @@ import {
 } from '@baserow/modules/core/utils/auth'
 import { useHead, useRequestURL, useRoute, useRuntimeConfig } from '#imports'
 import PublicPageContent from '../components/PublicPageContent.vue'
-import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
+import {
+  getPublishedLocation,
+  prefixInternalResolvedUrl,
+} from '@baserow/modules/builder/utils/urlResolution'
 import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewUserSourceAuthConfig,
@@ -47,7 +50,13 @@ const logOffAndReturnToLogin = async ({ builder, mode, store, isHomePage }) => {
     application: builder,
   })
   // Redirect to home page after logout
-  const homePath = prefixInternalResolvedUrl('/', 'page', mode, builder.id)
+  const homePath = prefixInternalResolvedUrl(
+    '/',
+    'page',
+    mode,
+    builder.id,
+    builder.base_path
+  )
   if (import.meta.client && isHomePage) {
     return reloadNuxtApp({ path: homePath, force: true })
   }
@@ -85,6 +94,8 @@ const { $registry, $i18n } = nuxtApp
 
 const requestUrl = useRequestURL()
 const requestHostname = requestUrl.hostname
+// The published builder's domain, and its base path when served below one.
+const location = getPublishedLocation(route, requestHostname)
 const routeBuilderId =
   props.builderId !== null
     ? Number(props.builderId)
@@ -126,16 +137,32 @@ const {
     let builder = store.getters['application/getSelected']
     let needPostBuilderLoading = false
 
-    if (!builder || (builderId && builderId !== builder.id)) {
+    if (
+      !builder ||
+      (builderId && builderId !== builder.id) ||
+      // Another app of the same shared host, or its bare root: a builder kept
+      // across them would get the other's login cookie path.
+      (builder.base_path || '') !== location.basePath
+    ) {
       try {
+        if (!location.domain) {
+          throw new Error('Invalid published location.')
+        }
         const { id: receivedBuilderId } = await store.dispatch(
           'publicBuilder/fetch',
-          { mode, builderId, domain: requestHostname }
+          { mode, builderId, domain: location.domain }
         )
         builder = await store.dispatch(
           'application/selectById',
           receivedBuilderId
         )
+        if (location.basePath) {
+          // Read by the URL resolution (prefixInternalResolvedUrl).
+          await store.dispatch('application/forceUpdate', {
+            application: builder,
+            data: { base_path: location.basePath },
+          })
+        }
       } catch (e) {
         if (
           e.response?.data?.error === 'ERROR_BUILDER_PREVIEW_SESSION_INVALID' ||
@@ -164,7 +191,10 @@ const {
               builder,
               config.public.builderPreviewUrl
             )
-          : null,
+          : location.basePath
+            ? // Apps sharing a host each keep their own login, like previews.
+              { cookieOptions: { path: location.basePath } }
+            : null,
     })
 
     let restoredAuthentication = false
@@ -180,7 +210,9 @@ const {
           : userSourceCookieTokenName,
         previewUserSourceCookie
           ? { path: getBuilderPreviewCookiePath(builder.id) }
-          : {}
+          : location.basePath
+            ? { path: location.basePath }
+            : {}
       )
 
       if (refreshToken) {

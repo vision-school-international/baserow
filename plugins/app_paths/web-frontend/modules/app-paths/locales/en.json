@@ -1,0 +1,12 @@
+{
+  "pathDomainType": {
+    "name": "Path",
+    "option": "Path of {host}"
+  },
+  "pathDomainForm": {
+    "slugLabel": "Path",
+    "slugHelper": "Published at {url}, with nothing to set up. Lowercase letters, numbers and dashes.",
+    "invalidSlug": "Use lowercase letters, numbers and dashes, without a dash at the start or end.",
+    "taken": "This path is already used by another site."
+  }
+}

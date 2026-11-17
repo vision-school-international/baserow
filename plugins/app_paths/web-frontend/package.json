@@ -1,0 +1,8 @@
+{
+  "name": "app-paths",
+  "version": "0.1.0",
+  "description": "Publish application builder sites at a path of one shared address.",
+  "license": "MIT",
+  "private": true,
+  "type": "module"
+}
