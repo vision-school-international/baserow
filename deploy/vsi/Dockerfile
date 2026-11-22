@@ -47,3 +47,6 @@ RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/custom_code
 COPY plugins/app_paths/baserow_plugin_info.json /baserow/vsi-plugins/app_paths/
 COPY plugins/app_paths/backend /baserow/vsi-plugins/app_paths/backend
 RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/app_paths
+COPY plugins/flight_tracker/baserow_plugin_info.json /baserow/vsi-plugins/flight_tracker/
+COPY plugins/flight_tracker/backend /baserow/vsi-plugins/flight_tracker/backend
+RUN /baserow/plugins/install_plugin.sh --folder /baserow/vsi-plugins/flight_tracker

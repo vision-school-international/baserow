@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flight_tracker"
+version = "0.1.0"
+description = "Flight field with live AirLabs status for Baserow."
+license = "MIT"
+requires-python = ">=3.14"
+# requests ships with Baserow (backend/pyproject.toml).
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

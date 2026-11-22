@@ -1,0 +1,23 @@
+// Variables only, no CSS (same import as custom-code.scss).
+@import '@baserow/modules/core/assets/scss/colors';
+
+.flight-tracker__status {
+  margin-left: 6px;
+  color: $palette-neutral-700;
+}
+
+.flight-tracker__details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  font-size: 13px;
+
+  dt {
+    color: $palette-neutral-700;
+  }
+
+  dd {
+    margin: 0;
+  }
+}

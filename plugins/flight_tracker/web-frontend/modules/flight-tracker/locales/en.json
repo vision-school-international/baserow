@@ -1,0 +1,24 @@
+{
+  "flightTracker": {
+    "fieldName": "Flight",
+    "placeholder": "AA6 or AAL6",
+    "invalid": "Use a flight number, like AA6 or AAL6.",
+    "refresh": "Update the status",
+    "refreshHelp": "Flight data comes from AirLabs and shows the next or current flight of each number. Each lookup counts against the AirLabs plan.",
+    "refreshView": "When the flight is viewed",
+    "refreshSchedule": "Every few minutes",
+    "notFound": "Flight not found",
+    "delay": "{minutes} min late",
+    "statusLabel": "Status",
+    "from": "From",
+    "to": "To",
+    "departs": "Departs (local)",
+    "arrives": "Arrives (local)",
+    "baggage": "Baggage",
+    "status": {
+      "scheduled": "Scheduled",
+      "en-route": "In the air",
+      "landed": "Landed"
+    }
+  }
+}
