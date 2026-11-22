@@ -14,7 +14,7 @@ from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 
 from .flight import refresh, view_max_age
-from .models import REFRESH_VIEW, FlightField
+from .models import REFRESH_VIEW, FlightField, FlightTrackerField
 
 MAX_ROWS = 200
 # AirLabs calls one view request may make, and how long it may spend on them;
@@ -73,3 +73,36 @@ class FlightStatusView(APIView):
             max_seconds=MAX_SECONDS,
         )
         return Response({"statuses": statuses, "error": error})
+
+
+class FlightTrackerRefreshView(APIView):
+    """
+    Asks for the flight data of the rows on screen of a flight tracker field. The
+    lookups run in the background (tasks.py fill_tracker) and the cells update
+    live. Fields set to refresh on a schedule only fill rows without data.
+    """
+
+    @map_exceptions(
+        {
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    @validate_query_parameters(RowIdsSerializer)
+    def post(self, request, field_id, query_params):
+        from .tasks import fill_tracker
+
+        field = FieldHandler().get_field(field_id, FlightTrackerField)
+        table = field.table
+        # Like FlightStatusView; get_field already skips trashed fields.
+        if table.trashed or table.database.trashed or table.database.workspace.trashed:
+            raise FieldDoesNotExist()
+        CoreHandler().check_permissions(
+            request.user,
+            ListRowsDatabaseTableOperationType.type,
+            workspace=table.database.workspace,
+            context=table,
+        )
+        row_ids = list(dict.fromkeys(map(int, query_params["row_ids"].split(","))))
+        fill_tracker.delay(field.id, row_ids[:MAX_ROWS])
+        return Response(status=202)

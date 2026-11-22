@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from baserow.contrib.database.fields.models import Field, TextField
@@ -46,3 +47,43 @@ class FlightStatus(models.Model):
                 fields=["field", "row_id"], name="flight_status_field_row"
             )
         ]
+
+
+MIN_INTERVAL_MINUTES = 5
+MAX_INTERVAL_MINUTES = 7 * 24 * 60
+
+
+class FlightTrackerField(Field):
+    """
+    Read-only JSON with the live AirLabs data of the flight number in another
+    field of the row (`flight_code_field`), for people and for apps (tracker.py
+    to_cell). Each row's last lookup is kept in FlightStatus.
+    """
+
+    flight_code_field = models.ForeignKey(
+        Field,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The field of the same table holding the flight number.",
+    )
+    flight_refresh = models.CharField(
+        max_length=8,
+        choices=REFRESH_CHOICES,
+        default=REFRESH_VIEW,
+        help_text="Look the flights up when they're viewed, or on a schedule.",
+    )
+    flight_interval_minutes = models.PositiveIntegerField(
+        default=30,
+        help_text="How old a row's flight data may get before it's looked up again.",
+    )
+    # Like ai_tables' ai_auto_update_user: who the updates are made as.
+    flight_tracker_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The user the flight data is written as: who set the field up.",
+    )

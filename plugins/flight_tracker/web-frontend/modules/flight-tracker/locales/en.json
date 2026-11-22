@@ -3,11 +3,11 @@
     "fieldName": "Flight",
     "placeholder": "AA6 or AAL6",
     "invalid": "Use a flight number, like AA6 or AAL6.",
-    "refresh": "Update the status",
+    "refresh": "Update the flights",
     "refreshHelp": "Flight data comes from AirLabs and shows the next or current flight of each number. Each lookup counts against the AirLabs plan.",
-    "refreshView": "When the flight is viewed",
-    "refreshSchedule": "Every few minutes",
-    "notFound": "Flight not found",
+    "refreshView": "When they're viewed",
+    "refreshSchedule": "On a schedule",
+    "notFound": "flight not found",
     "delay": "{minutes} min late",
     "statusLabel": "Status",
     "from": "From",
@@ -19,6 +19,30 @@
       "scheduled": "Scheduled",
       "en-route": "In the air",
       "landed": "Landed"
-    }
+    },
+    "trackerName": "Flight tracker",
+    "codeField": "Flight code field",
+    "codeFieldHelp": "The text field of this table holding each row's flight number, like AA6 or AAL6.",
+    "codeFieldRequired": "Choose the field holding the flight numbers.",
+    "interval": "Minutes between updates",
+    "intervalViewHelp": "A flight on screen is looked up again once its data is this old. Each lookup counts against the AirLabs plan.",
+    "intervalScheduleHelp": "Every flight in the table is looked up again this often, viewed or not. Each lookup counts against the AirLabs plan.",
+    "intervalInvalid": "Use {min} to {max} minutes.",
+    "notAFlight": "not a flight number",
+    "noData": "No flight data yet.",
+    "gate": "Gate",
+    "terminal": "Terminal",
+    "airline": "Airline",
+    "aircraft": "Aircraft",
+    "filterName": "flight status is",
+    "filter": {
+      "scheduled": "Scheduled",
+      "en-route": "In the air",
+      "landed": "Landed",
+      "not_found": "Flight not found",
+      "invalid_flight_number": "Not a flight number",
+      "none": "No data yet"
+    },
+    "docs": "Read only. The live AirLabs data of the flight number in the flight code field: status, airline, departure and arrival (airport, terminal, gate, scheduled, estimated and actual times in the airport's local time and UTC), or null. Keys are always present, null when unknown."
   }
 }

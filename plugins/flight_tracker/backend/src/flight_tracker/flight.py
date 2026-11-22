@@ -26,7 +26,8 @@ TIMEOUT_SECONDS = (3, 5)
 ICAO = re.compile(r"[A-Z]{3}\d{1,4}[A-Z]?")
 IATA = re.compile(r"[A-Z0-9]{2}\d{1,4}[A-Z]?")
 
-# What's kept of a lookup. Fields the AirLabs plan doesn't include are missing.
+# What the flight field (FlightField) keeps of a lookup; the tracker field keeps
+# more (tracker.py to_cell). Fields the AirLabs plan doesn't include are missing.
 KEPT_FIELDS = (
     "flight_iata",
     "flight_icao",
@@ -85,7 +86,7 @@ def clean_flight(value):
 
 def lookup(flight):
     """
-    The kept fields of the flight, or {"error": "not_found"}. Raises
+    The flight as AirLabs answers it, or {"error": "not_found"}. Raises
     FlightLookupError when AirLabs can't answer now (key, limits, network), so
     the last good status isn't overwritten.
     """
@@ -123,7 +124,7 @@ def lookup(flight):
     flight_data = body.get("response", body) if isinstance(body, dict) else None
     if not isinstance(flight_data, dict) or not flight_data:
         return {"error": "not_found"}
-    return {key: flight_data[key] for key in KEPT_FIELDS if key in flight_data}
+    return flight_data
 
 
 def serialize_status(status):
@@ -171,7 +172,8 @@ def refresh(field, flights_by_row, max_age=None, max_lookups=None, max_seconds=N
         if max_seconds is not None and time.monotonic() - started > max_seconds:
             break
         try:
-            results[flight] = lookup(flight)
+            data = lookup(flight)
+            results[flight] = {k: data[k] for k in (*KEPT_FIELDS, "error") if k in data}
         except FlightLookupError as exc:
             error = exc.code
             if exc.code in STOP_ERRORS:
