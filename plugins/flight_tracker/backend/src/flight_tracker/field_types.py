@@ -39,7 +39,7 @@ from .models import (
     FlightStatus,
     FlightTrackerField,
 )
-from .tracker import CODE_FIELD_TYPES, summary
+from .tracker import can_hold_flight_codes, summary
 
 
 def _check_refresh(value):
@@ -129,7 +129,8 @@ class FlightTrackerFieldType(ReadOnlyFieldType):
             required=False,
             allow_null=True,
             min_value=1,
-            help_text="The text field of the same table holding the flight number.",
+            help_text="The text or text formula field of the same table holding the "
+            "full flight code, like WN878.",
         ),
         "flight_refresh": serializers.ChoiceField(
             choices=REFRESH_CHOICES,
@@ -178,7 +179,7 @@ class FlightTrackerFieldType(ReadOnlyFieldType):
                 raise FieldNotInTable(
                     f"The field {code_field_id} is not in table {table.id}."
                 )
-            if code_field.get_type().type not in CODE_FIELD_TYPES:
+            if not can_hold_flight_codes(code_field):
                 raise IncompatibleField(
                     f"The field {code_field_id} can't hold flight numbers."
                 )
@@ -303,8 +304,10 @@ class FlightTrackerFieldType(ReadOnlyFieldType):
         return [FieldDependency(dependant=field_instance, dependency_id=code_field.id)]
 
     def _fill_rows_later(self, field, starting_row, via_path, context):
-        # Only this table's own rows: a changed flight number is looked up at once.
-        if context.depth != 0 or via_path:
+        # Only this table's own rows: a changed flight number is looked up at
+        # once. Any depth, so a formula code field (e.g. airline + number) that
+        # recalculates after its own inputs change counts too.
+        if via_path:
             return
         rows = starting_row if isinstance(starting_row, list) else [starting_row]
         from .tasks import fill_tracker

@@ -13,7 +13,8 @@ let timer = null
 const ASK_AGAIN_MS = 60 * 1000
 const MAX_ROWS = 200
 
-export const FLIGHT_REGEX = /^([A-Z]{3}|[A-Z0-9]{2})\d{1,4}[A-Z]?$/
+// flight.py ICAO / IATA: a bare number like 878 is no flight.
+export const FLIGHT_REGEX = /^([A-Z]{3}|[A-Z][A-Z0-9]|[0-9][A-Z])\d{1,4}[A-Z]?$/
 
 /** The cell's status, if it's for the flight the cell holds now. */
 export function getStatus(fieldId, rowId, flight) {

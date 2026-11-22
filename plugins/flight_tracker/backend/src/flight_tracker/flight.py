@@ -21,10 +21,11 @@ API_URL = "https://airlabs.co/api/v9/flight"
 # (connect, read): a slow AirLabs mustn't hold a web worker.
 TIMEOUT_SECONDS = (3, 5)
 
-# The ICAO airline code is 3 letters ("AAL6"); the IATA one is 2 letters or digits
-# ("AA6", "U21234"). Both are followed by a 1-4 digit number and maybe a letter.
+# The ICAO airline code is 3 letters ("AAL6"); the IATA one is 2 characters, at
+# most one a digit ("AA6", "F9123", "9W1"), so a bare number like "878" is no
+# flight. Both are followed by a 1-4 digit number and maybe a letter.
 ICAO = re.compile(r"[A-Z]{3}\d{1,4}[A-Z]?")
-IATA = re.compile(r"[A-Z0-9]{2}\d{1,4}[A-Z]?")
+IATA = re.compile(r"(?:[A-Z][A-Z0-9]|[0-9][A-Z])\d{1,4}[A-Z]?")
 
 # What the flight field (FlightField) keeps of a lookup; the tracker field keeps
 # more (tracker.py to_cell). Fields the AirLabs plan doesn't include are missing.

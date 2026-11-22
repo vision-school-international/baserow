@@ -163,6 +163,38 @@ def test_a_flight_changed_during_the_lookup_is_left_alone(data_fixture):
     assert cell is None or cell["flight"] != "AA6"
 
 
+@pytest.mark.django_db(transaction=True)
+@patch.object(flight, "API_KEY", "key")
+def test_a_text_formula_can_hold_the_codes(data_fixture):
+    # Like the owner's table: airline name + number, turned into WN878 by a formula.
+    cache.clear()
+    user, _ = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    airline = data_fixture.create_text_field(table=table, name="Airline")
+    number = data_fixture.create_text_field(table=table, name="Number")
+    code = FieldHandler().create_field(
+        user,
+        table,
+        "formula",
+        name="Code",
+        formula="concat(if(contains(lower(field('Airline')), 'southwest'), 'WN', "
+        "field('Airline')), field('Number'))",
+    )
+    tracker = FieldHandler().create_field(
+        user, table, "flight_tracker", name="Tracker", flight_code_field_id=code.id
+    )
+    row = RowHandler().create_row(
+        user, table, {f"field_{airline.id}": "Southwest", f"field_{number.id}": "878"}
+    )
+    with patch.object(
+        flight.requests, "get", return_value=FakeResponse({"response": AA6})
+    ) as get:
+        refresh_tracker(tracker, [row.id])
+    assert get.call_args.kwargs["params"]["flight_iata"] == "WN878"
+    row.refresh_from_db()
+    assert getattr(row, f"field_{tracker.id}")["flight"] == "WN878"
+
+
 @pytest.mark.django_db
 def test_tracker_cells_cant_be_set(data_fixture):
     user, _, table, code, tracker = _tracker(data_fixture)

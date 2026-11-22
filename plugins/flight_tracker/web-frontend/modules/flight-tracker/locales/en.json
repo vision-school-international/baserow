@@ -22,7 +22,7 @@
     },
     "trackerName": "Flight tracker",
     "codeField": "Flight code field",
-    "codeFieldHelp": "The text field of this table holding each row's flight number, like AA6 or AAL6.",
+    "codeFieldHelp": "The text or formula field of this table holding each row's full flight code: airline code and number, like WN878 or SWA878.",
     "codeFieldRequired": "Choose the field holding the flight numbers.",
     "interval": "Minutes between updates",
     "intervalViewHelp": "A flight on screen is looked up again once its data is this old. Each lookup counts against the AirLabs plan.",

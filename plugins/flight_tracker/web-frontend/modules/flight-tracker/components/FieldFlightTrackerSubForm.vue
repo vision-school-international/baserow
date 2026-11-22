@@ -73,7 +73,7 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 // flight_tracker/models.py MIN_INTERVAL_MINUTES and MAX_INTERVAL_MINUTES.
 const MIN = 5
 const MAX = 7 * 24 * 60
-// flight_tracker/field_types.py CODE_FIELD_TYPES.
+// flight_tracker/tracker.py CODE_FIELD_TYPES and can_hold_flight_codes.
 const CODE_FIELD_TYPES = ['text', 'long_text', 'flight', 'pattern_text']
 
 export default {
@@ -100,8 +100,11 @@ export default {
   },
   computed: {
     codeFields() {
-      return (this.allFieldsInTable || []).filter((field) =>
-        CODE_FIELD_TYPES.includes(field.type)
+      return (this.allFieldsInTable || []).filter(
+        (field) =>
+          CODE_FIELD_TYPES.includes(field.type) ||
+          // A formula giving text, like airline code + flight number.
+          (field.type === 'formula' && field.formula_type === 'text')
       )
     },
   },

@@ -33,7 +33,9 @@ def test_clean_flight():
     assert clean_flight("u21234") == "U21234"
     assert clean_flight("") == ""
     assert clean_flight(None) is None
-    for bad in ["A6", "AA", "AA12345", "AAAA6", "AA6!", "AA-6"]:
+    assert clean_flight("f9123") == "F9123" and clean_flight("9W1") == "9W1"
+    # A bare number is no flight: real IATA codes have at most one digit.
+    for bad in ["878", "1234", "12345", "A6", "AA", "AA12345", "AAAA6", "AA6!", "AA-6"]:
         with pytest.raises(ValidationError):
             clean_flight(bad)
 

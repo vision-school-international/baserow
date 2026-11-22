@@ -11,10 +11,27 @@ const t = (key, arg) =>
 
 describe('flight tracker', () => {
   test('flight numbers match the backend (flight.py ICAO/IATA)', () => {
-    for (const ok of ['AA6', 'AAL6', 'U21234', 'BA2490A']) {
+    for (const ok of [
+      'AA6',
+      'AAL6',
+      'U21234',
+      'BA2490A',
+      'F9123',
+      '9W1',
+      'WN878',
+    ]) {
       expect(FLIGHT_REGEX.test(ok)).toBe(true)
     }
-    for (const bad of ['A6', 'AA', 'AA12345', 'AAAA6', 'AA-6', 'aa6']) {
+    for (const bad of [
+      '878',
+      '1234',
+      'A6',
+      'AA',
+      'AA12345',
+      'AAAA6',
+      'AA-6',
+      'aa6',
+    ]) {
       expect(FLIGHT_REGEX.test(bad)).toBe(false)
     }
   })

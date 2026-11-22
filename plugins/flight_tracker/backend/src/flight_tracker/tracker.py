@@ -22,8 +22,19 @@ from .flight import IATA, ICAO, STOP_ERRORS, FlightLookupError, lookup
 from .models import FlightStatus
 
 SCHEMA_VERSION = 1
-# The types a flight number can be read from: their cells are plain text.
+# The types a flight number can be read from: their cells are plain text. Formula
+# fields too, when their result is text (can_hold_flight_codes).
 CODE_FIELD_TYPES = {"text", "long_text", "flight", "pattern_text"}
+
+
+def can_hold_flight_codes(field):
+    field = field.specific
+    field_type = field.get_type().type
+    return field_type in CODE_FIELD_TYPES or (
+        field_type == "formula" and getattr(field, "formula_type", None) == "text"
+    )
+
+
 # Rows written (and locked) in one transaction.
 WRITE_BATCH = 200
 
@@ -152,7 +163,7 @@ def refresh_tracker(
     if (
         code_field is None
         or code_field.trashed
-        or code_field.get_type().type not in CODE_FIELD_TYPES
+        or not can_hold_flight_codes(code_field)
     ):
         return None
     user = _may_write(field)
