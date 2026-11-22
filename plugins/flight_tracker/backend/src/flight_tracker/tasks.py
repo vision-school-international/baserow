@@ -1,6 +1,8 @@
+import uuid
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.cache import cache
 
 from loguru import logger
 
@@ -40,8 +42,12 @@ def refresh_scheduled_flights():
 # How often scheduled flight trackers are checked; each field's own interval
 # decides which of its rows are looked up again.
 TRACKER_TICK = timedelta(minutes=5)
-# How long a fill holds its field, so asks while it runs don't repeat lookups.
-LOCK_SECONDS = 60
+# AirLabs calls one ask from the rows on screen may make, and how long it may
+# spend on them; the rest wait for the next ask (like views.py MAX_LOOKUPS).
+ON_SCREEN_MAX_LOOKUPS = 20
+ON_SCREEN_MAX_SECONDS = 8
+# Longer than a run can take: 20 lookups of at most (3 + 5) seconds each.
+LOCK_SECONDS = 15 * 60
 
 
 def _tracker(field_id):
@@ -60,29 +66,49 @@ def _tracker(field_id):
     )
 
 
+class _Lock:
+    """A cache lock only its holder releases, so an expired lock that another
+    run took isn't deleted from under it."""
+
+    def __init__(self, key):
+        self.key, self.token = key, uuid.uuid4().hex
+
+    def __enter__(self):
+        return cache.add(self.key, self.token, LOCK_SECONDS)
+
+    def __exit__(self, *exc):
+        if cache.get(self.key) == self.token:
+            cache.delete(self.key)
+
+
 @app.task(queue="export")
-def fill_tracker(field_id: int, row_ids=None):
+def fill_tracker(field_id: int, row_ids=None, on_screen=False):
     """
     Fills a flight tracker field's cells (all rows, or `row_ids`): after it's set
-    up, when flight numbers change, and for the rows on screen.
+    up and when flight numbers change (never skipped), and for the rows on screen
+    (`on_screen`: bounded, and skipped while another one runs for the field).
     """
 
-    from django.core.cache import cache
-
+    from .models import REFRESH_VIEW
     from .tracker import refresh_tracker
 
     field = _tracker(field_id)
     if field is None:
         return
-    # Rows on screen are asked for again and again; one fill per field at once.
-    lock = f"flight_tracker_fill_{field_id}"
-    if row_ids is not None and not cache.add(lock, 1, LOCK_SECONDS):
-        return
-    try:
+    if not on_screen:
         refresh_tracker(field, row_ids)
-    finally:
-        if row_ids is not None:
-            cache.delete(lock)
+        return
+    with _Lock(f"flight_tracker_on_screen_{field_id}") as locked:
+        if locked:
+            refresh_tracker(
+                field,
+                row_ids,
+                max_lookups=ON_SCREEN_MAX_LOOKUPS,
+                max_seconds=ON_SCREEN_MAX_SECONDS,
+                # Scheduled trackers are kept fresh by the schedule; on screen
+                # they only fill new or changed flights.
+                include_stale=field.flight_refresh == REFRESH_VIEW,
+            )
 
 
 @app.task(queue="export")
@@ -93,17 +119,20 @@ def refresh_scheduled_trackers():
     from .models import REFRESH_SCHEDULE, FlightTrackerField
     from .tracker import refresh_tracker
 
-    field_ids = FlightTrackerField.objects.filter(
-        flight_refresh=REFRESH_SCHEDULE,
-        trashed=False,
-        table__trashed=False,
-        table__database__trashed=False,
-        table__database__workspace__trashed=False,
-    ).values_list("id", flat=True)
-    for field_id in field_ids:
-        field = _tracker(field_id)
-        if field is not None and refresh_tracker(field) in STOP_ERRORS:
-            return
+    with _Lock("flight_tracker_schedule") as locked:
+        if not locked:
+            return  # The last run is still going.
+        field_ids = FlightTrackerField.objects.filter(
+            flight_refresh=REFRESH_SCHEDULE,
+            trashed=False,
+            table__trashed=False,
+            table__database__trashed=False,
+            table__database__workspace__trashed=False,
+        ).values_list("id", flat=True)
+        for field_id in field_ids:
+            field = _tracker(field_id)
+            if field is not None and refresh_tracker(field) in STOP_ERRORS:
+                return
 
 
 @app.on_after_finalize.connect

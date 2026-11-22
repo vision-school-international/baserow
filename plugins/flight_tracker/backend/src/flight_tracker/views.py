@@ -78,8 +78,9 @@ class FlightStatusView(APIView):
 class FlightTrackerRefreshView(APIView):
     """
     Asks for the flight data of the rows on screen of a flight tracker field. The
-    lookups run in the background (tasks.py fill_tracker) and the cells update
-    live. Fields set to refresh on a schedule only fill rows without data.
+    lookups run in the background (tasks.py fill_tracker, bounded and one at a
+    time per field) and the cells update live. Fields set to refresh on a
+    schedule only fill new or changed flights here.
     """
 
     @map_exceptions(
@@ -104,5 +105,5 @@ class FlightTrackerRefreshView(APIView):
             context=table,
         )
         row_ids = list(dict.fromkeys(map(int, query_params["row_ids"].split(","))))
-        fill_tracker.delay(field.id, row_ids[:MAX_ROWS])
+        fill_tracker.delay(field.id, row_ids[:MAX_ROWS], on_screen=True)
         return Response(status=202)

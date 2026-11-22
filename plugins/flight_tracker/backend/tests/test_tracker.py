@@ -131,11 +131,36 @@ def test_tracker_fills_json_and_can_be_filtered(data_fixture):
     assert get.call_count == 0
 
     view = data_fixture.create_grid_view(table=table)
-    data_fixture.create_view_filter(
+    status_filter = data_fixture.create_view_filter(
         view=view, field=tracker, type="flight_status", value="landed"
     )
     ids = [r.id for r in ViewHandler().get_queryset(view)]
     assert ids == [rows[0].id, rows[1].id]
+    # "none": the empty cell (SQL null); not the error or the filled ones.
+    status_filter.value = "none"
+    status_filter.save()
+    assert [r.id for r in ViewHandler().get_queryset(view)] == [rows[3].id]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch.object(flight, "API_KEY", "key")
+def test_a_flight_changed_during_the_lookup_is_left_alone(data_fixture):
+    cache.clear()
+    user, _, table, code, tracker = _tracker(data_fixture)
+    row = RowHandler().create_row(user, table, {f"field_{code.id}": "AA6"})
+
+    def change_then_answer(*args, **kwargs):
+        # The user types another flight while AirLabs answers for AA6.
+        table.get_model().objects.filter(id=row.id).update(
+            **{f"field_{code.id}": "BA1"}
+        )
+        return FakeResponse({"response": AA6})
+
+    with patch.object(flight.requests, "get", side_effect=change_then_answer):
+        refresh_tracker(tracker, [row.id])
+    row.refresh_from_db()
+    cell = getattr(row, f"field_{tracker.id}")
+    assert cell is None or cell["flight"] != "AA6"
 
 
 @pytest.mark.django_db
@@ -194,7 +219,7 @@ def test_refresh_endpoint(api_client, data_fixture):
             f"{url}?row_ids=1,2,2", HTTP_AUTHORIZATION=f"JWT {token}"
         )
     assert response.status_code == HTTP_202_ACCEPTED
-    delay.assert_called_once_with(tracker.id, [1, 2])
+    delay.assert_called_once_with(tracker.id, [1, 2], on_screen=True)
 
     _, other_token = data_fixture.create_user_and_token()
     other = api_client.post(f"{url}?row_ids=1", HTTP_AUTHORIZATION=f"JWT {other_token}")

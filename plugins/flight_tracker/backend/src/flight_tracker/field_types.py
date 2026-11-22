@@ -2,7 +2,9 @@ import json
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import Value
 from django.db.models.fields.json import KeyTextTransform, KeyTransform
+from django.db.models.functions import Concat
 from django.urls import include, path
 
 from rest_framework import serializers
@@ -34,9 +36,10 @@ from .models import (
     REFRESH_CHOICES,
     REFRESH_VIEW,
     FlightField,
+    FlightStatus,
     FlightTrackerField,
 )
-from .tracker import summary
+from .tracker import CODE_FIELD_TYPES, summary
 
 
 def _check_refresh(value):
@@ -99,10 +102,6 @@ class FlightFieldType(TextFieldType):
 
     def random_value(self, instance, fake, cache):
         return ""
-
-
-# The types a flight number can be read from: their cells are plain text.
-CODE_FIELD_TYPES = {"text", "long_text", "flight", "pattern_text"}
 
 
 class FlightTrackerFieldType(ReadOnlyFieldType):
@@ -216,6 +215,10 @@ class FlightTrackerFieldType(ReadOnlyFieldType):
         before,
         to_field_kwargs,
     ):
+        if not isinstance(from_field, FlightTrackerField):
+            # Converted into a tracker: its cells are empty (get_alter_column_
+            # prepare_new_value), so lookups of an earlier tracker don't count.
+            FlightStatus.objects.filter(field=to_field).delete()
         self._fill_later(to_field)
 
     def get_model_field(self, instance, **kwargs):
@@ -242,6 +245,20 @@ class FlightTrackerFieldType(ReadOnlyFieldType):
     # keeps the JSON as text.
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         return "p_in = NULL;", {}
+
+    # Search the flight's details, not the JSON's keys ("gate", "arrival"), which
+    # every filled cell holds.
+    def get_search_expression(self, field, queryset):
+        column = field.db_column
+        parts = [
+            KeyTextTransform("flight", column),
+            KeyTextTransform("status", column),
+            KeyTextTransform("airline_name", column),
+            KeyTextTransform("airport_iata", KeyTransform("departure", column)),
+            KeyTextTransform("airport_iata", KeyTransform("arrival", column)),
+        ]
+        spaced = [p for part in parts for p in (part, Value(" "))][:-1]
+        return Concat(*spaced, output_field=models.TextField())
 
     def get_export_value(self, value, field_object, rich_value=False):
         if rich_value or value is None:

@@ -24,7 +24,9 @@ class FlightStatusViewFilterType(ViewFilterType):
         if value in ERRORS:
             return Q(**{f"{field_name}__error": value})
         if value == "none":
+            # `__status=None` matches JSON null; `__status__isnull` would only
+            # match a missing key, and to_cell always writes the key.
             return Q(**{f"{field_name}__isnull": True}) | Q(
-                **{f"{field_name}__status__isnull": True, f"{field_name}__error": None}
+                **{f"{field_name}__status": None, f"{field_name}__error": None}
             )
         return Q()

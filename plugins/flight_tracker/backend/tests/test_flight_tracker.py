@@ -41,9 +41,8 @@ def test_clean_flight():
 @patch.object(flight, "API_KEY", "key")
 def test_lookup_reads_the_answer_and_errors():
     with patch.object(flight.requests, "get", return_value=FakeResponse(AA6)) as get:
-        assert lookup("AA6") == {
-            k: AA6[k] for k in ("flight_iata", "status", "dep_iata")
-        }
+        # The whole answer: the tracker keeps more than the flight field.
+        assert lookup("AA6") == AA6
     assert get.call_args.kwargs["params"] == {"flight_iata": "AA6", "api_key": "key"}
 
     with patch.object(
@@ -109,6 +108,8 @@ def test_refresh_looks_each_flight_up_once_and_keeps_good_data(data_fixture):
         )
     assert get.call_count == 1 and error is None
     assert set(statuses) == {1, 2} and statuses[1]["status"] == "en-route"
+    # The flight field keeps only KEPT_FIELDS, not e.g. the aircraft hex.
+    assert "hex" not in statuses[1]
 
     # Fresh: no lookup. Stale with max_age: looked up, and a failure keeps the data.
     with patch.object(flight.requests, "get") as get:

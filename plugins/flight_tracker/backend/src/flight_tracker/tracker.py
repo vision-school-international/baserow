@@ -7,11 +7,11 @@ import re
 import time
 from datetime import UTC, datetime, timedelta
 
+from django.db import transaction
 from django.utils import timezone
 
 from loguru import logger
 
-from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.operations import (
     ListRowsDatabaseTableOperationType,
@@ -19,9 +19,13 @@ from baserow.contrib.database.table.operations import (
 from baserow.core.handler import CoreHandler
 
 from .flight import IATA, ICAO, STOP_ERRORS, FlightLookupError, lookup
-from .models import REFRESH_VIEW, FlightStatus
+from .models import FlightStatus
 
 SCHEMA_VERSION = 1
+# The types a flight number can be read from: their cells are plain text.
+CODE_FIELD_TYPES = {"text", "long_text", "flight", "pattern_text"}
+# Rows written (and locked) in one transaction.
+WRITE_BATCH = 200
 
 
 def flight_code(value):
@@ -131,17 +135,25 @@ def _may_write(field):
     return user
 
 
-def refresh_tracker(field, row_ids=None, max_lookups=None, max_seconds=None):
+def refresh_tracker(
+    field, row_ids=None, max_lookups=None, max_seconds=None, include_stale=True
+):
     """
     Fills the field's cells of `row_ids` (all rows if None): looks up flights
-    whose row has no data yet, whose flight number changed, or whose data is
-    older than the field's interval, and writes the cells whose JSON changed.
+    whose row has no data yet, whose flight number changed, or, with
+    `include_stale`, whose data is older than the field's interval, and writes
+    the cells whose JSON changed.
     Each flight number is looked up once. Returns the AirLabs error code that
     stopped the lookups, if any.
     """
 
     code_field = field.flight_code_field
-    if code_field is None or code_field.trashed:
+    # Checked again here: the code field may have been converted since.
+    if (
+        code_field is None
+        or code_field.trashed
+        or code_field.get_type().type not in CODE_FIELD_TYPES
+    ):
         return None
     user = _may_write(field)
     if user is None:
@@ -168,7 +180,9 @@ def refresh_tracker(field, row_ids=None, max_lookups=None, max_seconds=None):
     def is_due(row_id, code):
         status = statuses.get(row_id)
         return (
-            status is None or status.flight != code or status.fetched_at < now - max_age
+            status is None
+            or status.flight != code
+            or (include_stale and status.fetched_at < now - max_age)
         )
 
     codes = {row_id: flight_code(value) for row_id, value, _ in rows}
@@ -186,7 +200,8 @@ def refresh_tracker(field, row_ids=None, max_lookups=None, max_seconds=None):
             if exc.code in STOP_ERRORS:
                 break
 
-    updates = []
+    # row_id -> (flight number, new cell, looked up now, cell changed)
+    pending = {}
     for row_id, _, cell in rows:
         code = codes[row_id]
         if not code:
@@ -195,40 +210,58 @@ def refresh_tracker(field, row_ids=None, max_lookups=None, max_seconds=None):
             new = to_cell(code, {"error": "invalid_flight_number"})
         elif code in results:
             new = to_cell(code, results[code])
-            FlightStatus.objects.update_or_create(
-                field=field,
-                row_id=row_id,
-                defaults={"flight": code, "data": {}, "fetched_at": now},
-            )
         elif cell and cell.get("flight") == code:
             continue  # Not due, or AirLabs couldn't answer: the data stays.
         else:
             # A new flight number that couldn't be looked up yet.
             new = to_cell(code, {})
-        if new != cell:
-            updates.append({"id": row_id, f"field_{field.id}": new})
+        looked_up = code in results
+        if new != cell or looked_up:
+            pending[row_id] = (code, new, looked_up, new != cell)
 
-    if updates:
-        try:
-            # The value is managed here, so it's written past the read-only
-            # check, like data sync (rows/handler.py force_update_rows).
-            RowHandler().force_update_rows(
-                user, table, updates, model=model, values_already_prepared=True
-            )
-        except RowDoesNotExist as exc:
-            missing = set(exc.ids)
-            updates = [u for u in updates if u["id"] not in missing]
-            if updates:
-                RowHandler().force_update_rows(
-                    user, table, updates, model=model, values_already_prepared=True
-                )
+    # In batches, so a big table's rows aren't all locked while people edit.
+    items = list(pending.items())
+    for i in range(0, len(items), WRITE_BATCH):
+        _write(field, user, model, code_field, dict(items[i : i + WRITE_BATCH]), now)
     if error:
         logger.warning("Flight tracker {id}: AirLabs said {e}.", id=field.id, e=error)
     return error
 
 
-def is_view_refreshed(field):
-    return field.flight_refresh == REFRESH_VIEW
+def _write(field, user, model, code_field, pending, now):
+    """
+    Writes the cells and stamps the lookups in one transaction: force_update_rows
+    locks the rows (select_for_update), and a failed write leaves the rows due.
+    """
+
+    with transaction.atomic():
+        # Under the row locks: a row whose flight number changed during the
+        # lookups is left to the fill that change scheduled (field_types.py).
+        current = dict(
+            model.objects.select_for_update()
+            .filter(id__in=list(pending))
+            .values_list("id", code_field.db_column)
+        )
+        updates, stamped = [], []
+        for row_id, (code, new, looked_up, changed) in pending.items():
+            if row_id not in current or flight_code(current[row_id]) != code:
+                continue
+            if changed:
+                updates.append({"id": row_id, f"field_{field.id}": new})
+            if looked_up:
+                stamped.append((row_id, code))
+        if updates:
+            # The value is managed here, so it's written past the read-only
+            # check, like data sync (rows/handler.py force_update_rows).
+            RowHandler().force_update_rows(
+                user, field.table, updates, model=model, values_already_prepared=True
+            )
+        for row_id, code in stamped:
+            FlightStatus.objects.update_or_create(
+                field=field,
+                row_id=row_id,
+                defaults={"flight": code, "data": {}, "fetched_at": now},
+            )
 
 
 STATUS_NAMES = {"scheduled": "Scheduled", "en-route": "In the air", "landed": "Landed"}

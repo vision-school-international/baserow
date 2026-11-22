@@ -20,9 +20,10 @@ export default {
   },
   methods: {
     askTrackerFill() {
-      // Public views have no signed-in user (the endpoint needs one).
+      // Public views have no signed-in user (the endpoint needs one), and a
+      // row being created has a temporary id until it's saved.
       if (
-        this.row?.id &&
+        Number.isInteger(this.row?.id) &&
         this.field.flight_code_field_id &&
         this.$store?.getters['auth/isAuthenticated']
       ) {
